@@ -30,7 +30,6 @@
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
         }
 
-        /* --- УМЕНЬШЕННЫЕ КНОПКИ --- */
         .btn {
             position: absolute;
             width: 55px; height: 55px; border-radius: 50%;
@@ -47,7 +46,6 @@
             stroke-width: 3; stroke-linecap: round; stroke-linejoin: round;
         }
 
-        /* Расположение (компактнее) */
         #btnLeanBack    { bottom: 90px; left: 20px; }
         #btnLeanForward { bottom: 20px; left: 60px; }
         #btnGas         { bottom: 90px; right: 20px; }
@@ -113,13 +111,15 @@
     let groundY = canvas.height - 80; 
     let ground = Bodies.rectangle(startX, groundY + 50, 100000, 100, { isStatic: true });
 
-    // --- ФИЗИКА (КОЛЕСА СБЛИЖЕНЫ) ---
+    // --- ФИЗИКА ---
     const wheelRadius = 11; 
-    const wheelBase = 25; // Расстояние от центра до колеса (50px между ними)
+    const wheelBase = 21; 
     
     const wheelRear = Bodies.circle(startX - wheelBase, 100, wheelRadius, { density: 0.05, friction: 1 });
     const wheelFront = Bodies.circle(startX + wheelBase, 100, wheelRadius, { density: 0.05, friction: 1 });
-    const chassis = Bodies.rectangle(startX, 90, 60, 15, { density: 0.1, inertia: Infinity }); 
+    
+    // Убрали inertia: Infinity, чтобы рама могла наклоняться
+    const chassis = Bodies.rectangle(startX, 90, 60, 15, { density: 0.1 }); 
 
     const suspensionRear = Constraint.create({ 
         bodyA: wheelRear, pointB: { x: -wheelBase, y: 0 }, bodyB: chassis, 
@@ -212,20 +212,21 @@
     }
 
     function update() {
+        // СКОРОСТЬ СНИЖЕНА (0.08 вместо 0.2)
         if (window.isGas) { 
-            Body.setAngularVelocity(wheelRear, 0.2); 
-            Body.setAngularVelocity(wheelFront, 0.2); 
+            Body.setAngularVelocity(wheelRear, 0.08); 
+            Body.setAngularVelocity(wheelFront, 0.08); 
         }
         if (window.isBrake) { 
             Body.setAngularVelocity(wheelRear, 0); 
             Body.setAngularVelocity(wheelFront, 0); 
         }
         
+        // РАБОЧИЕ НАКЛОНЫ (Применяем угловую скорость к раме)
         if (window.isLeanBack) {
-            Body.applyForce(chassis, chassis.position, { x: 0, y: -0.003 });
-        }
-        if (window.isLeanForward) {
-            Body.applyForce(chassis, chassis.position, { x: 0, y: 0.003 });
+            Body.setAngularVelocity(chassis, -0.05); // Наклон назад (вилли)
+        } else if (window.isLeanForward) {
+            Body.setAngularVelocity(chassis, 0.05); // Наклон вперед
         }
 
         let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
@@ -262,14 +263,13 @@
         drawMountainLayer(60, 100, '#1e1129', cameraX * 0.5);
         drawTerrain();
 
-        // --- МОТОЦИКЛ (ПРИПОДНЯТ) ---
+        // --- МОТОЦИКЛ ---
         ctx.save();
         ctx.translate(chassis.position.x, chassis.position.y);
         ctx.rotate(chassis.angle);
         
         if (isImageLoaded) {
-            // Y-сдвиг изменен с -35 на -45, чтобы мотоцикл поднялся над колесами
-            ctx.drawImage(bikeImage, -45, -45, 90, 54); 
+            ctx.drawImage(bikeImage, -45, -42, 90, 54); 
         }
         ctx.restore();
 
