@@ -30,7 +30,6 @@
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
         }
 
-        /* --- КНОПКИ СТРОГО ПО ДИАГОНАЛИ --- */
         .btn {
             position: absolute;
             width: 70px; height: 70px; border-radius: 50%;
@@ -47,12 +46,10 @@
             stroke-width: 3; stroke-linecap: round; stroke-linejoin: round;
         }
 
-        /* Расположение кнопок (лесенкой) */
-        #btnLeanBack    { bottom: 120px; left: 25px; }  /* Левая верхняя */
-        #btnLeanForward { bottom: 30px;  left: 80px; }  /* Левая нижняя */
-        
-        #btnGas         { bottom: 120px; right: 25px; } /* Правая верхняя */
-        #btnBrake       { bottom: 30px;  right: 80px; } /* Правая нижняя */
+        #btnLeanBack    { bottom: 120px; left: 25px; }
+        #btnLeanForward { bottom: 30px;  left: 80px; }
+        #btnGas         { bottom: 120px; right: 25px; }
+        #btnBrake       { bottom: 30px;  right: 80px; }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 </head>
@@ -66,7 +63,6 @@
         <div class="score"><span id="distanceText">0</span> m</div>
     </div>
 
-    <!-- Кнопки -->
     <div class="btn" id="btnLeanBack">
         <svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>
     </div>
@@ -115,13 +111,14 @@
     let groundY = canvas.height - 80; 
     let ground = Bodies.rectangle(startX, groundY + 50, 100000, 100, { isStatic: true });
 
-    // --- ФИЗИКА (МАЛЕНЬКИЕ КОЛЕСА, КОРОТКАЯ БАЗА) ---
-    const wheelRadius = 11; // Тонкие, аккуратные колеса
-    const wheelBase = 30;   // Расстояние от центра рамы до колеса (всего 60px между ними)
+    // --- ФИЗИКА (КОЛЕСА СБЛИЖЕНЫ ЕЩЕ БОЛЬШЕ) ---
+    const wheelRadius = 11; 
+    const wheelBase = 24; // Расстояние сокращено до 24 (48px между колесами)
     
     const wheelRear = Bodies.circle(startX - wheelBase, 100, wheelRadius, { density: 0.05, friction: 1 });
     const wheelFront = Bodies.circle(startX + wheelBase, 100, wheelRadius, { density: 0.05, friction: 1 });
-    const chassis = Bodies.rectangle(startX, 90, 70, 15, { density: 0.1, inertia: Infinity }); 
+    // Рама стала компактнее, чтобы соответствовать колесам
+    const chassis = Bodies.rectangle(startX, 90, 60, 15, { density: 0.1, inertia: Infinity }); 
 
     const suspensionRear = Constraint.create({ 
         bodyA: wheelRear, pointB: { x: -wheelBase, y: 0 }, bodyB: chassis, 
@@ -205,21 +202,17 @@
         }
     }
 
-    // --- ТОНКИЕ КОЛЕСА (БЕЗ АВТОМОБИЛЬНОГО ДИСКА) ---
     function drawWheel(wheel) {
         ctx.save();
         ctx.translate(wheel.position.x, wheel.position.y);
         ctx.rotate(wheel.angle);
         
-        // Черная шина
         ctx.fillStyle = '#000'; 
         ctx.beginPath(); ctx.arc(0, 0, wheelRadius, 0, Math.PI * 2); ctx.fill();
 
-        // Тонкий темный обод
         ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.arc(0, 0, wheelRadius - 2, 0, Math.PI * 2); ctx.stroke();
 
-        // Тонкие спицы (крестик)
         ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
         for (let i = 0; i < 4; i++) {
             let angle = (i / 4) * Math.PI * 2;
@@ -282,14 +275,14 @@
         drawMountainLayer(60, 100, '#1e1129', cameraX * 0.5);
         drawTerrain();
 
-        // --- МОТОЦИКЛ (ОРИГИНАЛЬНЫЙ РАЗМЕР, БЕЗ РАСТЯГИВАНИЯ) ---
+        // --- МОТОЦИКЛ (ИДЕАЛЬНО ПОДОГНАН ПОД КОЛЕСА) ---
         ctx.save();
         ctx.translate(chassis.position.x, chassis.position.y);
         ctx.rotate(chassis.angle);
         
         if (isImageLoaded) {
-            // Размер 90x54 (оригинальные пропорции)
-            ctx.drawImage(bikeImage, -45, -35, 90, 54); 
+            // Ширина 85, высота 51. Центрируем ровно над осями колес.
+            ctx.drawImage(bikeImage, -42.5, -33, 85, 51); 
         }
         ctx.restore();
 
