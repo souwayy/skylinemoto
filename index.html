@@ -35,34 +35,22 @@
     const world = engine.world;
     engine.gravity.y = 1; 
 
-    // --- ЗЕМЛЯ ---
+    // --- ЗЕМЛЯ (Очень длинная) ---
     let groundY = canvas.height - 80; 
-    let ground = Bodies.rectangle(canvas.width / 2, groundY + 50, canvas.width * 5, 100, { isStatic: true });
+    // Делаем землю длиной 100 000 пикселей, чтобы она не заканчивалась
+    let ground = Bodies.rectangle(50000, groundY + 50, 100000, 100, { isStatic: true });
 
-    // --- СОЗДАЕМ МОТОЦИКЛ ---
+    // --- МОТОЦИКЛ ---
     const wheelRadius = 20;
-    
-    // Заднее колесо
-    const wheelRear = Bodies.circle(canvas.width / 2 - 40, 100, wheelRadius, { 
-        density: 0.05, friction: 1 
-    });
-    // Переднее колесо
-    const wheelFront = Bodies.circle(canvas.width / 2 + 40, 100, wheelRadius, { 
-        density: 0.05, friction: 1 
-    });
-    // Рама
-    const chassis = Bodies.rectangle(canvas.width / 2, 90, 80, 20, { 
-        density: 0.1 
-    });
+    const wheelRear = Bodies.circle(canvas.width / 2 - 40, 100, wheelRadius, { density: 0.05, friction: 1 });
+    const wheelFront = Bodies.circle(canvas.width / 2 + 40, 100, wheelRadius, { density: 0.05, friction: 1 });
+    const chassis = Bodies.rectangle(canvas.width / 2, 90, 80, 20, { density: 0.1 });
 
-    // Подвеска
     const suspensionRear = Constraint.create({
-        bodyA: wheelRear, pointB: { x: -40, y: 0 }, bodyB: chassis,
-        stiffness: 0.1, damping: 0.1
+        bodyA: wheelRear, pointB: { x: -40, y: 0 }, bodyB: chassis, stiffness: 0.1, damping: 0.1
     });
     const suspensionFront = Constraint.create({
-        bodyA: wheelFront, pointB: { x: 40, y: 0 }, bodyB: chassis,
-        stiffness: 0.1, damping: 0.1
+        bodyA: wheelFront, pointB: { x: 40, y: 0 }, bodyB: chassis, stiffness: 0.1, damping: 0.1
     });
 
     const moto = Composite.create({
@@ -87,17 +75,19 @@
         isBrake = false;
     });
 
-    // --- ОТРИСОВКА ---
-    let offset1 = 0, offset2 = 0, offset3 = 0;
+    // --- КАМЕРА ---
+    let cameraX = 0; // Позиция камеры в мире
 
-    function drawMountainLayer(yOffset, height, color, offset) {
+    function drawMountainLayer(yOffset, height, color, cameraOffset) {
         ctx.fillStyle = color;
         ctx.beginPath();
         ctx.moveTo(0, canvas.height);
         for (let x = 0; x <= canvas.width; x += 10) {
+            // Используем cameraOffset для движения гор
+            let worldX = x + cameraOffset;
             let y = canvas.height - yOffset 
-                    - Math.sin((x + offset) * 0.005) * height 
-                    - Math.cos((x + offset) * 0.01) * (height / 2);
+                    - Math.sin(worldX * 0.005) * height 
+                    - Math.cos(worldX * 0.01) * (height / 2);
             ctx.lineTo(x, y);
         }
         ctx.lineTo(canvas.width, canvas.height);
@@ -105,13 +95,12 @@
         ctx.fill();
     }
 
-    // --- УПРОЩЕННАЯ ЗЕМЛЯ (РОВНАЯ) ---
-    function drawTerrain(offset) {
+    function drawTerrain(cameraOffset) {
         ctx.fillStyle = '#000000'; 
         ctx.beginPath();
         ctx.moveTo(0, canvas.height);
         
-        // Рисуем ровную линию на уровне физической земли
+        // Рисуем ровную землю
         ctx.lineTo(0, canvas.height - 80);
         ctx.lineTo(canvas.width, canvas.height - 80);
         
@@ -119,18 +108,19 @@
         ctx.closePath();
         ctx.fill();
 
-        // Добавляем траву на ровной поверхности
+        // Трава (привязана к камере)
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 2;
         ctx.lineCap = 'round';
         for (let x = 0; x <= canvas.width; x += 20) {
-            let patch = Math.sin((x + offset) * 0.03); 
+            let worldX = x + cameraOffset;
+            let patch = Math.sin(worldX * 0.03); 
             if (patch > 0.6) {
-                let y = canvas.height - 80; // Ровная линия
+                let y = canvas.height - 80; 
                 for (let i = 0; i < 3; i++) {
                     let startX = x + (i * 4) - 4;
-                    let lean = Math.sin((x + offset) * 0.1 + i) * 6;
-                    let height = 6 + Math.cos((x + offset) * 0.2 + i) * 4;
+                    let lean = Math.sin(worldX * 0.1 + i) * 6;
+                    let height = 6 + Math.cos(worldX * 0.2 + i) * 4;
                     ctx.beginPath();
                     ctx.moveTo(startX, y + 2);
                     ctx.lineTo(startX + lean, y - height);
@@ -142,7 +132,8 @@
 
     function drawWheel(wheel) {
         ctx.save();
-        ctx.translate(wheel.position.x, wheel.position.y);
+        // Вычитаем камеру, чтобы колесо рисовалось на правильном месте экрана
+        ctx.translate(wheel.position.x - cameraX, wheel.position.y);
         ctx.rotate(wheel.angle);
         ctx.fillStyle = '#000'; 
         ctx.beginPath();
@@ -159,15 +150,34 @@
     }
 
     function update() {
+        // --- УПРАВЛЕНИЕ ---
         if (isGas) {
             Body.setAngularVelocity(wheelRear, 0.3);
             Body.setAngularVelocity(wheelFront, 0.3);
         }
         if (isBrake) {
-            Body.setAngularVelocity(wheelRear, -0.1);
-            Body.setAngularVelocity(wheelFront, -0.1);
+            // ТОРМОЗ: просто обнуляем скорость вращения колес, трение земли сделает остальное
+            Body.setAngularVelocity(wheelRear, 0);
+            Body.setAngularVelocity(wheelFront, 0);
         }
 
+        // --- ЛОГИКА КАМЕРЫ ---
+        // Камера должна следить за рамой (chassis) и держать её на 30% слева от края
+        let targetCameraX = chassis.position.x - (canvas.width * 0.3);
+        // Плавно (с задержкой) двигаем камеру к цели
+        cameraX += (targetCameraX - cameraX) * 0.1; 
+        
+        // Защита: если мотоцикл упал в пропасть, возвращаем его
+        if (chassis.position.y > canvas.height + 200) {
+            Body.setPosition(chassis, { x: cameraX + canvas.width * 0.3, y: 100 });
+            Body.setPosition(wheelRear, { x: cameraX + canvas.width * 0.3 - 40, y: 100 });
+            Body.setPosition(wheelFront, { x: cameraX + canvas.width * 0.3 + 40, y: 100 });
+            Body.setVelocity(chassis, { x: 0, y: 0 });
+            Body.setVelocity(wheelRear, { x: 0, y: 0 });
+            Body.setVelocity(wheelFront, { x: 0, y: 0 });
+        }
+
+        // --- ОТРИСОВКА ---
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
@@ -183,13 +193,14 @@
         ctx.arc(canvas.width * 0.75, canvas.height * 0.35, 45, 0, Math.PI * 2);
         ctx.fill();
 
-        drawMountainLayer(120, 60, '#3a2354', offset1);
-        drawMountainLayer(60, 100, '#1e1129', offset2);
-        drawTerrain(offset3);
+        // Рисуем горы (привязываем к камере)
+        drawMountainLayer(120, 60, '#3a2354', cameraX * 0.2);
+        drawMountainLayer(60, 100, '#1e1129', cameraX * 0.5);
+        drawTerrain(cameraX);
 
-        // Рама
+        // Рама (вычитаем камеру)
         ctx.save();
-        ctx.translate(chassis.position.x, chassis.position.y);
+        ctx.translate(chassis.position.x - cameraX, chassis.position.y);
         ctx.rotate(chassis.angle);
         ctx.fillStyle = '#000'; 
         ctx.fillRect(-40, -10, 80, 20); 
@@ -201,11 +212,6 @@
         drawWheel(wheelRear);
         drawWheel(wheelFront);
 
-        let bgSpeed = wheelFront.velocity.x * 1.5; 
-        offset1 += bgSpeed * 0.3;
-        offset2 += bgSpeed * 0.6;
-        offset3 += bgSpeed * 1.0;
-
         requestAnimationFrame(update);
     }
 
@@ -215,8 +221,9 @@
 
     window.addEventListener('resize', () => {
         resizeCanvas();
+        // Пересчитываем землю
         groundY = canvas.height - 80;
-        Body.setPosition(ground, { x: canvas.width / 2, y: groundY + 50 });
+        Body.setPosition(ground, { x: 50000, y: groundY + 50 });
     });
 </script>
 </body>
