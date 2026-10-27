@@ -111,7 +111,7 @@
     let groundY = canvas.height - 80; 
     let ground = Bodies.rectangle(startX, groundY + 50, 100000, 100, { isStatic: true });
 
-    // --- ФИЗИКА ---
+    // --- ФИЗИКА (ТВОИ ПАРАМЕТРЫ) ---
     const group = Body.nextGroup(true); 
     const wheelRadius = 10; 
     const wheelBase = 23; 
@@ -127,13 +127,14 @@
         density: 0.2, collisionFilter: { group: group } 
     }); 
 
+    // Увеличили жесткость подвески, чтобы колеса четко следовали за наклоном рамы
     const suspensionRear = Constraint.create({ 
         bodyA: wheelRear, pointB: { x: -wheelBase, y: 0 }, bodyB: chassis, 
-        stiffness: 0.2, damping: 0.2, length: 0 
+        stiffness: 0.4, damping: 0.2, length: 0 
     });
     const suspensionFront = Constraint.create({ 
         bodyA: wheelFront, pointB: { x: wheelBase, y: 0 }, bodyB: chassis, 
-        stiffness: 0.2, damping: 0.2, length: 0 
+        stiffness: 0.4, damping: 0.2, length: 0 
     });
 
     const moto = Composite.create({ bodies: [wheelRear, wheelFront, chassis], constraints: [suspensionRear, suspensionFront] });
@@ -218,7 +219,7 @@
     }
 
     function update() {
-        // СКОРОСТЬ (0.65 - около 5 секунд на 100м)
+        // СКОРОСТЬ (0.65)
         if (window.isGas) { 
             Body.setAngularVelocity(wheelRear, 0.65); 
             Body.setAngularVelocity(wheelFront, 0.65); 
@@ -228,17 +229,12 @@
             Body.setAngularVelocity(wheelFront, 0); 
         }
         
-        // НАКЛОНЫ (Применяем силу к передней и задней точке рамы)
-        const tiltForce = 0.006; 
+        // РАБОЧИЕ НАКЛОНЫ (Вращаем саму раму, колеса потянутся за ней)
         if (window.isLeanBack) {
-            // Поднимаем нос (сила вверх впереди, вниз сзади)
-            Body.applyForce(chassis, { x: chassis.position.x + 25, y: chassis.position.y }, { x: 0, y: -tiltForce });
-            Body.applyForce(chassis, { x: chassis.position.x - 25, y: chassis.position.y }, { x: 0, y: tiltForce });
+            Body.setAngularVelocity(chassis, -0.08); // Задираем нос (против часовой)
         } 
         else if (window.isLeanForward) {
-            // Опускаем нос (сила вниз впереди, вверх сзади)
-            Body.applyForce(chassis, { x: chassis.position.x + 25, y: chassis.position.y }, { x: 0, y: tiltForce });
-            Body.applyForce(chassis, { x: chassis.position.x - 25, y: chassis.position.y }, { x: 0, y: -tiltForce });
+            Body.setAngularVelocity(chassis, 0.08);  // Клюем носом (по часовой)
         }
 
         let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
