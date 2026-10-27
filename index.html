@@ -27,18 +27,67 @@
     const Engine = Matter.Engine,
           Runner = Matter.Runner,
           Bodies = Matter.Bodies,
-          Composite = Matter.Composite;
+          Composite = Matter.Composite,
+          Constraint = Matter.Constraint,
+          Body = Matter.Body;
 
     const engine = Engine.create();
     const world = engine.world;
-    engine.gravity.y = 0.8; 
+    engine.gravity.y = 1; 
 
+    // --- ЗЕМЛЯ ---
     let groundY = canvas.height - 80; 
     let ground = Bodies.rectangle(canvas.width / 2, groundY + 50, canvas.width * 5, 100, { isStatic: true });
-    let testBike = Bodies.rectangle(canvas.width / 2, 100, 60, 30, { density: 0.05, friction: 0.5 });
 
-    Composite.add(world, [ground, testBike]);
+    // --- СОЗДАЕМ МОТОЦИКЛ ---
+    const wheelRadius = 20;
+    
+    // Заднее колесо
+    const wheelRear = Bodies.circle(canvas.width / 2 - 40, 100, wheelRadius, { 
+        density: 0.05, friction: 1 
+    });
+    // Переднее колесо
+    const wheelFront = Bodies.circle(canvas.width / 2 + 40, 100, wheelRadius, { 
+        density: 0.05, friction: 1 
+    });
+    // Рама
+    const chassis = Bodies.rectangle(canvas.width / 2, 90, 80, 20, { 
+        density: 0.1 
+    });
 
+    // Подвеска
+    const suspensionRear = Constraint.create({
+        bodyA: wheelRear, pointB: { x: -40, y: 0 }, bodyB: chassis,
+        stiffness: 0.1, damping: 0.1
+    });
+    const suspensionFront = Constraint.create({
+        bodyA: wheelFront, pointB: { x: 40, y: 0 }, bodyB: chassis,
+        stiffness: 0.1, damping: 0.1
+    });
+
+    const moto = Composite.create({
+        bodies: [wheelRear, wheelFront, chassis],
+        constraints: [suspensionRear, suspensionFront]
+    });
+
+    Composite.add(world, [ground, moto]);
+
+    // --- УПРАВЛЕНИЕ ---
+    let isGas = false;
+    let isBrake = false;
+
+    window.addEventListener('touchstart', (e) => {
+        const touchX = e.touches[0].clientX;
+        if (touchX > window.innerWidth / 2) isGas = true;
+        else isBrake = true;
+    });
+
+    window.addEventListener('touchend', () => {
+        isGas = false;
+        isBrake = false;
+    });
+
+    // --- ОТРИСОВКА ---
     let offset1 = 0, offset2 = 0, offset3 = 0;
 
     function drawMountainLayer(yOffset, height, color, offset) {
@@ -56,51 +105,32 @@
         ctx.fill();
     }
 
-    // --- ИДЕАЛЬНАЯ ЗЕМЛЯ С ТОНКОЙ ТРАВОЙ ---
+    // --- УПРОЩЕННАЯ ЗЕМЛЯ (РОВНАЯ) ---
     function drawTerrain(offset) {
-        ctx.fillStyle = '#000000'; // Сплошной черный
+        ctx.fillStyle = '#000000'; 
         ctx.beginPath();
         ctx.moveTo(0, canvas.height);
-
-        // 1. Рисуем основной плавный силуэт (холмы)
-        for (let x = 0; x <= canvas.width; x += 3) {
-            let y = canvas.height - 80;
-            
-            // Большие плавные волны
-            y -= Math.sin((x + offset) * 0.005) * 30;
-            y -= Math.cos((x + offset) * 0.015) * 15;
-
-            // Едва заметная микро-текстура края (чтобы не был идеально гладким)
-            y -= Math.sin((x + offset) * 0.1) * 2;
-            
-            ctx.lineTo(x, y);
-        }
-
+        
+        // Рисуем ровную линию на уровне физической земли
+        ctx.lineTo(0, canvas.height - 80);
+        ctx.lineTo(canvas.width, canvas.height - 80);
+        
         ctx.lineTo(canvas.width, canvas.height);
         ctx.closePath();
         ctx.fill();
 
-        // 2. Добавляем ОЧЕНЬ ТОНКИЕ и РЕДКИЕ травинки
+        // Добавляем траву на ровной поверхности
         ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 2; // Толщина травинки
+        ctx.lineWidth = 2;
         ctx.lineCap = 'round';
-
         for (let x = 0; x <= canvas.width; x += 20) {
-            // Делаем так, чтобы трава росла "пучками" (где-то есть, где-то нет)
             let patch = Math.sin((x + offset) * 0.03); 
-            
-            if (patch > 0.6) { // Трава появляется только на определенных участках
-                // Вычисляем высоту земли в этой точке
-                let y = canvas.height - 80;
-                y -= Math.sin((x + offset) * 0.005) * 30;
-                y -= Math.cos((x + offset) * 0.015) * 15;
-                
-                // Рисуем 2-3 тонкие травинки, наклоненные в разные стороны
+            if (patch > 0.6) {
+                let y = canvas.height - 80; // Ровная линия
                 for (let i = 0; i < 3; i++) {
                     let startX = x + (i * 4) - 4;
-                    let lean = Math.sin((x + offset) * 0.1 + i) * 6; // Наклон в сторону
-                    let height = 6 + Math.cos((x + offset) * 0.2 + i) * 4; // Высота травинки
-                    
+                    let lean = Math.sin((x + offset) * 0.1 + i) * 6;
+                    let height = 6 + Math.cos((x + offset) * 0.2 + i) * 4;
                     ctx.beginPath();
                     ctx.moveTo(startX, y + 2);
                     ctx.lineTo(startX + lean, y - height);
@@ -110,10 +140,36 @@
         }
     }
 
+    function drawWheel(wheel) {
+        ctx.save();
+        ctx.translate(wheel.position.x, wheel.position.y);
+        ctx.rotate(wheel.angle);
+        ctx.fillStyle = '#000'; 
+        ctx.beginPath();
+        ctx.arc(0, 0, wheelRadius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.strokeStyle = '#fff'; 
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-wheelRadius, 0); ctx.lineTo(wheelRadius, 0);
+        ctx.moveTo(0, -wheelRadius); ctx.lineTo(0, wheelRadius);
+        ctx.stroke();
+        ctx.restore();
+    }
+
     function update() {
+        if (isGas) {
+            Body.setAngularVelocity(wheelRear, 0.3);
+            Body.setAngularVelocity(wheelFront, 0.3);
+        }
+        if (isBrake) {
+            Body.setAngularVelocity(wheelRear, -0.1);
+            Body.setAngularVelocity(wheelFront, -0.1);
+        }
+
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Закат
         const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
         gradient.addColorStop(0, '#1a0b2e');
         gradient.addColorStop(0.4, '#5a2b58');
@@ -122,29 +178,30 @@
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Солнце
         ctx.fillStyle = '#fff3d4';
         ctx.beginPath();
         ctx.arc(canvas.width * 0.75, canvas.height * 0.35, 45, 0, Math.PI * 2);
         ctx.fill();
 
-        // Горы
         drawMountainLayer(120, 60, '#3a2354', offset1);
         drawMountainLayer(60, 100, '#1e1129', offset2);
-        
-        // Земля
         drawTerrain(offset3);
 
-        // Мотоцикл
+        // Рама
         ctx.save();
-        ctx.translate(testBike.position.x, testBike.position.y);
-        ctx.rotate(testBike.angle);
-        ctx.fillStyle = '#000000'; 
-        ctx.fillRect(-30, -15, 60, 30); 
+        ctx.translate(chassis.position.x, chassis.position.y);
+        ctx.rotate(chassis.angle);
+        ctx.fillStyle = '#000'; 
+        ctx.fillRect(-40, -10, 80, 20); 
+        ctx.beginPath();
+        ctx.arc(0, -25, 12, 0, Math.PI * 2);
+        ctx.fill();
         ctx.restore();
 
-        // Движение
-        let bgSpeed = testBike.velocity.x * 1.5; 
+        drawWheel(wheelRear);
+        drawWheel(wheelFront);
+
+        let bgSpeed = wheelFront.velocity.x * 1.5; 
         offset1 += bgSpeed * 0.3;
         offset2 += bgSpeed * 0.6;
         offset3 += bgSpeed * 1.0;
@@ -159,11 +216,7 @@
     window.addEventListener('resize', () => {
         resizeCanvas();
         groundY = canvas.height - 80;
-        Matter.Body.setPosition(ground, { x: canvas.width / 2, y: groundY + 50 });
-        if (testBike.position.y > canvas.height) {
-            Matter.Body.setPosition(testBike, { x: canvas.width / 2, y: 100 });
-            Matter.Body.setVelocity(testBike, { x: 0, y: 0 });
-        }
+        Body.setPosition(ground, { x: canvas.width / 2, y: groundY + 50 });
     });
 </script>
 </body>
