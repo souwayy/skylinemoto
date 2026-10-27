@@ -231,10 +231,10 @@
         
         // РАБОЧИЕ НАКЛОНЫ (Вращаем саму раму, колеса потянутся за ней)
         if (window.isLeanBack) {
-            Body.setAngularVelocity(chassis, -0.08); // Задираем нос (против часовой)
+            Body.setAngularVelocity(chassis, -0.03); // Задираем нос (против часовой)
         } 
         else if (window.isLeanForward) {
-            Body.setAngularVelocity(chassis, 0.08);  // Клюем носом (по часовой)
+            Body.setAngularVelocity(chassis, 0.03);  // Клюем носом (по часовой)
         }
 
         let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
