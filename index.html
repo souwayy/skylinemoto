@@ -12,37 +12,45 @@
         }
         canvas { display: block; touch-action: none; }
 
-        .controls {
-            position: absolute;
-            bottom: 30px;
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            padding: 0 30px;
-            box-sizing: border-box;
-            pointer-events: none;
+        /* Интерфейс */
+        .ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 10;
         }
+
+        .top-bar {
+            display: flex; justify-content: space-between; padding: 20px;
+        }
+        .btn-ui {
+            background: rgba(0,0,0,0.4); border: 2px solid rgba(255,255,255,0.5);
+            border-radius: 10px; color: white; padding: 8px 16px;
+            font-size: 18px; font-weight: bold; pointer-events: auto;
+        }
+        .score {
+            font-size: 24px; font-weight: bold; color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        /* Кнопки управления */
+        .controls {
+            position: absolute; bottom: 20px; width: 100%;
+            display: flex; justify-content: space-between;
+            padding: 0 15px; box-sizing: border-box;
+        }
+        .group { display: flex; gap: 10px; }
 
         .btn {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.1);
-            border: 3px solid rgba(255, 255, 255, 0.4);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            pointer-events: auto;
-            color: rgba(255, 255, 255, 0.6);
-            font-size: 32px;
-            font-weight: bold;
-            transition: background 0.1s, border-color 0.1s;
+            width: 65px; height: 65px; border-radius: 50%;
+            background: rgba(0, 0, 0, 0.4); border: 2px solid rgba(255, 255, 255, 0.5);
+            display: flex; align-items: center; justify-content: center;
+            pointer-events: auto; color: white; font-size: 28px; font-weight: bold;
+            backdrop-filter: blur(3px);
         }
-
-        .btn:active {
-            background: rgba(255, 255, 255, 0.3);
-            border-color: rgba(255, 255, 255, 0.8);
-        }
+        .btn:active { background: rgba(255, 255, 255, 0.4); }
+        
+        /* Цвета для наглядности */
+        #btnGas { border-color: rgba(0, 255, 0, 0.6); }
+        #btnBrake { border-color: rgba(255, 0, 0, 0.6); }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 </head>
@@ -50,12 +58,28 @@
 
 <canvas id="gameCanvas"></canvas>
 
-<div class="controls">
-    <div class="btn" id="btnBrake">↺</div>
-    <div class="btn" id="btnGas">↻</div>
+<div class="ui-layer">
+    <div class="top-bar">
+        <div class="btn-ui">II</div>
+        <div class="score"><span id="distanceText">0</span> m</div>
+    </div>
+
+    <div class="controls">
+        <!-- Слева: Наклоны (иконки стрелок) -->
+        <div class="group">
+            <div class="btn" id="btnLeanBack">↺</div>
+            <div class="btn" id="btnLeanForward">↻</div>
+        </div>
+        <!-- Справа: Тормоз и Газ (иконки) -->
+        <div class="group">
+            <div class="btn" id="btnBrake">⏹</div>
+            <div class="btn" id="btnGas">▶</div>
+        </div>
+    </div>
 </div>
 
 <script>
+    // Блокировка зума
     document.addEventListener('touchmove', function(e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
     let lastTouchEnd = 0;
     document.addEventListener('touchend', function(e) {
@@ -82,24 +106,52 @@
 
     const engine = Engine.create();
     const world = engine.world;
-    engine.gravity.y = 1; 
+    engine.gravity.y = 1.2; 
 
     const startX = 50000;
     let groundY = canvas.height - 80; 
     let ground = Bodies.rectangle(startX, groundY + 50, 100000, 100, { isStatic: true });
 
-    // --- ФИЗИКА (КОЛЕСА МЕНЬШЕ И БЛИЖЕ) ---
-    const wheelRadius = 12; // Уменьшили радиус
-    // Расстояние между колесами сокращено (было 45, стало 35)
-    const wheelRear = Bodies.circle(startX - 35, 100, wheelRadius, { density: 0.05, friction: 1 });
-    const wheelFront = Bodies.circle(startX + 35, 100, wheelRadius, { density: 0.05, friction: 1 });
+    // --- ФИЗИКА ---
+    const wheelRadius = 10; 
+    const wheelBase = 30; // Расстояние от центра рамы до колес
+    
+    const wheelRear = Bodies.circle(startX - wheelBase, 100, wheelRadius, { density: 0.05, friction: 1 });
+    const wheelFront = Bodies.circle(startX + wheelBase, 100, wheelRadius, { density: 0.05, friction: 1 });
     const chassis = Bodies.rectangle(startX, 90, 80, 20, { density: 0.1 });
 
-    // Точки крепления подвески тоже сдвинуты ближе
-    const suspensionRear = Constraint.create({ bodyA: wheelRear, pointB: { x: -35, y: -5 }, bodyB: chassis, stiffness: 0.1, damping: 0.1 });
-    const suspensionFront = Constraint.create({ bodyA: wheelFront, pointB: { x: 35, y: -5 }, bodyB: chassis, stiffness: 0.1, damping: 0.1 });
+    // 1. ЖЕСТКАЯ СВЯЗЬ МЕЖДУ КОЛЕСАМИ (чтобы они не разъезжались)
+    const wheelBaseConstraint = Constraint.create({
+        bodyA: wheelRear,
+        bodyB: wheelFront,
+        length: wheelBase * 2, // Фиксируем расстояние (60)
+        stiffness: 0.9,        // Очень жесткая
+        damping: 0.1
+    });
 
-    const moto = Composite.create({ bodies: [wheelRear, wheelFront, chassis], constraints: [suspensionRear, suspensionFront] });
+    // 2. МЯГКАЯ ПОДВЕСКА (крепим колеса к раме, чтобы была амортизация)
+    const suspensionRear = Constraint.create({ 
+        bodyA: wheelRear, 
+        pointB: { x: -wheelBase, y: 0 }, 
+        bodyB: chassis, 
+        stiffness: 0.05, // Мягкая пружина
+        damping: 0.1,
+        length: 0
+    });
+    
+    const suspensionFront = Constraint.create({ 
+        bodyA: wheelFront, 
+        pointB: { x: wheelBase, y: 0 }, 
+        bodyB: chassis, 
+        stiffness: 0.05, 
+        damping: 0.1,
+        length: 0
+    });
+
+    const moto = Composite.create({ 
+        bodies: [wheelRear, wheelFront, chassis], 
+        constraints: [wheelBaseConstraint, suspensionRear, suspensionFront] 
+    });
     Composite.add(world, [ground, moto]);
 
     const bikeImage = new Image();
@@ -108,26 +160,26 @@
     bikeImage.onload = () => { isImageLoaded = true; };
 
     // --- УПРАВЛЕНИЕ ---
-    let isGas = false, isBrake = false;
+    window.isGas = false; window.isBrake = false; window.isLeanBack = false; window.isLeanForward = false;
 
-    document.getElementById('btnGas').addEventListener('touchstart', (e) => { e.preventDefault(); isGas = true; });
-    document.getElementById('btnGas').addEventListener('touchend', (e) => { e.preventDefault(); isGas = false; });
+    function bindBtn(id, variableName) {
+        const el = document.getElementById(id);
+        el.addEventListener('touchstart', (e) => { e.preventDefault(); window[variableName] = true; });
+        el.addEventListener('touchend', (e) => { e.preventDefault(); window[variableName] = false; });
+        el.addEventListener('touchcancel', (e) => { e.preventDefault(); window[variableName] = false; });
+    }
     
-    document.getElementById('btnBrake').addEventListener('touchstart', (e) => { e.preventDefault(); isBrake = true; });
-    document.getElementById('btnBrake').addEventListener('touchend', (e) => { e.preventDefault(); isBrake = false; });
+    bindBtn('btnGas', 'isGas');
+    bindBtn('btnBrake', 'isBrake');
+    bindBtn('btnLeanBack', 'isLeanBack');
+    bindBtn('btnLeanForward', 'isLeanForward');
 
-    window.addEventListener('touchstart', (e) => {
-        if(e.target.classList.contains('btn')) return;
-        if (e.touches[0].clientX > window.innerWidth / 2) isGas = true; else isBrake = true;
-    });
-    window.addEventListener('touchend', (e) => {
-        if(e.target.classList.contains('btn')) return;
-        isGas = false; isBrake = false;
-    });
-
-    // --- КАМЕРА (ЕЩЕ БЛИЖЕ) ---
+    // --- КАМЕРА ---
     let cameraX = startX - (canvas.width * 0.3);
-    const zoom = 1.25; // Было 1.15, теперь 1.25
+    const zoom = 1.25; 
+
+    let maxDistance = 0;
+    const distanceText = document.getElementById('distanceText');
 
     function drawMountainLayer(yOffset, height, color, parallaxOffset) {
         ctx.fillStyle = color;
@@ -173,15 +225,12 @@
         ctx.translate(wheel.position.x, wheel.position.y);
         ctx.rotate(wheel.angle);
         
-        // Внешняя шина
         ctx.fillStyle = '#000'; 
         ctx.beginPath(); ctx.arc(0, 0, wheelRadius, 0, Math.PI * 2); ctx.fill();
 
-        // Обод
         ctx.fillStyle = '#111'; 
         ctx.beginPath(); ctx.arc(0, 0, wheelRadius - 2, 0, Math.PI * 2); ctx.fill();
 
-        // Протектор
         ctx.strokeStyle = '#333'; ctx.lineWidth = 1.5;
         for (let i = 0; i < 8; i++) {
             let angle = (i / 8) * Math.PI * 2;
@@ -191,30 +240,47 @@
             ctx.stroke();
         }
 
-        // Спицы
         ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
         for (let i = 0; i < 6; i++) {
             let angle = (i / 6) * Math.PI * 2;
             ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(angle) * (wheelRadius - 2), Math.sin(angle) * (wheelRadius - 2)); ctx.stroke();
         }
 
-        // Ступица
         ctx.fillStyle = '#333'; ctx.beginPath(); ctx.arc(0, 0, 2, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
     }
 
     function update() {
-        if (isGas) { Body.setAngularVelocity(wheelRear, 0.4); Body.setAngularVelocity(wheelFront, 0.4); }
-        if (isBrake) { Body.setAngularVelocity(wheelRear, 0); Body.setAngularVelocity(wheelFront, 0); }
+        if (window.isGas) { 
+            Body.setAngularVelocity(wheelRear, 0.4); 
+            Body.setAngularVelocity(wheelFront, 0.4); 
+        }
+        if (window.isBrake) { 
+            Body.setAngularVelocity(wheelRear, 0); 
+            Body.setAngularVelocity(wheelFront, 0); 
+        }
+        
+        if (window.isLeanBack) {
+            Body.applyForce(chassis, chassis.position, { x: 0, y: -0.002 });
+        }
+        if (window.isLeanForward) {
+            Body.applyForce(chassis, chassis.position, { x: 0, y: 0.002 });
+        }
 
         let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
         cameraX += (targetCameraX - cameraX) * 0.1; 
         
+        let currentDistance = Math.max(0, Math.floor((chassis.position.x - startX) / 10));
+        if (currentDistance > maxDistance) {
+            maxDistance = currentDistance;
+            distanceText.innerText = maxDistance;
+        }
+
         if (chassis.position.y > canvas.height + 200) {
             let spawnX = cameraX + (canvas.width * 0.3) / zoom;
             Body.setPosition(chassis, { x: spawnX, y: 100 });
-            Body.setPosition(wheelRear, { x: spawnX - 35, y: 100 });
-            Body.setPosition(wheelFront, { x: spawnX + 35, y: 100 });
+            Body.setPosition(wheelRear, { x: spawnX - wheelBase, y: 100 });
+            Body.setPosition(wheelFront, { x: spawnX + wheelBase, y: 100 });
             Body.setVelocity(chassis, { x: 0, y: 0 }); Body.setVelocity(wheelRear, { x: 0, y: 0 }); Body.setVelocity(wheelFront, { x: 0, y: 0 });
         }
 
@@ -235,13 +301,11 @@
         drawMountainLayer(60, 100, '#1e1129', cameraX * 0.5);
         drawTerrain();
 
-        // --- МОТОЦИКЛ (УВЕЛИЧЕН, КОЛЕСА В АРКАХ) ---
         ctx.save();
         ctx.translate(chassis.position.x, chassis.position.y);
         ctx.rotate(chassis.angle);
         
         if (isImageLoaded) {
-            // Картинка стала больше (90 на 54), сдвиг центрирует её над колесами
             ctx.drawImage(bikeImage, -45, -35, 90, 54); 
         }
         ctx.restore();
