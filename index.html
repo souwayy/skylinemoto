@@ -105,30 +105,37 @@
 
     const engine = Engine.create();
     const world = engine.world;
-    engine.gravity.y = 1.2; 
+    engine.gravity.y = 1; // Нормальная гравитация
 
     const startX = 50000;
     let groundY = canvas.height - 80; 
     let ground = Bodies.rectangle(startX, groundY + 50, 100000, 100, { isStatic: true });
 
-    // --- ФИЗИКА (ИСПРАВЛЕНА) ---
+    // --- ФИЗИКА (ГРУППА КОЛЛИЗИЙ, ЧТОБЫ НЕ ВЗЛЕТАЛ) ---
+    const group = Body.nextGroup(true); // Создаем группу (отрицательное число = объекты в группе не сталкиваются)
+    
     const wheelRadius = 11; 
     const wheelBase = 20; 
-    const startY = groundY - wheelRadius;
+    const startY = groundY - wheelRadius - 5; // Чуть выше земли при старте
     
-    const wheelRear = Bodies.circle(startX - wheelBase, startY, wheelRadius, { density: 0.05, friction: 1 });
-    const wheelFront = Bodies.circle(startX + wheelBase, startY, wheelRadius, { density: 0.05, friction: 1 });
-    // Добавили frictionAir, чтобы рама не крутилась сама по себе
-    const chassis = Bodies.rectangle(startX, startY - 15, 60, 15, { density: 0.1, frictionAir: 0.1 }); 
+    const wheelRear = Bodies.circle(startX - wheelBase, startY, wheelRadius, { 
+        density: 0.05, friction: 1, collisionFilter: { group: group } 
+    });
+    const wheelFront = Bodies.circle(startX + wheelBase, startY, wheelRadius, { 
+        density: 0.05, friction: 1, collisionFilter: { group: group } 
+    });
+    const chassis = Bodies.rectangle(startX, startY - 15, 60, 15, { 
+        density: 0.1, collisionFilter: { group: group } 
+    }); 
 
-    // Жесткая подвеска (чтобы не пружинило)
+    // Стабильная подвеска
     const suspensionRear = Constraint.create({ 
         bodyA: wheelRear, pointB: { x: -wheelBase, y: 0 }, bodyB: chassis, 
-        stiffness: 0.8, damping: 0.9, length: 0 
+        stiffness: 0.1, damping: 0.1, length: 0 
     });
     const suspensionFront = Constraint.create({ 
         bodyA: wheelFront, pointB: { x: wheelBase, y: 0 }, bodyB: chassis, 
-        stiffness: 0.8, damping: 0.9, length: 0 
+        stiffness: 0.1, damping: 0.1, length: 0 
     });
 
     const moto = Composite.create({ bodies: [wheelRear, wheelFront, chassis], constraints: [suspensionRear, suspensionFront] });
@@ -214,22 +221,20 @@
 
     function update() {
         if (window.isGas) { 
-            Body.setAngularVelocity(wheelRear, 0.08); 
-            Body.setAngularVelocity(wheelFront, 0.08); 
+            Body.setAngularVelocity(wheelRear, 0.1); 
+            Body.setAngularVelocity(wheelFront, 0.1); 
         }
         if (window.isBrake) { 
             Body.setAngularVelocity(wheelRear, 0); 
             Body.setAngularVelocity(wheelFront, 0); 
         }
         
-        // НАКЛОНЫ (Через силу, а не через вращение)
-        // Если жмем назад — даем импульс раме вверх (поднимаем переднее колесо)
+        // ОЧЕНЬ МЯГКИЕ НАКЛОНЫ (микро-силы)
         if (window.isLeanBack) {
-            Body.applyForce(chassis, { x: chassis.position.x, y: chassis.position.y + 10 }, { x: 0, y: -0.005 });
+            Body.applyForce(chassis, chassis.position, { x: 0, y: -0.0002 });
         } 
-        // Если жмем вперед — даем импульс вниз
         else if (window.isLeanForward) {
-            Body.applyForce(chassis, { x: chassis.position.x, y: chassis.position.y }, { x: 0, y: 0.005 });
+            Body.applyForce(chassis, chassis.position, { x: 0, y: 0.0002 });
         }
 
         let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
@@ -243,7 +248,7 @@
 
         if (chassis.position.y > canvas.height + 200) {
             let spawnX = cameraX + (canvas.width * 0.3) / zoom;
-            let respawnY = groundY - wheelRadius;
+            let respawnY = groundY - wheelRadius - 5;
             
             Body.setPosition(wheelRear, { x: spawnX - wheelBase, y: respawnY });
             Body.setPosition(wheelFront, { x: spawnX + wheelBase, y: respawnY });
