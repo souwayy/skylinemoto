@@ -18,7 +18,6 @@
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     
-    // Устанавливаем размер холста
     function resizeCanvas() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
@@ -34,19 +33,17 @@
     const world = engine.world;
     engine.gravity.y = 0.8; 
 
-    // --- ФИЗИЧЕСКАЯ ЗЕМЛЯ ---
-    // Ставим землю ровно на 80 пикселей от низа экрана
+    // Физическая земля (невидимая линия, об которую бьется мотоцикл)
     let groundY = canvas.height - 80; 
-    
     let ground = Bodies.rectangle(
         canvas.width / 2, 
-        groundY + 50, // +50, так как высота блока 100, центр будет на 80
+        groundY + 50, 
         canvas.width * 5, 
         100, 
         { isStatic: true }
     );
 
-    // --- ТЕСТОВЫЙ ОБЪЕКТ ---
+    // Тестовый объект
     let testBike = Bodies.rectangle(
         canvas.width / 2, 
         100, 
@@ -73,24 +70,35 @@
         ctx.fill();
     }
 
-    // --- ИСПРАВЛЕННАЯ ТРАВА (Пушистая, без шипов) ---
-    function drawGrass(offset) {
-        ctx.fillStyle = '#000000'; 
+    // --- НОВАЯ ИДЕАЛЬНАЯ ЗЕМЛЯ (Как в Mountain Bike) ---
+    function drawTerrain(offset) {
+        ctx.fillStyle = '#000000'; // Сплошной черный
         ctx.beginPath();
-        
-        // Рисуем траву от низа экрана до уровня физической земли (canvas.height - 80)
         ctx.moveTo(0, canvas.height);
-        
-        for (let x = 0; x <= canvas.width; x += 15) {
-            // Мягкая волна для травы
-            let grassHeight = 80 + Math.sin((x + offset) * 0.02) * 15;
-            ctx.lineTo(x, canvas.height - grassHeight);
-            // Добавляем "пушистость" (маленькие кружочки)
-            if (x % 30 === 0) {
-                ctx.arc(x, canvas.height - grassHeight - 5, 8, 0, Math.PI * 2);
+
+        // Проходим по всей ширине экрана (шаг 3 для плавности)
+        for (let x = 0; x <= canvas.width; x += 3) {
+            // Базовая линия земли
+            let y = canvas.height - 80;
+
+            // 1. Плавные большие холмы
+            y -= Math.sin((x + offset) * 0.005) * 25;
+            
+            // 2. Средние кочки/кусты
+            y -= Math.cos((x + offset) * 0.02) * 10;
+
+            // 3. Острые травинки (высокая частота)
+            // Math.abs делает пики острыми, а не волнистыми
+            let sharpGrass = Math.abs(Math.sin((x + offset) * 0.15)) * 12;
+            
+            // Рисуем травинки не везде, а "пучками" (условие > 0)
+            if (Math.sin((x + offset) * 0.03) > 0) {
+                y -= sharpGrass;
             }
+
+            ctx.lineTo(x, y);
         }
-        
+
         ctx.lineTo(canvas.width, canvas.height);
         ctx.closePath();
         ctx.fill();
@@ -114,14 +122,14 @@
         ctx.arc(canvas.width * 0.75, canvas.height * 0.35, 45, 0, Math.PI * 2);
         ctx.fill();
 
-        // 3. Горы (Фон)
+        // 3. Задние горы
         drawMountainLayer(120, 60, '#3a2354', offset1);
         drawMountainLayer(60, 100, '#1e1129', offset2);
         
-        // 4. Трава и земля (Передний план)
-        drawGrass(offset3);
+        // 4. Наша новая черная земля с травой
+        drawTerrain(offset3);
 
-        // 5. Рисуем мотоцикл
+        // 5. Рисуем мотоцикл (тестовый квадрат)
         ctx.save();
         ctx.translate(testBike.position.x, testBike.position.y);
         ctx.rotate(testBike.angle);
@@ -129,7 +137,7 @@
         ctx.fillRect(-30, -15, 60, 30); 
         ctx.restore();
 
-        // 6. Движение фона
+        // 6. Движение
         let bgSpeed = testBike.velocity.x * 1.5; 
         offset1 += bgSpeed * 0.3;
         offset2 += bgSpeed * 0.6;
@@ -142,15 +150,10 @@
     Runner.run(runner, engine);
     update();
 
-    // --- ИСПРАВЛЕНИЕ ПОВОРОТА ЭКРАНА ---
     window.addEventListener('resize', () => {
         resizeCanvas();
-        
-        // Обновляем позицию земли при повороте
         groundY = canvas.height - 80;
         Matter.Body.setPosition(ground, { x: canvas.width / 2, y: groundY + 50 });
-        
-        // Если квадрат улетел за экран, возвращаем его
         if (testBike.position.y > canvas.height) {
             Matter.Body.setPosition(testBike, { x: canvas.width / 2, y: 100 });
             Matter.Body.setVelocity(testBike, { x: 0, y: 0 });
