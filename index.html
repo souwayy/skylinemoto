@@ -42,11 +42,11 @@
 
     // --- ФИЗИКА МОТОЦИКЛА ---
     const wheelRadius = 20;
-    // Заднее колесо (слева от центра)
+    // Заднее колесо
     const wheelRear = Bodies.circle(startX - 40, 100, wheelRadius, { density: 0.05, friction: 1 });
-    // Переднее колесо (справа от центра)
+    // Переднее колесо
     const wheelFront = Bodies.circle(startX + 40, 100, wheelRadius, { density: 0.05, friction: 1 });
-    // Рама (центр)
+    // Рама (невидимая физическая коробка, к которой крепится картинка)
     const chassis = Bodies.rectangle(startX, 90, 80, 20, { density: 0.1 });
 
     const suspensionRear = Constraint.create({ bodyA: wheelRear, pointB: { x: -40, y: 0 }, bodyB: chassis, stiffness: 0.1, damping: 0.1 });
@@ -54,6 +54,33 @@
 
     const moto = Composite.create({ bodies: [wheelRear, wheelFront, chassis], constraints: [suspensionRear, suspensionFront] });
     Composite.add(world, [ground, moto]);
+
+    // --- ВСТРОЕННЫЙ КРАСИВЫЙ СИЛУЭТ (SVG) ---
+    // Я нарисовал этот вектор вручную. Он идеально отмасштабирован под физику.
+    const bikeImage = new Image();
+    const svgPath = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 60">
+        <!-- Рама, двигатель, бак -->
+        <path fill="#000000" d="M 15,40 Q 20,30 30,30 L 45,30 Q 55,20 60,20 L 70,25 L 80,35 Q 85,35 85,40 L 75,45 L 65,40 L 50,45 L 40,45 L 35,40 L 25,45 Z"/>
+        <!-- Вилка -->
+        <path fill="#000000" d="M 70,25 L 75,10 L 80,10 L 78,28 Z"/>
+        <!-- Руль -->
+        <path fill="#000000" d="M 65,10 L 85,15 L 85,20 L 65,15 Z"/>
+        <!-- Водитель (туловище) -->
+        <path fill="#000000" d="M 30,30 Q 20,10 40,5 L 55,10 Q 60,20 55,25 L 40,25 Z"/>
+        <!-- Нога -->
+        <path fill="#000000" d="M 40,45 L 35,55 L 25,55 L 30,45 Z"/>
+        <!-- Рука -->
+        <path fill="#000000" d="M 50,10 L 70,15 L 68,18 L 48,15 Z"/>
+        <!-- Шлем -->
+        <circle cx="35" cy="-2" r="10" fill="#000000"/>
+    </svg>`;
+    
+    // Кодируем SVG в строку, чтобы браузер её понял
+    bikeImage.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgPath);
+    
+    let isImageLoaded = false;
+    bikeImage.onload = () => { isImageLoaded = true; };
 
     // --- УПРАВЛЕНИЕ ---
     let isGas = false, isBrake = false;
@@ -66,7 +93,6 @@
     let cameraX = startX - (canvas.width * 0.3);
     const zoom = 0.7; 
 
-    // --- ОТРИСОВКА ФОНА ---
     function drawMountainLayer(yOffset, height, color, parallaxOffset) {
         ctx.fillStyle = color;
         ctx.beginPath();
@@ -107,76 +133,16 @@
         }
     }
 
-    // --- ОТРИСОВКА КОЛЕСА ---
     function drawWheel(wheel) {
         ctx.save();
         ctx.translate(wheel.position.x, wheel.position.y);
         ctx.rotate(wheel.angle);
-        // Само колесо
         ctx.fillStyle = '#000'; 
         ctx.beginPath(); ctx.arc(0, 0, wheelRadius, 0, Math.PI * 2); ctx.fill();
-        // Спицы (крестик)
-        ctx.strokeStyle = '#222'; ctx.lineWidth = 2;
+        // Спицы
+        ctx.strokeStyle = '#333'; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.moveTo(-wheelRadius+5, 0); ctx.lineTo(wheelRadius-5, 0);
         ctx.moveTo(0, -wheelRadius+5); ctx.lineTo(0, wheelRadius-5); ctx.stroke();
-        ctx.restore();
-    }
-
-    // --- ОТРИСОВКА МОТОЦИКЛА (Векторный силуэт без колес) ---
-    function drawMotoSilhouette() {
-        ctx.save();
-        ctx.translate(chassis.position.x, chassis.position.y);
-        ctx.rotate(chassis.angle);
-        
-        ctx.fillStyle = '#000';
-        ctx.strokeStyle = '#000';
-        ctx.lineJoin = 'round';
-
-        // 1. Маятник (от рамы к заднему колесу)
-        ctx.lineWidth = 4;
-        ctx.beginPath(); 
-        ctx.moveTo(-40, 0); // Центр заднего колеса
-        ctx.lineTo(0, 0);   // Низ рамы
-        ctx.stroke();
-
-        // 2. Передняя вилка (от рамы к переднему колесу)
-        ctx.beginPath(); 
-        ctx.moveTo(40, 0);  // Центр переднего колеса
-        ctx.lineTo(20, -20); // Руль
-        ctx.stroke();
-
-        // 3. Кузов (двигатель, бак, сиденье)
-        ctx.beginPath();
-        ctx.moveTo(-30, -5);   // Задняя часть сиденья
-        ctx.lineTo(-15, -20);  // Верх сиденья
-        ctx.lineTo(10, -20);   // Бак
-        ctx.lineTo(25, -10);   // Рулевая колонка
-        ctx.lineTo(15, 0);     // Двигатель
-        ctx.lineTo(-20, 0);    // Низ двигателя
-        ctx.closePath();
-        ctx.fill();
-
-        // 4. Водитель (сгорбленный)
-        ctx.beginPath();
-        ctx.moveTo(-10, -15);  // Точка на сиденье (таз)
-        ctx.lineTo(5, -40);    // Спина (сгорблена)
-        ctx.lineTo(20, -30);   // Грудь
-        ctx.lineTo(5, -10);    // Колено (нога согнута)
-        ctx.closePath();
-        ctx.fill();
-
-        // 5. Рука (тянется к рулю)
-        ctx.lineWidth = 5;
-        ctx.beginPath(); 
-        ctx.moveTo(8, -35);    // Плечо
-        ctx.lineTo(25, -12);   // Кисть на руле
-        ctx.stroke();
-
-        // 6. Шлем
-        ctx.beginPath(); 
-        ctx.arc(5, -45, 9, 0, Math.PI * 2); 
-        ctx.fill();
-
         ctx.restore();
     }
 
@@ -212,10 +178,19 @@
         drawMountainLayer(60, 100, '#1e1129', cameraX * 0.5);
         drawTerrain();
 
-        // Рисуем мотоцикл
-        drawMotoSilhouette();
+        // --- РИСУЕМ МОТОЦИКЛ ---
+        ctx.save();
+        ctx.translate(chassis.position.x, chassis.position.y);
+        ctx.rotate(chassis.angle);
+        
+        if (isImageLoaded) {
+            // Картинка центрирована относительно физической рамы
+            // Размер подобран так, чтобы колеса идеально встали на места
+            ctx.drawImage(bikeImage, -45, -55, 100, 60); 
+        }
+        ctx.restore();
 
-        // Рисуем колеса ПОВЕРХ (они будут крутиться на своих осях)
+        // Колеса рисуем ПОВЕРХ картинки, чтобы спицы было видно
         drawWheel(wheelRear);
         drawWheel(wheelFront);
 
