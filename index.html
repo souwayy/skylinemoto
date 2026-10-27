@@ -51,7 +51,6 @@
         #btnGas         { bottom: 90px; right: 20px; }
         #btnBrake       { bottom: 20px; right: 60px; }
     </style>
-    <!-- Подключаем Matter.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 </head>
 <body>
@@ -111,43 +110,49 @@
     const startX = 50000;
     let groundY = canvas.height - 80; 
 
-    // --- ГЕНЕРАЦИЯ ЗЕМЛИ ИЗ КРУГОВ (ИДЕАЛЬНО ГЛАДКАЯ ФИЗИКА) ---
+    // --- ГЕНЕРАЦИЯ ЛАНДШАФТА (С ТРАМПЛИНАМИ) ---
     const terrainBlocks = [];
     let lastGeneratedX = startX - 1500; 
-    const chunkWidth = 10; // Очень частый шаг (круги будут перекрывать друг друга)
-    const groundRadius = 20; // Радиус невидимых кругов физики
+    const chunkWidth = 10; 
+    const groundRadius = 20; 
 
     function getTerrainY(x) {
         let y = groundY;
-        y -= Math.sin(x * 0.002) * 40;  
-        y -= Math.sin(x * 0.007) * 15;  
-        y -= Math.sin(x * 0.017) * 5;  
+        y -= Math.sin(x * 0.002) * 30;  
+        
+        let zone = Math.floor(x / 2500);
+        let localX = x % 2500;
+        
+        if (zone % 2 === 0) {
+            if (localX > 1000 && localX < 1400) {
+                y -= (localX - 1000) * 0.3; 
+            } else if (localX >= 1400 && localX < 1600) {
+                y += (localX - 1400) * 0.5;
+            }
+        } else {
+            if (localX > 800 && localX < 1200) {
+                y += Math.sin((localX - 800) / 400 * Math.PI) * 150;
+            }
+        }
         return y;
     }
 
     function generateTerrain() {
         while (lastGeneratedX < cameraX + (canvas.width / zoom) + 1000) {
             let hillY = getTerrainY(lastGeneratedX);
-            
-            // Создаем статичный круг чуть ниже визуальной линии
             let block = Bodies.circle(lastGeneratedX, hillY + groundRadius, groundRadius, { 
-                isStatic: true,
-                friction: 1, 
-                collisionFilter: { category: 0x0002 } 
+                isStatic: true, friction: 1, collisionFilter: { category: 0x0002 } 
             });
-            
             terrainBlocks.push({ body: block, x: lastGeneratedX, y: hillY });
             Composite.add(world, block);
-            
             lastGeneratedX += chunkWidth;
         }
     }
 
     function cleanupTerrain() {
         for (let i = terrainBlocks.length - 1; i >= 0; i--) {
-            let blockData = terrainBlocks[i];
-            if (blockData.x < cameraX - 1500) {
-                Composite.remove(world, blockData.body);
+            if (terrainBlocks[i].x < cameraX - 1500) {
+                Composite.remove(world, terrainBlocks[i].body);
                 terrainBlocks.splice(i, 1);
             }
         }
@@ -226,24 +231,22 @@
         ctx.fill();
     }
 
-    // --- ОТРИСОВКА ТВЕРДОЙ ЗЕМЛИ ---
     function drawTerrain() {
         ctx.fillStyle = '#000'; 
         ctx.strokeStyle = '#000';
-        ctx.lineWidth = 4; // Делаем линию чуть толще, чтобы она казалась твердой
+        ctx.lineWidth = 4; 
 
         ctx.beginPath();
         ctx.moveTo(cameraX - 100, canvas.height + 500);
         
         for (let i = 0; i < terrainBlocks.length; i++) {
-            let b = terrainBlocks[i];
-            ctx.lineTo(b.x, b.y);
+            ctx.lineTo(terrainBlocks[i].x, terrainBlocks[i].y);
         }
         
         ctx.lineTo(lastGeneratedX, canvas.height + 500);
         ctx.closePath();
         ctx.fill();
-        ctx.stroke(); // Обводка делает края более четкими
+        ctx.stroke();
     }
 
     function drawWheel(wheel) {
@@ -270,20 +273,38 @@
 
     function update() {
         if (window.isGas) { 
-            Body.setAngularVelocity(wheelRear, 0.9); 
-            Body.setAngularVelocity(wheelFront, 0.9); 
+            Body.setAngularVelocity(wheelRear, 0.6); 
+            Body.setAngularVelocity(wheelFront, 0.6); 
         }
         if (window.isBrake) { 
             Body.setAngularVelocity(wheelRear, 0); 
             Body.setAngularVelocity(wheelFront, 0); 
         }
         
-        // НАКЛОНЫ 0.3 (как ты хотел)
+        // --- ОГРАНИЧЕННАЯ ЛОГИКА САЛЬТО ---
+        let isAirborne = Math.abs(chassis.velocity.y) > 1.0; 
+        
         if (window.isLeanBack) {
-            Body.setAngularVelocity(chassis, -0.3); 
+            if (isAirborne) {
+                // В воздухе: ограничиваем скорость вращения до 0.18 (одно сальто)
+                let currentRot = chassis.angularVelocity;
+                if (currentRot > -0.18) {
+                    Body.setAngularVelocity(chassis, currentRot - 0.015); // Плавно раскручиваем
+                }
+            } else {
+                // На земле: только мягкий наклон
+                Body.setAngularVelocity(chassis, -0.1); 
+            }
         } 
         else if (window.isLeanForward) {
-            Body.setAngularVelocity(chassis, 0.3); 
+            if (isAirborne) {
+                let currentRot = chassis.angularVelocity;
+                if (currentRot < 0.18) {
+                    Body.setAngularVelocity(chassis, currentRot + 0.015);
+                }
+            } else {
+                Body.setAngularVelocity(chassis, 0.1); 
+            }
         }
 
         let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
