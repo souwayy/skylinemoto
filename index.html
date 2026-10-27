@@ -110,45 +110,52 @@
     const startX = 50000;
     let groundY = canvas.height - 80; 
 
-    // --- БЕСКОНЕЧНЫЙ ЛАНДШАФТ ---
+    // --- БЕСКОНЕЧНЫЙ ЛАНДШАФТ (ГЛАДКИЕ БЛОКИ ПОД УГЛОМ) ---
     const terrainBlocks = [];
-    let lastGeneratedX = startX - 1500; // Начинаем генерацию чуть позади
-    const chunkWidth = 40; // Ширина одного физического блока
-    const chunkHeight = 2000; // Высота (уходит глубоко вниз)
+    let lastGeneratedX = startX - 1500; 
+    const chunkWidth = 20; 
+    const chunkHeight = 2000; 
 
-    // Функция высоты (смесь некратных волн для уникальности)
     function getTerrainY(x) {
         let y = groundY;
-        y -= Math.sin(x * 0.002) * 60;  // Длинные холмы
-        y -= Math.sin(x * 0.007) * 25;  // Средние кочки
-        y -= Math.sin(x * 0.017) * 10;  // Мелкие неровности
+        y -= Math.sin(x * 0.002) * 40;  
+        y -= Math.sin(x * 0.007) * 15;  
+        y -= Math.sin(x * 0.017) * 5;  
         return y;
     }
 
-    // Функция генерации новых кусков земли впереди
     function generateTerrain() {
-        // Генерируем, пока не уйдем на 2 экрана вперед от камеры
         while (lastGeneratedX < cameraX + (canvas.width / zoom) + 1000) {
-            let hillY = getTerrainY(lastGeneratedX);
+            let x1 = lastGeneratedX;
+            let x2 = x1 + chunkWidth;
+            let y1 = getTerrainY(x1);
+            let y2 = getTerrainY(x2);
+
+            let angle = Math.atan2(y2 - y1, x2 - x1);
+            let dist = Math.hypot(x2 - x1, y2 - y1);
             
-            let block = Bodies.rectangle(lastGeneratedX, hillY + chunkHeight/2, chunkWidth + 2, chunkHeight, { 
+            let midX = (x1 + x2) / 2;
+            let midY = (y1 + y2) / 2;
+            let cx = midX + Math.sin(angle) * (chunkHeight / 2);
+            let cy = midY + Math.cos(angle) * (chunkHeight / 2);
+
+            let block = Bodies.rectangle(cx, cy, dist + 2, chunkHeight, { 
                 isStatic: true,
-                friction: 1,
+                angle: angle, 
+                friction: 0, 
                 collisionFilter: { category: 0x0002 } 
             });
             
-            terrainBlocks.push({ body: block, x: lastGeneratedX, y: hillY });
+            terrainBlocks.push({ body: block, x: x1, y: y1 });
             Composite.add(world, block);
             
             lastGeneratedX += chunkWidth;
         }
     }
 
-    // Функция удаления старой земли (чтобы телефон не завис)
     function cleanupTerrain() {
         for (let i = terrainBlocks.length - 1; i >= 0; i--) {
             let blockData = terrainBlocks[i];
-            // Если блок ушел на 1500 пикселей влево за экран — удаляем
             if (blockData.x < cameraX - 1500) {
                 Composite.remove(world, blockData.body);
                 terrainBlocks.splice(i, 1);
@@ -164,14 +171,15 @@
     let startHillY = getTerrainY(startX);
     const startY = startHillY - wheelRadius - 5; 
     
+    // Уменьшили friction до 1.2 (было 1.5), чтобы не буксовал на подъемах
     const wheelRear = Bodies.circle(startX - wheelBase, startY, wheelRadius, { 
-        density: 0.05, friction: 1.5, collisionFilter: { group: group } 
+        density: 0.05, friction: 1.2, frictionStatic: 1.2, collisionFilter: { group: group } 
     });
     const wheelFront = Bodies.circle(startX + wheelBase, startY, wheelRadius, { 
-        density: 0.05, friction: 1.5, collisionFilter: { group: group } 
+        density: 0.05, friction: 1.2, frictionStatic: 1.2, collisionFilter: { group: group } 
     });
     const chassis = Bodies.rectangle(startX, startY - 15, 60, 15, { 
-        density: 0.2, collisionFilter: { group: group } 
+        density: 0.1, collisionFilter: { group: group } 
     }); 
 
     const suspensionRear = Constraint.create({ 
@@ -211,7 +219,6 @@
     let maxDistance = 0;
     const distanceText = document.getElementById('distanceText');
 
-    // Первичная генерация земли
     generateTerrain();
 
     function drawMountainLayer(yOffset, height, color, parallaxOffset) {
@@ -230,21 +237,17 @@
         ctx.fill();
     }
 
-    // --- ОТРИСОВКА ЗЕМЛИ ---
     function drawTerrain() {
         ctx.fillStyle = '#000'; 
         ctx.beginPath();
         
-        // Начинаем с левого нижнего угла
         ctx.moveTo(cameraX - 100, canvas.height + 500);
         
-        // Рисуем по массиву существующих блоков
         for (let i = 0; i < terrainBlocks.length; i++) {
             let b = terrainBlocks[i];
             ctx.lineTo(b.x, b.y);
         }
         
-        // Закрываем полигон в правом нижнем углу
         ctx.lineTo(lastGeneratedX, canvas.height + 500);
         ctx.closePath();
         ctx.fill();
@@ -273,15 +276,17 @@
     }
 
     function update() {
+        // МОЩНОСТЬ ДВИГАТЕЛЯ (0.9 для преодоления холмов)
         if (window.isGas) { 
-            Body.setAngularVelocity(wheelRear, 0.65); 
-            Body.setAngularVelocity(wheelFront, 0.65); 
+            Body.setAngularVelocity(wheelRear, 0.9); 
+            Body.setAngularVelocity(wheelFront, 0.9); 
         }
         if (window.isBrake) { 
             Body.setAngularVelocity(wheelRear, 0); 
             Body.setAngularVelocity(wheelFront, 0); 
         }
         
+        // ТВОИ НАКЛОНЫ (0.3 для трюков и сложности)
         if (window.isLeanBack) {
             Body.setAngularVelocity(chassis, -0.3); 
         } 
@@ -292,7 +297,6 @@
         let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
         cameraX += (targetCameraX - cameraX) * 0.1; 
         
-        // ГЕНЕРАЦИЯ И УДАЛЕНИЕ ЛАНДШАФТА НА ЛЕТУ
         generateTerrain();
         cleanupTerrain();
 
@@ -302,7 +306,6 @@
             distanceText.innerText = maxDistance;
         }
 
-        // РЕСПАВН
         if (chassis.position.y > canvas.height + 200) {
             let spawnX = cameraX + (canvas.width * 0.3) / zoom;
             let respawnHillY = getTerrainY(spawnX);
@@ -338,7 +341,7 @@
 
         drawMountainLayer(120, 60, '#3a2354', cameraX * 0.2);
         drawMountainLayer(60, 100, '#1e1129', cameraX * 0.5);
-        drawTerrain(); // Рисуем бесконечную землю
+        drawTerrain();
 
         ctx.save();
         ctx.translate(chassis.position.x, chassis.position.y);
