@@ -124,17 +124,17 @@
 
     function getTerrainY(x) {
         let y = groundY;
-        // Оставили сложный ландшафт
-        y -= noise(x * 0.001) * 180;  
-        y -= noise(x * 0.005) * 70;   
-        y -= noise(x * 0.015) * 20;    
+        // УМЕНЬШИЛИ ВЫСОТУ (с 180 до 80), чтобы можно было заехать
+        y -= noise(x * 0.001) * 80;  
+        y -= noise(x * 0.005) * 25;   
+        y -= noise(x * 0.015) * 5;    
         return y;
     }
 
     const terrainBlocks = [];
     let lastGeneratedX = startX - 1500; 
-    const chunkWidth = 5; 
-    const groundRadius = 25; 
+    const chunkWidth = 2; // ОЧЕНЬ ПЛОТНО (чтобы не проваливаться)
+    const groundRadius = 30; // Большие круги
 
     function generateTerrain() {
         while (lastGeneratedX < cameraX + (canvas.width / zoom) + 1000) {
@@ -157,7 +157,7 @@
         }
     }
 
-    // --- МОТОЦИКЛ ---
+    // --- МОТОЦИКЛ (РЕАЛИСТИЧНЫЕ НАСТРОЙКИ) ---
     const group = Body.nextGroup(true); 
     const wheelRadius = 10; 
     const wheelBase = 23; 
@@ -165,26 +165,26 @@
     let startHillY = getTerrainY(startX);
     const startY = startHillY - wheelRadius - 5; 
     
-    // Уменьшили трение колес (1.2) чтобы не вцеплялся
+    // Трение 1.5 (хорошее сцепление)
     const wheelRear = Bodies.circle(startX - wheelBase, startY, wheelRadius, { 
-        density: 0.05, friction: 1.2, frictionStatic: 1.2, collisionFilter: { group: group } 
+        density: 0.05, friction: 1.5, frictionStatic: 1.5, collisionFilter: { group: group } 
     });
     const wheelFront = Bodies.circle(startX + wheelBase, startY, wheelRadius, { 
-        density: 0.05, friction: 1.2, frictionStatic: 1.2, collisionFilter: { group: group } 
+        density: 0.05, friction: 1.5, frictionStatic: 1.5, collisionFilter: { group: group } 
     });
-    // Увеличили плотность рамы (0.3) чтобы сильнее давила на подвеску
+    // Вес рамы 0.2 (средний)
     const chassis = Bodies.rectangle(startX, startY - 15, 60, 15, { 
-        density: 0.3, collisionFilter: { group: group } 
+        density: 0.2, collisionFilter: { group: group } 
     }); 
 
-    // МЯГКАЯ АМОРТИЗАЦИЯ (Пружины мягкие, гашение слабое)
+    // РЕАЛИСТИЧНАЯ ПОДВЕСКА (Упругая, но с хорошим гашением)
     const suspensionRear = Constraint.create({ 
         bodyA: wheelRear, pointB: { x: -wheelBase, y: 0 }, bodyB: chassis, 
-        stiffness: 0.05, damping: 0.1, length: 0 
+        stiffness: 0.2, damping: 0.4, length: 0 
     });
     const suspensionFront = Constraint.create({ 
         bodyA: wheelFront, pointB: { x: wheelBase, y: 0 }, bodyB: chassis, 
-        stiffness: 0.05, damping: 0.1, length: 0 
+        stiffness: 0.2, damping: 0.4, length: 0 
     });
 
     const moto = Composite.create({ bodies: [wheelRear, wheelFront, chassis], constraints: [suspensionRear, suspensionFront] });
@@ -223,7 +223,7 @@
         ctx.beginPath();
         let startDrawX = Math.floor(cameraX) - 100;
         let endDrawX = Math.floor(cameraX) + (canvas.width / zoom) + 100;
-        ctx.moveTo(startDrawX, canvas.height * 2); // Увеличили, чтобы горы не заканчивались при спуске
+        ctx.moveTo(startDrawX, canvas.height * 2);
         for (let x = startDrawX; x <= endDrawX; x += 10) {
             let worldX = x + parallaxOffset;
             let y = (canvas.height - yOffset) - Math.sin(worldX * 0.005) * height - Math.cos(worldX * 0.01) * (height / 2);
@@ -240,7 +240,7 @@
         ctx.lineWidth = 4; 
 
         ctx.beginPath();
-        ctx.moveTo(cameraX - 100, canvas.height + 2000); // Глубоко вниз
+        ctx.moveTo(cameraX - 100, canvas.height + 2000);
         
         for (let i = 0; i < terrainBlocks.length; i++) {
             ctx.lineTo(terrainBlocks[i].x, terrainBlocks[i].y);
@@ -275,47 +275,44 @@
     }
 
     function update() {
-        // УВЕЛИЧЕННАЯ СКОРОСТЬ (0.85)
+        // СКОРОСТЬ (1.1 для быстрой езды)
         if (window.isGas) { 
-            Body.setAngularVelocity(wheelRear, 0.85); 
-            Body.setAngularVelocity(wheelFront, 0.85); 
+            Body.setAngularVelocity(wheelRear, 1.1); 
+            Body.setAngularVelocity(wheelFront, 1.1); 
         }
         if (window.isBrake) { 
             Body.setAngularVelocity(wheelRear, 0); 
             Body.setAngularVelocity(wheelFront, 0); 
         }
         
-        // УМЕНЬШЕННЫЕ ПОВОРОТЫ
+        // ВИЛЛИ (Мягкое, реалистичное)
         let isAirborne = Math.abs(chassis.velocity.y) > 1.0; 
         
         if (window.isLeanBack) {
             if (isAirborne) {
                 let currentRot = chassis.angularVelocity;
-                if (currentRot > -0.06) { 
+                if (currentRot > -0.05) { 
                     Body.setAngularVelocity(chassis, currentRot - 0.005); 
                 }
             } else {
-                Body.setAngularVelocity(chassis, -0.08); // Мягкое вилли
-                // Если жмем газ и делаем вилли, добавляем скорости (чтобы не тормозил)
-                if (window.isGas) Body.applyForce(chassis, chassis.position, { x: 0.0006, y: 0 });
+                // На земле 0.04 (чтобы не переворачивался)
+                Body.setAngularVelocity(chassis, -0.04); 
             }
         } 
         else if (window.isLeanForward) {
             if (isAirborne) {
                 let currentRot = chassis.angularVelocity;
-                if (currentRot < 0.06) {
+                if (currentRot < 0.05) {
                     Body.setAngularVelocity(chassis, currentRot + 0.005);
                 }
             } else {
-                Body.setAngularVelocity(chassis, 0.08); 
+                Body.setAngularVelocity(chassis, 0.04); 
             }
         }
 
         let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
         cameraX += (targetCameraX - cameraX) * 0.1; 
         
-        // КАМЕРА ТЕПЕРЬ СЛЕДИТ ЗА ВЫСОТОЙ (Y)
-        // Мотоцикл всегда держится на уровне 60% от верха экрана
         let targetCameraY = (canvas.height * 0.4) - chassis.position.y;
         cameraY += (targetCameraY - cameraY) * 0.1;
         
@@ -358,7 +355,6 @@
 
         ctx.save();
         ctx.scale(zoom, zoom);
-        // Применяем камеру по X и Y
         ctx.translate(0, cameraY);
         ctx.translate(-cameraX, 0);
 
@@ -391,4 +387,4 @@
     });
 </script>
 </body>
-</html>          
+</html>
