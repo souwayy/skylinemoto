@@ -51,6 +51,7 @@
         #btnGas         { bottom: 90px; right: 20px; }
         #btnBrake       { bottom: 20px; right: 60px; }
     </style>
+    <!-- Подключаем Matter.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 </head>
 <body>
@@ -110,11 +111,11 @@
     const startX = 50000;
     let groundY = canvas.height - 80; 
 
-    // --- ГЛАДКИЙ БЕСКОНЕЧНЫЙ ЛАНДШАФТ (ПОЛИГОНЫ) ---
+    // --- ГЕНЕРАЦИЯ ЗЕМЛИ ИЗ КРУГОВ (ИДЕАЛЬНО ГЛАДКАЯ ФИЗИКА) ---
     const terrainBlocks = [];
     let lastGeneratedX = startX - 1500; 
-    const chunkWidth = 40; 
-    const chunkDepth = 2000; 
+    const chunkWidth = 10; // Очень частый шаг (круги будут перекрывать друг друга)
+    const groundRadius = 20; // Радиус невидимых кругов физики
 
     function getTerrainY(x) {
         let y = groundY;
@@ -126,30 +127,17 @@
 
     function generateTerrain() {
         while (lastGeneratedX < cameraX + (canvas.width / zoom) + 1000) {
-            let x1 = lastGeneratedX;
-            let x2 = x1 + chunkWidth;
-            let y1 = getTerrainY(x1);
-            let y2 = getTerrainY(x2);
-
-            // Создаем трапецию (полигон) идеально совпадающую с линией холма
-            let v1 = { x: 0, y: 0 }; // Верхний левый
-            let v2 = { x: chunkWidth, y: y2 - y1 }; // Верхний правый
-            let v3 = { x: chunkWidth, y: y2 - y1 + chunkDepth }; // Нижний правый
-            let v4 = { x: 0, y: chunkDepth }; // Нижний левый
-
-            // Создаем физическое тело из вершин
-            let block = Bodies.fromVertices(0, 0, [[v1, v2, v3, v4]], { 
+            let hillY = getTerrainY(lastGeneratedX);
+            
+            // Создаем статичный круг чуть ниже визуальной линии
+            let block = Bodies.circle(lastGeneratedX, hillY + groundRadius, groundRadius, { 
                 isStatic: true,
-                friction: 1,
+                friction: 1, 
                 collisionFilter: { category: 0x0002 } 
-            }, true); // true - флаг для внутренних полигонов
-
-            if (block) {
-                // Перемещаем тело в нужную точку мира
-                Body.setPosition(block, { x: x1, y: y1 });
-                terrainBlocks.push({ body: block, x: x1, y: y1 });
-                Composite.add(world, block);
-            }
+            });
+            
+            terrainBlocks.push({ body: block, x: lastGeneratedX, y: hillY });
+            Composite.add(world, block);
             
             lastGeneratedX += chunkWidth;
         }
@@ -238,10 +226,13 @@
         ctx.fill();
     }
 
+    // --- ОТРИСОВКА ТВЕРДОЙ ЗЕМЛИ ---
     function drawTerrain() {
         ctx.fillStyle = '#000'; 
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 4; // Делаем линию чуть толще, чтобы она казалась твердой
+
         ctx.beginPath();
-        
         ctx.moveTo(cameraX - 100, canvas.height + 500);
         
         for (let i = 0; i < terrainBlocks.length; i++) {
@@ -252,6 +243,7 @@
         ctx.lineTo(lastGeneratedX, canvas.height + 500);
         ctx.closePath();
         ctx.fill();
+        ctx.stroke(); // Обводка делает края более четкими
     }
 
     function drawWheel(wheel) {
@@ -277,7 +269,6 @@
     }
 
     function update() {
-        // МОЩНОСТЬ
         if (window.isGas) { 
             Body.setAngularVelocity(wheelRear, 0.9); 
             Body.setAngularVelocity(wheelFront, 0.9); 
@@ -287,12 +278,12 @@
             Body.setAngularVelocity(wheelFront, 0); 
         }
         
-        // СБАЛАНСИРОВАННЫЕ НАКЛОНЫ (0.15)
+        // НАКЛОНЫ 0.3 (как ты хотел)
         if (window.isLeanBack) {
-            Body.setAngularVelocity(chassis, -0.15); 
+            Body.setAngularVelocity(chassis, -0.3); 
         } 
         else if (window.isLeanForward) {
-            Body.setAngularVelocity(chassis, 0.15); 
+            Body.setAngularVelocity(chassis, 0.3); 
         }
 
         let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
