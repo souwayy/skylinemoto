@@ -111,24 +111,24 @@
     let groundY = canvas.height - 80; 
     let ground = Bodies.rectangle(startX, groundY + 50, 100000, 100, { isStatic: true });
 
-    // --- ФИЗИКА (ИДЕАЛЬНОЕ РАССТОЯНИЕ) ---
+    // --- ФИЗИКА (ИСПРАВЛЕНА) ---
     const wheelRadius = 11; 
-    const wheelBase = 20; // Идеально
-    
-    // Начальная высота: ставим колеса ровно на землю, раму чуть выше
+    const wheelBase = 20; 
     const startY = groundY - wheelRadius;
     
     const wheelRear = Bodies.circle(startX - wheelBase, startY, wheelRadius, { density: 0.05, friction: 1 });
     const wheelFront = Bodies.circle(startX + wheelBase, startY, wheelRadius, { density: 0.05, friction: 1 });
-    const chassis = Bodies.rectangle(startX, startY - 15, 60, 15, { density: 0.1 }); 
+    // Добавили frictionAir, чтобы рама не крутилась сама по себе
+    const chassis = Bodies.rectangle(startX, startY - 15, 60, 15, { density: 0.1, frictionAir: 0.1 }); 
 
+    // Жесткая подвеска (чтобы не пружинило)
     const suspensionRear = Constraint.create({ 
         bodyA: wheelRear, pointB: { x: -wheelBase, y: 0 }, bodyB: chassis, 
-        stiffness: 0.2, damping: 0.4, length: 0 
+        stiffness: 0.8, damping: 0.9, length: 0 
     });
     const suspensionFront = Constraint.create({ 
         bodyA: wheelFront, pointB: { x: wheelBase, y: 0 }, bodyB: chassis, 
-        stiffness: 0.2, damping: 0.4, length: 0 
+        stiffness: 0.8, damping: 0.9, length: 0 
     });
 
     const moto = Composite.create({ bodies: [wheelRear, wheelFront, chassis], constraints: [suspensionRear, suspensionFront] });
@@ -222,10 +222,14 @@
             Body.setAngularVelocity(wheelFront, 0); 
         }
         
+        // НАКЛОНЫ (Через силу, а не через вращение)
+        // Если жмем назад — даем импульс раме вверх (поднимаем переднее колесо)
         if (window.isLeanBack) {
-            Body.setAngularVelocity(chassis, -0.05); 
-        } else if (window.isLeanForward) {
-            Body.setAngularVelocity(chassis, 0.05); 
+            Body.applyForce(chassis, { x: chassis.position.x, y: chassis.position.y + 10 }, { x: 0, y: -0.005 });
+        } 
+        // Если жмем вперед — даем импульс вниз
+        else if (window.isLeanForward) {
+            Body.applyForce(chassis, { x: chassis.position.x, y: chassis.position.y }, { x: 0, y: 0.005 });
         }
 
         let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
@@ -237,7 +241,6 @@
             distanceText.innerText = maxDistance;
         }
 
-        // Респавн (без падения с неба)
         if (chassis.position.y > canvas.height + 200) {
             let spawnX = cameraX + (canvas.width * 0.3) / zoom;
             let respawnY = groundY - wheelRadius;
