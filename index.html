@@ -124,10 +124,12 @@
 
     function getTerrainY(x) {
         let y = groundY;
-        // Сделали горы чуть мягче, чтобы можно было разогнаться
-        y -= noise(x * 0.0015) * 80;  
-        y -= noise(x * 0.006) * 30;   
-        y -= noise(x * 0.02) * 10;    
+        
+        // УВЕЛИЧИЛИ СЛОЖНОСТЬ: высота до 200 пикселей, резкие перепады
+        y -= noise(x * 0.001) * 180;  
+        y -= noise(x * 0.005) * 70;   
+        y -= noise(x * 0.015) * 20;    
+        
         return y;
     }
 
@@ -157,6 +159,7 @@
         }
     }
 
+    // --- МОТОЦИКЛ ---
     const group = Body.nextGroup(true); 
     const wheelRadius = 10; 
     const wheelBase = 23; 
@@ -174,13 +177,14 @@
         density: 0.1, collisionFilter: { group: group } 
     }); 
 
+    // УЛУЧШЕННАЯ АМОРТИЗАЦИЯ (Мягкие пружины + сильное гашение)
     const suspensionRear = Constraint.create({ 
         bodyA: wheelRear, pointB: { x: -wheelBase, y: 0 }, bodyB: chassis, 
-        stiffness: 0.4, damping: 0.2, length: 0 
+        stiffness: 0.15, damping: 0.7, length: 0 
     });
     const suspensionFront = Constraint.create({ 
         bodyA: wheelFront, pointB: { x: wheelBase, y: 0 }, bodyB: chassis, 
-        stiffness: 0.4, damping: 0.2, length: 0 
+        stiffness: 0.15, damping: 0.7, length: 0 
     });
 
     const moto = Composite.create({ bodies: [wheelRear, wheelFront, chassis], constraints: [suspensionRear, suspensionFront] });
@@ -280,36 +284,33 @@
             Body.setAngularVelocity(wheelFront, 0); 
         }
         
-        // --- УПРАВЛЕНИЕ НАКЛОНАМИ (ВИЛЛИ) ---
+        // УМЕНЬШЕННЫЕ ПОВОРОТЫ
         let isAirborne = Math.abs(chassis.velocity.y) > 1.0; 
         
         if (window.isLeanBack) {
             if (isAirborne) {
-                // В воздухе ограничиваем вращение (одно сальто)
                 let currentRot = chassis.angularVelocity;
-                if (currentRot > -0.15) {
+                if (currentRot > -0.1) { // В воздухе
                     Body.setAngularVelocity(chassis, currentRot - 0.01); 
                 }
             } else {
-                // На земле: 0.18 — идеально для вилли
-                Body.setAngularVelocity(chassis, -0.18); 
+                Body.setAngularVelocity(chassis, -0.12); // На земле (мягкое вилли)
             }
         } 
         else if (window.isLeanForward) {
             if (isAirborne) {
                 let currentRot = chassis.angularVelocity;
-                if (currentRot < 0.15) {
+                if (currentRot < 0.1) { // В воздухе
                     Body.setAngularVelocity(chassis, currentRot + 0.01);
                 }
             } else {
-                Body.setAngularVelocity(chassis, 0.18); 
+                Body.setAngularVelocity(chassis, 0.12); // На земле
             }
         }
 
         let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
         cameraX += (targetCameraX - cameraX) * 0.1; 
         
-        // ИСПРАВЛЕННАЯ КАМЕРА ПО Y (Смотрит на реальную землю под мотоциклом)
         let terrainUnderBike = getTerrainY(chassis.position.x);
         let targetCameraY = 0;
         if (chassis.position.y > terrainUnderBike) {
