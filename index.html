@@ -35,17 +35,18 @@
     const world = engine.world;
     engine.gravity.y = 1; 
 
+    // Стартовая позиция (по центру нашей длинной земли)
+    const startX = 50000;
+
     // --- ЗЕМЛЯ ---
     let groundY = canvas.height - 80; 
-    let ground = Bodies.rectangle(50000, groundY + 50, 100000, 100, { isStatic: true });
+    let ground = Bodies.rectangle(startX, groundY + 50, 100000, 100, { isStatic: true });
 
-    // --- ФИЗИКА МОТОЦИКЛА ---
+    // --- МОТОЦИКЛ ---
     const wheelRadius = 20;
-    const wheelRear = Bodies.circle(canvas.width / 2 - 40, 100, wheelRadius, { density: 0.05, friction: 1 });
-    const wheelFront = Bodies.circle(canvas.width / 2 + 40, 100, wheelRadius, { density: 0.05, friction: 1 });
-    
-    // Рама (физический прямоугольник, который мы будем красиво рисовать)
-    const chassis = Bodies.rectangle(canvas.width / 2, 90, 80, 20, { density: 0.1 });
+    const wheelRear = Bodies.circle(startX - 40, 100, wheelRadius, { density: 0.05, friction: 1 });
+    const wheelFront = Bodies.circle(startX + 40, 100, wheelRadius, { density: 0.05, friction: 1 });
+    const chassis = Bodies.rectangle(startX, 90, 80, 20, { density: 0.1 });
 
     const suspensionRear = Constraint.create({
         bodyA: wheelRear, pointB: { x: -40, y: 0 }, bodyB: chassis, stiffness: 0.1, damping: 0.1
@@ -76,51 +77,61 @@
         isBrake = false;
     });
 
-    // --- КАМЕРА И МАСШТАБ ---
-    let cameraX = 0; 
-    const zoom = 0.7; // Зум (отдаление)
+    // --- КАМЕРА ---
+    let cameraX = startX - (canvas.width * 0.3); // Начальная позиция камеры
+    const zoom = 0.7; 
 
-    // --- ОТРИСОВКА ФОНА ---
-    function drawMountainLayer(yOffset, height, color, offset) {
+    function drawMountainLayer(yOffset, height, color, parallaxOffset) {
         ctx.fillStyle = color;
         ctx.beginPath();
-        ctx.moveTo(0, canvas.height * 1.5);
-        for (let x = 0; x <= canvas.width / zoom; x += 10) {
-            let worldX = x + offset;
+        
+        // Начинаем рисовать с левого края экрана (с учетом камеры)
+        let startDrawX = cameraX - 100;
+        let endDrawX = cameraX + (canvas.width / zoom) + 100;
+        
+        ctx.moveTo(startDrawX, canvas.height * 1.5);
+        
+        for (let x = startDrawX; x <= endDrawX; x += 10) {
+            let worldX = x + parallaxOffset;
             let y = (canvas.height - yOffset) 
                     - Math.sin(worldX * 0.005) * height 
                     - Math.cos(worldX * 0.01) * (height / 2);
             ctx.lineTo(x, y);
         }
-        ctx.lineTo(canvas.width / zoom, canvas.height * 1.5);
+        
+        ctx.lineTo(endDrawX, canvas.height * 1.5);
         ctx.closePath();
         ctx.fill();
     }
 
-    function drawTerrain(offset) {
+    function drawTerrain() {
         ctx.fillStyle = '#000000'; 
         ctx.beginPath();
-        ctx.moveTo(0, canvas.height * 1.5);
+        
+        let startDrawX = cameraX - 100;
+        let endDrawX = cameraX + (canvas.width / zoom) + 100;
         let terrainY = canvas.height - 80;
-        ctx.lineTo(0, terrainY);
-        ctx.lineTo(canvas.width / zoom, terrainY);
-        ctx.lineTo(canvas.width / zoom, canvas.height * 1.5);
+
+        ctx.moveTo(startDrawX, canvas.height * 1.5);
+        ctx.lineTo(startDrawX, terrainY);
+        ctx.lineTo(endDrawX, terrainY);
+        ctx.lineTo(endDrawX, canvas.height * 1.5);
         ctx.closePath();
         ctx.fill();
 
-        // Трава
+        // Трава (привязана к мировым координатам)
         ctx.strokeStyle = '#000000';
         ctx.lineWidth = 2;
         ctx.lineCap = 'round';
-        for (let x = 0; x <= canvas.width / zoom; x += 20) {
-            let worldX = x + offset;
-            let patch = Math.sin(worldX * 0.03); 
+        
+        for (let x = startDrawX; x <= endDrawX; x += 20) {
+            let patch = Math.sin(x * 0.03); 
             if (patch > 0.6) {
                 let y = terrainY; 
                 for (let i = 0; i < 3; i++) {
                     let startX = x + (i * 4) - 4;
-                    let lean = Math.sin(worldX * 0.1 + i) * 6;
-                    let height = 6 + Math.cos(worldX * 0.2 + i) * 4;
+                    let lean = Math.sin(x * 0.1 + i) * 6;
+                    let height = 6 + Math.cos(x * 0.2 + i) * 4;
                     ctx.beginPath();
                     ctx.moveTo(startX, y + 2);
                     ctx.lineTo(startX + lean, y - height);
@@ -130,74 +141,81 @@
         }
     }
 
-    // --- НОВАЯ ОТРИСОВКА КОЛЕСА (Только черный силуэт, без белых спиц) ---
     function drawWheel(wheel) {
         ctx.save();
         ctx.translate(wheel.position.x, wheel.position.y);
         ctx.rotate(wheel.angle);
         
-        // Само колесо
         ctx.fillStyle = '#000'; 
         ctx.beginPath();
         ctx.arc(0, 0, wheelRadius, 0, Math.PI * 2);
         ctx.fill();
         
-        // Рисуем маленькую точку в центре, чтобы визуально видеть вращение
-        ctx.fillStyle = '#222'; // Едва заметный темно-серый
+        // Спицы (крестик внутри колеса, чтобы видеть вращение)
+        ctx.strokeStyle = '#222'; // Темно-серый
+        ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.arc(wheelRadius * 0.5, 0, 3, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.moveTo(-wheelRadius+5, 0); ctx.lineTo(wheelRadius-5, 0);
+        ctx.moveTo(0, -wheelRadius+5); ctx.lineTo(0, wheelRadius-5);
+        ctx.stroke();
 
         ctx.restore();
     }
 
-    // --- НОВАЯ ОТРИСОВКА МОТОЦИКЛА (Векторный силуэт) ---
+    // --- НОВЫЙ, КРАСИВЫЙ СИЛУЭТ МОТОЦИКЛА ---
     function drawMotoSilhouette() {
         ctx.save();
         ctx.translate(chassis.position.x, chassis.position.y);
         ctx.rotate(chassis.angle);
         
-        ctx.fillStyle = '#000'; // Черный цвет
+        ctx.fillStyle = '#000'; 
+        ctx.strokeStyle = '#000';
         
-        // 1. Рисуем кузов мотоцикла (бак, сиденье, вилка)
+        // 1. Рама и кузов (Эндуро)
+        ctx.lineWidth = 4;
         ctx.beginPath();
-        ctx.moveTo(-30, 5);       // Задняя часть
-        ctx.lineTo(-15, -10);     // Сиденье
-        ctx.lineTo(10, -10);      // Бак
-        ctx.lineTo(30, -5);       // Рулевая колонка
-        ctx.lineTo(25, 10);       // Передний обтекатель
-        ctx.lineTo(-20, 10);      // Низ рамы
+        ctx.moveTo(-40, 0);   // Центр заднего колеса
+        ctx.lineTo(-20, -15); // Под сиденьем
+        ctx.lineTo(0, -15);   // Сиденье
+        ctx.lineTo(15, -10);  // Бак
+        ctx.lineTo(30, -5);   // Руль
+        ctx.lineTo(40, 0);    // Центр переднего колеса
+        ctx.stroke();
+
+        // Задний маятник (соединяет раму с колесом)
+        ctx.beginPath();
+        ctx.moveTo(-10, 5);
+        ctx.lineTo(-40, 0);
+        ctx.stroke();
+
+        // 2. Водитель
+        ctx.fillStyle = '#000';
+        // Ноги
+        ctx.beginPath();
+        ctx.moveTo(-5, -10);
+        ctx.lineTo(-15, 5);
+        ctx.lineTo(-5, 5);
         ctx.closePath();
         ctx.fill();
 
-        // 2. Рисуем вилку переднего колеса (линия вниз)
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = '#000';
-        ctx.beginPath();
-        ctx.moveTo(28, -5);
-        ctx.lineTo(40, 20); // Идет к центру переднего колеса
-        ctx.stroke();
-
-        // 3. Рисуем водителя (сгорбленный силуэт)
         // Туловище (наклонено вперед)
         ctx.beginPath();
-        ctx.moveTo(-15, -10); // Точка на сиденье
-        ctx.lineTo(0, -30);   // Спина
-        ctx.lineTo(15, -15);  // Грудь
-        ctx.lineTo(5, -5);    // Живот
+        ctx.moveTo(-15, -15); // Точка на сиденье
+        ctx.lineTo(5, -35);   // Спина (сгорбленная)
+        ctx.lineTo(20, -20);  // Грудь (наклон вперед)
         ctx.closePath();
         ctx.fill();
 
-        // Руки (тянутся к рулю)
+        // Руки (держат руль)
         ctx.lineWidth = 6;
         ctx.beginPath();
-        ctx.moveTo(5, -20);
-        ctx.lineTo(25, -5); // К рулю
+        ctx.moveTo(10, -30);
+        ctx.lineTo(30, -5); // К рулю
         ctx.stroke();
 
-        // Шлем (круг)
+        // Шлем
         ctx.beginPath();
-        ctx.arc(-2, -35, 10, 0, Math.PI * 2);
+        ctx.arc(8, -40, 10, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.restore();
@@ -217,7 +235,7 @@
         let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
         cameraX += (targetCameraX - cameraX) * 0.1; 
         
-        // Респавн, если упал
+        // Респавн
         if (chassis.position.y > canvas.height + 200) {
             let spawnX = cameraX + (canvas.width * 0.3) / zoom;
             Body.setPosition(chassis, { x: spawnX, y: 100 });
@@ -231,7 +249,7 @@
         // --- ОТРИСОВКА ---
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Фон
+        // Небо
         const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
         gradient.addColorStop(0, '#1a0b2e');
         gradient.addColorStop(0.4, '#5a2b58');
@@ -246,18 +264,18 @@
         ctx.arc(canvas.width * 0.75, canvas.height * 0.35, 45, 0, Math.PI * 2);
         ctx.fill();
 
-        // --- ВКЛЮЧАЕМ МАСШТАБ ДЛЯ МИРА ---
+        // Включаем масштаб
         ctx.save();
         ctx.scale(zoom, zoom);
         ctx.translate(0, (canvas.height * (1 - zoom)) / zoom);
         ctx.translate(-cameraX, 0);
 
-        // Рисуем мир
+        // Горы и земля
         drawMountainLayer(120, 60, '#3a2354', cameraX * 0.2);
         drawMountainLayer(60, 100, '#1e1129', cameraX * 0.5);
-        drawTerrain(cameraX);
+        drawTerrain();
 
-        // Рисуем мотоцикл и колеса
+        // Мотоцикл и колеса
         drawMotoSilhouette();
         drawWheel(wheelRear);
         drawWheel(wheelFront);
@@ -274,7 +292,7 @@
     window.addEventListener('resize', () => {
         resizeCanvas();
         groundY = canvas.height - 80;
-        Body.setPosition(ground, { x: 50000, y: groundY + 50 });
+        Body.setPosition(ground, { x: startX, y: groundY + 50 });
     });
 </script>
 </body>
