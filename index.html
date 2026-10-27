@@ -30,11 +30,12 @@
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
         }
 
+        /* --- УМЕНЬШЕННЫЕ КНОПКИ --- */
         .btn {
             position: absolute;
-            width: 70px; height: 70px; border-radius: 50%;
+            width: 55px; height: 55px; border-radius: 50%;
             background: rgba(255, 255, 255, 0.05); 
-            border: 3px solid rgba(255, 255, 255, 0.5);
+            border: 2px solid rgba(255, 255, 255, 0.5);
             display: flex; align-items: center; justify-content: center;
             pointer-events: auto; color: white;
             transition: background 0.1s;
@@ -42,14 +43,15 @@
         .btn:active { background: rgba(255, 255, 255, 0.3); }
         
         .btn svg {
-            width: 32px; height: 32px; fill: none; stroke: rgba(255, 255, 255, 0.7);
+            width: 24px; height: 24px; fill: none; stroke: rgba(255, 255, 255, 0.7);
             stroke-width: 3; stroke-linecap: round; stroke-linejoin: round;
         }
 
-        #btnLeanBack    { bottom: 120px; left: 25px; }
-        #btnLeanForward { bottom: 30px;  left: 80px; }
-        #btnGas         { bottom: 120px; right: 25px; }
-        #btnBrake       { bottom: 30px;  right: 80px; }
+        /* Расположение (компактнее) */
+        #btnLeanBack    { bottom: 90px; left: 20px; }
+        #btnLeanForward { bottom: 20px; left: 60px; }
+        #btnGas         { bottom: 90px; right: 20px; }
+        #btnBrake       { bottom: 20px; right: 60px; }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 </head>
@@ -111,9 +113,9 @@
     let groundY = canvas.height - 80; 
     let ground = Bodies.rectangle(startX, groundY + 50, 100000, 100, { isStatic: true });
 
-    // --- ФИЗИКА (НАСТРОЙКА КОЛЕС) ---
+    // --- ФИЗИКА (КОЛЕСА СБЛИЖЕНЫ) ---
     const wheelRadius = 11; 
-    const wheelBase = 28; // Подобрано под арки картинки
+    const wheelBase = 25; // Расстояние от центра до колеса (50px между ними)
     
     const wheelRear = Bodies.circle(startX - wheelBase, 100, wheelRadius, { density: 0.05, friction: 1 });
     const wheelFront = Bodies.circle(startX + wheelBase, 100, wheelRadius, { density: 0.05, friction: 1 });
@@ -172,7 +174,6 @@
         ctx.fill();
     }
 
-    // --- ЗЕМЛЯ БЕЗ ТРАВЫ ---
     function drawTerrain() {
         ctx.fillStyle = '#000'; 
         ctx.beginPath();
@@ -211,7 +212,6 @@
     }
 
     function update() {
-        // СКОРОСТЬ СНИЖЕНА (0.2 вместо 0.4)
         if (window.isGas) { 
             Body.setAngularVelocity(wheelRear, 0.2); 
             Body.setAngularVelocity(wheelFront, 0.2); 
@@ -262,14 +262,14 @@
         drawMountainLayer(60, 100, '#1e1129', cameraX * 0.5);
         drawTerrain();
 
-        // --- МОТОЦИКЛ (ТОЧНАЯ ПОДГОНКА) ---
+        // --- МОТОЦИКЛ (ПРИПОДНЯТ) ---
         ctx.save();
         ctx.translate(chassis.position.x, chassis.position.y);
         ctx.rotate(chassis.angle);
         
         if (isImageLoaded) {
-            // Размер 90x54, идеально центрирует колеса на картинке
-            ctx.drawImage(bikeImage, -45, -35, 90, 54); 
+            // Y-сдвиг изменен с -35 на -45, чтобы мотоцикл поднялся над колесами
+            ctx.drawImage(bikeImage, -45, -45, 90, 54); 
         }
         ctx.restore();
 
