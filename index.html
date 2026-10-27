@@ -5,9 +5,44 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Skyline Moto</title>
     <style>
-        /* touch-action: none - ЗАПРЕЩАЕТ БРАУЗЕРУ ЗУМИТЬ И ПРОКРУЧИВАТЬ ЭКРАН */
-        body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; -webkit-user-select: none; user-select: none; }
+        body { 
+            margin: 0; padding: 0; overflow: hidden; background-color: #000; 
+            touch-action: none; -webkit-user-select: none; user-select: none; 
+            font-family: sans-serif;
+        }
         canvas { display: block; touch-action: none; }
+
+        .controls {
+            position: absolute;
+            bottom: 30px;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 30px;
+            box-sizing: border-box;
+            pointer-events: none;
+        }
+
+        .btn {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            border: 3px solid rgba(255, 255, 255, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 32px;
+            font-weight: bold;
+            transition: background 0.1s, border-color 0.1s;
+        }
+
+        .btn:active {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.8);
+        }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 </head>
@@ -15,29 +50,19 @@
 
 <canvas id="gameCanvas"></canvas>
 
-<script>
-    // --- БЛОКИРОВКА ЖЕСТОВ БРАУЗЕРА ---
-    // 1. Запрещаем масштабирование двумя пальцами
-    document.addEventListener('touchmove', function(e) {
-        if (e.touches.length > 1) {
-            e.preventDefault();
-        }
-    }, { passive: false });
+<div class="controls">
+    <div class="btn" id="btnBrake">↺</div>
+    <div class="btn" id="btnGas">↻</div>
+</div>
 
-    // 2. Запрещаем масштабирование двойным тапом
+<script>
+    document.addEventListener('touchmove', function(e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
     let lastTouchEnd = 0;
     document.addEventListener('touchend', function(e) {
         const now = (new Date()).getTime();
-        if (now - lastTouchEnd <= 300) {
-            e.preventDefault();
-        }
+        if (now - lastTouchEnd <= 300) e.preventDefault();
         lastTouchEnd = now;
     }, { passive: false });
-
-    // 3. Специально для Safari на iPhone (блокировка жестов)
-    document.addEventListener('gesturestart', function(e) {
-        e.preventDefault();
-    });
 
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
@@ -60,40 +85,49 @@
     engine.gravity.y = 1; 
 
     const startX = 50000;
-
     let groundY = canvas.height - 80; 
     let ground = Bodies.rectangle(startX, groundY + 50, 100000, 100, { isStatic: true });
 
-    // --- ФИЗИКА МОТОЦИКЛА ---
-    const wheelRadius = 14; 
-    const wheelRear = Bodies.circle(startX - 45, 100, wheelRadius, { density: 0.05, friction: 1 });
-    const wheelFront = Bodies.circle(startX + 45, 100, wheelRadius, { density: 0.05, friction: 1 });
+    // --- ФИЗИКА (КОЛЕСА МЕНЬШЕ И БЛИЖЕ) ---
+    const wheelRadius = 12; // Уменьшили радиус
+    // Расстояние между колесами сокращено (было 45, стало 35)
+    const wheelRear = Bodies.circle(startX - 35, 100, wheelRadius, { density: 0.05, friction: 1 });
+    const wheelFront = Bodies.circle(startX + 35, 100, wheelRadius, { density: 0.05, friction: 1 });
     const chassis = Bodies.rectangle(startX, 90, 80, 20, { density: 0.1 });
 
-    const suspensionRear = Constraint.create({ bodyA: wheelRear, pointB: { x: -45, y: 0 }, bodyB: chassis, stiffness: 0.1, damping: 0.1 });
-    const suspensionFront = Constraint.create({ bodyA: wheelFront, pointB: { x: 45, y: 0 }, bodyB: chassis, stiffness: 0.1, damping: 0.1 });
+    // Точки крепления подвески тоже сдвинуты ближе
+    const suspensionRear = Constraint.create({ bodyA: wheelRear, pointB: { x: -35, y: -5 }, bodyB: chassis, stiffness: 0.1, damping: 0.1 });
+    const suspensionFront = Constraint.create({ bodyA: wheelFront, pointB: { x: 35, y: -5 }, bodyB: chassis, stiffness: 0.1, damping: 0.1 });
 
     const moto = Composite.create({ bodies: [wheelRear, wheelFront, chassis], constraints: [suspensionRear, suspensionFront] });
     Composite.add(world, [ground, moto]);
 
-    // --- ЗАГРУЖАЕМ ТВОЮ КАРТИНКУ ---
     const bikeImage = new Image();
     bikeImage.src = 'moto.png'; 
-    
     let isImageLoaded = false;
     bikeImage.onload = () => { isImageLoaded = true; };
 
     // --- УПРАВЛЕНИЕ ---
     let isGas = false, isBrake = false;
+
+    document.getElementById('btnGas').addEventListener('touchstart', (e) => { e.preventDefault(); isGas = true; });
+    document.getElementById('btnGas').addEventListener('touchend', (e) => { e.preventDefault(); isGas = false; });
+    
+    document.getElementById('btnBrake').addEventListener('touchstart', (e) => { e.preventDefault(); isBrake = true; });
+    document.getElementById('btnBrake').addEventListener('touchend', (e) => { e.preventDefault(); isBrake = false; });
+
     window.addEventListener('touchstart', (e) => {
-        // Берем координату именно первого касания
+        if(e.target.classList.contains('btn')) return;
         if (e.touches[0].clientX > window.innerWidth / 2) isGas = true; else isBrake = true;
     });
-    window.addEventListener('touchend', () => { isGas = false; isBrake = false; });
+    window.addEventListener('touchend', (e) => {
+        if(e.target.classList.contains('btn')) return;
+        isGas = false; isBrake = false;
+    });
 
-    // --- КАМЕРА ---
+    // --- КАМЕРА (ЕЩЕ БЛИЖЕ) ---
     let cameraX = startX - (canvas.width * 0.3);
-    const zoom = 0.85; // Фиксированный зум
+    const zoom = 1.25; // Было 1.15, теперь 1.25
 
     function drawMountainLayer(yOffset, height, color, parallaxOffset) {
         ctx.fillStyle = color;
@@ -122,7 +156,6 @@
         ctx.closePath();
         ctx.fill();
 
-        // Трава
         ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.lineCap = 'round';
         for (let x = startDrawX; x <= endDrawX; x += 20) {
             if (Math.sin(x * 0.03) > 0.6) {
@@ -142,42 +175,31 @@
         
         // Внешняя шина
         ctx.fillStyle = '#000'; 
-        ctx.beginPath(); 
-        ctx.arc(0, 0, wheelRadius, 0, Math.PI * 2); 
-        ctx.fill();
+        ctx.beginPath(); ctx.arc(0, 0, wheelRadius, 0, Math.PI * 2); ctx.fill();
 
         // Обод
         ctx.fillStyle = '#111'; 
-        ctx.beginPath(); 
-        ctx.arc(0, 0, wheelRadius - 3, 0, Math.PI * 2); 
-        ctx.fill();
+        ctx.beginPath(); ctx.arc(0, 0, wheelRadius - 2, 0, Math.PI * 2); ctx.fill();
 
         // Протектор
-        ctx.strokeStyle = '#333'; 
-        ctx.lineWidth = 1.5;
-        for (let i = 0; i < 10; i++) {
-            let angle = (i / 10) * Math.PI * 2;
-            let x1 = Math.cos(angle) * (wheelRadius - 1);
-            let y1 = Math.sin(angle) * (wheelRadius - 1);
-            let x2 = Math.cos(angle) * (wheelRadius + 1);
-            let y2 = Math.sin(angle) * (wheelRadius + 1);
-            ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+        ctx.strokeStyle = '#333'; ctx.lineWidth = 1.5;
+        for (let i = 0; i < 8; i++) {
+            let angle = (i / 8) * Math.PI * 2;
+            ctx.beginPath(); 
+            ctx.moveTo(Math.cos(angle) * (wheelRadius - 1), Math.sin(angle) * (wheelRadius - 1)); 
+            ctx.lineTo(Math.cos(angle) * (wheelRadius + 1), Math.sin(angle) * (wheelRadius + 1)); 
+            ctx.stroke();
         }
 
         // Спицы
-        ctx.strokeStyle = '#333'; 
-        ctx.lineWidth = 1;
+        ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
         for (let i = 0; i < 6; i++) {
             let angle = (i / 6) * Math.PI * 2;
-            let x = Math.cos(angle) * (wheelRadius - 3);
-            let y = Math.sin(angle) * (wheelRadius - 3);
-            ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(x, y); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(angle) * (wheelRadius - 2), Math.sin(angle) * (wheelRadius - 2)); ctx.stroke();
         }
 
         // Ступица
-        ctx.fillStyle = '#333';
-        ctx.beginPath(); ctx.arc(0, 0, 2.5, 0, Math.PI * 2); ctx.fill();
-        
+        ctx.fillStyle = '#333'; ctx.beginPath(); ctx.arc(0, 0, 2, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
     }
 
@@ -191,8 +213,8 @@
         if (chassis.position.y > canvas.height + 200) {
             let spawnX = cameraX + (canvas.width * 0.3) / zoom;
             Body.setPosition(chassis, { x: spawnX, y: 100 });
-            Body.setPosition(wheelRear, { x: spawnX - 45, y: 100 });
-            Body.setPosition(wheelFront, { x: spawnX + 45, y: 100 });
+            Body.setPosition(wheelRear, { x: spawnX - 35, y: 100 });
+            Body.setPosition(wheelFront, { x: spawnX + 35, y: 100 });
             Body.setVelocity(chassis, { x: 0, y: 0 }); Body.setVelocity(wheelRear, { x: 0, y: 0 }); Body.setVelocity(wheelFront, { x: 0, y: 0 });
         }
 
@@ -213,17 +235,17 @@
         drawMountainLayer(60, 100, '#1e1129', cameraX * 0.5);
         drawTerrain();
 
-        // --- РИСУЕМ МОТОЦИКЛ ---
+        // --- МОТОЦИКЛ (УВЕЛИЧЕН, КОЛЕСА В АРКАХ) ---
         ctx.save();
         ctx.translate(chassis.position.x, chassis.position.y);
         ctx.rotate(chassis.angle);
         
         if (isImageLoaded) {
-            ctx.drawImage(bikeImage, -50, -45, 100, 60); 
+            // Картинка стала больше (90 на 54), сдвиг центрирует её над колесами
+            ctx.drawImage(bikeImage, -45, -35, 90, 54); 
         }
         ctx.restore();
 
-        // Колеса рисуем ПОВЕРХ картинки
         drawWheel(wheelRear);
         drawWheel(wheelFront);
 
