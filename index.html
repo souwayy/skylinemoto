@@ -12,7 +12,6 @@
         }
         canvas { display: block; touch-action: none; }
 
-        /* Интерфейс */
         .ui-layer {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; z-index: 10;
@@ -31,17 +30,11 @@
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
         }
 
-        /* Кнопки управления (Точь-в-точь как в оригинале) */
-        .controls {
-            position: absolute; bottom: 25px; width: 100%;
-            display: flex; justify-content: space-between;
-            padding: 0 25px; box-sizing: border-box;
-        }
-        .group { display: flex; gap: 15px; }
-
+        /* --- КНОПКИ СТРОГО ПО ДИАГОНАЛИ --- */
         .btn {
-            width: 75px; height: 75px; border-radius: 50%;
-            background: rgba(255, 255, 255, 0.1); 
+            position: absolute;
+            width: 70px; height: 70px; border-radius: 50%;
+            background: rgba(255, 255, 255, 0.05); 
             border: 3px solid rgba(255, 255, 255, 0.5);
             display: flex; align-items: center; justify-content: center;
             pointer-events: auto; color: white;
@@ -50,9 +43,16 @@
         .btn:active { background: rgba(255, 255, 255, 0.3); }
         
         .btn svg {
-            width: 35px; height: 35px; fill: none; stroke: rgba(255, 255, 255, 0.7);
+            width: 32px; height: 32px; fill: none; stroke: rgba(255, 255, 255, 0.7);
             stroke-width: 3; stroke-linecap: round; stroke-linejoin: round;
         }
+
+        /* Расположение кнопок (лесенкой) */
+        #btnLeanBack    { bottom: 120px; left: 25px; }  /* Левая верхняя */
+        #btnLeanForward { bottom: 30px;  left: 80px; }  /* Левая нижняя */
+        
+        #btnGas         { bottom: 120px; right: 25px; } /* Правая верхняя */
+        #btnBrake       { bottom: 30px;  right: 80px; } /* Правая нижняя */
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 </head>
@@ -66,30 +66,23 @@
         <div class="score"><span id="distanceText">0</span> m</div>
     </div>
 
-    <div class="controls">
-        <!-- Слева: Наклоны (изогнутые стрелки) -->
-        <div class="group">
-            <div class="btn" id="btnLeanBack">
-                <svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>
-            </div>
-            <div class="btn" id="btnLeanForward">
-                <svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/></svg>
-            </div>
-        </div>
-        <!-- Справа: Тормоз и Газ -->
-        <div class="group">
-            <div class="btn" id="btnBrake">
-                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg>
-            </div>
-            <div class="btn" id="btnGas">
-                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="5" fill="rgba(255,255,255,0.6)" stroke="none"/></svg>
-            </div>
-        </div>
+    <!-- Кнопки -->
+    <div class="btn" id="btnLeanBack">
+        <svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>
+    </div>
+    <div class="btn" id="btnLeanForward">
+        <svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/></svg>
+    </div>
+    
+    <div class="btn" id="btnGas">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4" fill="rgba(255,255,255,0.6)" stroke="none"/></svg>
+    </div>
+    <div class="btn" id="btnBrake">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg>
     </div>
 </div>
 
 <script>
-    // Блокировка зума
     document.addEventListener('touchmove', function(e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
     let lastTouchEnd = 0;
     document.addEventListener('touchend', function(e) {
@@ -122,16 +115,14 @@
     let groundY = canvas.height - 80; 
     let ground = Bodies.rectangle(startX, groundY + 50, 100000, 100, { isStatic: true });
 
-    // --- ФИЗИКА (НОРМАЛЬНЫЕ КОЛЕСА) ---
-    const wheelRadius = 16; // Вернули нормальный размер
-    const wheelBase = 45;   // Расстояние от центра рамы до колеса
+    // --- ФИЗИКА (МАЛЕНЬКИЕ КОЛЕСА, КОРОТКАЯ БАЗА) ---
+    const wheelRadius = 11; // Тонкие, аккуратные колеса
+    const wheelBase = 30;   // Расстояние от центра рамы до колеса (всего 60px между ними)
     
     const wheelRear = Bodies.circle(startX - wheelBase, 100, wheelRadius, { density: 0.05, friction: 1 });
     const wheelFront = Bodies.circle(startX + wheelBase, 100, wheelRadius, { density: 0.05, friction: 1 });
-    // Добавили inertia: Infinity, чтобы рама не кувыркалась сама по себе
-    const chassis = Bodies.rectangle(startX, 90, 80, 20, { density: 0.1, inertia: Infinity }); 
+    const chassis = Bodies.rectangle(startX, 90, 70, 15, { density: 0.1, inertia: Infinity }); 
 
-    // Настроили подвеску, чтобы не трясло, но амортизация была
     const suspensionRear = Constraint.create({ 
         bodyA: wheelRear, pointB: { x: -wheelBase, y: 0 }, bodyB: chassis, 
         stiffness: 0.2, damping: 0.4, length: 0 
@@ -149,7 +140,6 @@
     let isImageLoaded = false;
     bikeImage.onload = () => { isImageLoaded = true; };
 
-    // --- УПРАВЛЕНИЕ ---
     window.isGas = false; window.isBrake = false; window.isLeanBack = false; window.isLeanForward = false;
 
     function bindBtn(id, variableName) {
@@ -164,9 +154,8 @@
     bindBtn('btnLeanBack', 'isLeanBack');
     bindBtn('btnLeanForward', 'isLeanForward');
 
-    // --- КАМЕРА ---
     let cameraX = startX - (canvas.width * 0.3);
-    const zoom = 1.1; // Оптимальный зум
+    const zoom = 1.1; 
 
     let maxDistance = 0;
     const distanceText = document.getElementById('distanceText');
@@ -187,7 +176,6 @@
         ctx.fill();
     }
 
-    // --- ИСПРАВЛЕННАЯ ТРАВА (БЕЗ МИГАНИЯ) ---
     function drawTerrain() {
         ctx.fillStyle = '#000'; 
         ctx.beginPath();
@@ -195,7 +183,6 @@
         let endDrawX = Math.floor(cameraX) + (canvas.width / zoom) + 100;
         let terrainY = canvas.height - 80;
         
-        // Рисуем ровную землю
         ctx.moveTo(startDrawX, canvas.height * 1.5);
         ctx.lineTo(startDrawX, terrainY);
         ctx.lineTo(endDrawX, terrainY);
@@ -203,10 +190,8 @@
         ctx.closePath();
         ctx.fill();
 
-        // Рисуем траву. Привязка к x (мировые координаты) убирает мигание
         ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.lineCap = 'round';
         for (let x = startDrawX; x <= endDrawX; x += 20) {
-            // Используем x (который уже привязан к сетке), а не cameraX
             let patch = Math.sin(x * 0.03); 
             if (patch > 0.6) {
                 let y = terrainY; 
@@ -220,28 +205,29 @@
         }
     }
 
+    // --- ТОНКИЕ КОЛЕСА (БЕЗ АВТОМОБИЛЬНОГО ДИСКА) ---
     function drawWheel(wheel) {
         ctx.save();
         ctx.translate(wheel.position.x, wheel.position.y);
         ctx.rotate(wheel.angle);
         
-        // Внешняя шина
+        // Черная шина
         ctx.fillStyle = '#000'; 
         ctx.beginPath(); ctx.arc(0, 0, wheelRadius, 0, Math.PI * 2); ctx.fill();
 
-        // Обод
-        ctx.fillStyle = '#111'; 
-        ctx.beginPath(); ctx.arc(0, 0, wheelRadius - 4, 0, Math.PI * 2); ctx.fill();
+        // Тонкий темный обод
+        ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(0, 0, wheelRadius - 2, 0, Math.PI * 2); ctx.stroke();
 
-        // Спицы
-        ctx.strokeStyle = '#333'; ctx.lineWidth = 1.5;
-        for (let i = 0; i < 6; i++) {
-            let angle = (i / 6) * Math.PI * 2;
-            ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(angle) * (wheelRadius - 4), Math.sin(angle) * (wheelRadius - 4)); ctx.stroke();
+        // Тонкие спицы (крестик)
+        ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
+        for (let i = 0; i < 4; i++) {
+            let angle = (i / 4) * Math.PI * 2;
+            ctx.beginPath(); 
+            ctx.moveTo(0, 0); 
+            ctx.lineTo(Math.cos(angle) * (wheelRadius - 2), Math.sin(angle) * (wheelRadius - 2)); 
+            ctx.stroke();
         }
-
-        // Ступица
-        ctx.fillStyle = '#333'; ctx.beginPath(); ctx.arc(0, 0, 3, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
     }
 
@@ -255,7 +241,6 @@
             Body.setAngularVelocity(wheelFront, 0); 
         }
         
-        // Наклоны
         if (window.isLeanBack) {
             Body.applyForce(chassis, chassis.position, { x: 0, y: -0.003 });
         }
@@ -297,13 +282,13 @@
         drawMountainLayer(60, 100, '#1e1129', cameraX * 0.5);
         drawTerrain();
 
-        // --- МОТОЦИКЛ ---
+        // --- МОТОЦИКЛ (ОРИГИНАЛЬНЫЙ РАЗМЕР, БЕЗ РАСТЯГИВАНИЯ) ---
         ctx.save();
         ctx.translate(chassis.position.x, chassis.position.y);
         ctx.rotate(chassis.angle);
         
         if (isImageLoaded) {
-            // Размер и сдвиг подогнаны под колеса радиусом 16
+            // Размер 90x54 (оригинальные пропорции)
             ctx.drawImage(bikeImage, -45, -35, 90, 54); 
         }
         ctx.restore();
