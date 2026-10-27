@@ -110,11 +110,11 @@
     const startX = 50000;
     let groundY = canvas.height - 80; 
 
-    // --- БЕСКОНЕЧНЫЙ ЛАНДШАФТ (ГЛАДКИЕ БЛОКИ ПОД УГЛОМ) ---
+    // --- ГЛАДКИЙ БЕСКОНЕЧНЫЙ ЛАНДШАФТ (ПОЛИГОНЫ) ---
     const terrainBlocks = [];
     let lastGeneratedX = startX - 1500; 
-    const chunkWidth = 20; 
-    const chunkHeight = 2000; 
+    const chunkWidth = 40; 
+    const chunkDepth = 2000; 
 
     function getTerrainY(x) {
         let y = groundY;
@@ -131,23 +131,25 @@
             let y1 = getTerrainY(x1);
             let y2 = getTerrainY(x2);
 
-            let angle = Math.atan2(y2 - y1, x2 - x1);
-            let dist = Math.hypot(x2 - x1, y2 - y1);
-            
-            let midX = (x1 + x2) / 2;
-            let midY = (y1 + y2) / 2;
-            let cx = midX + Math.sin(angle) * (chunkHeight / 2);
-            let cy = midY + Math.cos(angle) * (chunkHeight / 2);
+            // Создаем трапецию (полигон) идеально совпадающую с линией холма
+            let v1 = { x: 0, y: 0 }; // Верхний левый
+            let v2 = { x: chunkWidth, y: y2 - y1 }; // Верхний правый
+            let v3 = { x: chunkWidth, y: y2 - y1 + chunkDepth }; // Нижний правый
+            let v4 = { x: 0, y: chunkDepth }; // Нижний левый
 
-            let block = Bodies.rectangle(cx, cy, dist + 2, chunkHeight, { 
+            // Создаем физическое тело из вершин
+            let block = Bodies.fromVertices(0, 0, [[v1, v2, v3, v4]], { 
                 isStatic: true,
-                angle: angle, 
-                friction: 0, 
+                friction: 1,
                 collisionFilter: { category: 0x0002 } 
-            });
-            
-            terrainBlocks.push({ body: block, x: x1, y: y1 });
-            Composite.add(world, block);
+            }, true); // true - флаг для внутренних полигонов
+
+            if (block) {
+                // Перемещаем тело в нужную точку мира
+                Body.setPosition(block, { x: x1, y: y1 });
+                terrainBlocks.push({ body: block, x: x1, y: y1 });
+                Composite.add(world, block);
+            }
             
             lastGeneratedX += chunkWidth;
         }
@@ -171,12 +173,11 @@
     let startHillY = getTerrainY(startX);
     const startY = startHillY - wheelRadius - 5; 
     
-    // Уменьшили friction до 1.2 (было 1.5), чтобы не буксовал на подъемах
     const wheelRear = Bodies.circle(startX - wheelBase, startY, wheelRadius, { 
-        density: 0.05, friction: 1.2, frictionStatic: 1.2, collisionFilter: { group: group } 
+        density: 0.05, friction: 1.5, frictionStatic: 1.5, collisionFilter: { group: group } 
     });
     const wheelFront = Bodies.circle(startX + wheelBase, startY, wheelRadius, { 
-        density: 0.05, friction: 1.2, frictionStatic: 1.2, collisionFilter: { group: group } 
+        density: 0.05, friction: 1.5, frictionStatic: 1.5, collisionFilter: { group: group } 
     });
     const chassis = Bodies.rectangle(startX, startY - 15, 60, 15, { 
         density: 0.1, collisionFilter: { group: group } 
@@ -276,7 +277,7 @@
     }
 
     function update() {
-        // МОЩНОСТЬ ДВИГАТЕЛЯ (0.9 для преодоления холмов)
+        // МОЩНОСТЬ
         if (window.isGas) { 
             Body.setAngularVelocity(wheelRear, 0.9); 
             Body.setAngularVelocity(wheelFront, 0.9); 
@@ -286,12 +287,12 @@
             Body.setAngularVelocity(wheelFront, 0); 
         }
         
-        // ТВОИ НАКЛОНЫ (0.3 для трюков и сложности)
+        // СБАЛАНСИРОВАННЫЕ НАКЛОНЫ (0.15)
         if (window.isLeanBack) {
-            Body.setAngularVelocity(chassis, -0.3); 
+            Body.setAngularVelocity(chassis, -0.15); 
         } 
         else if (window.isLeanForward) {
-            Body.setAngularVelocity(chassis, 0.3); 
+            Body.setAngularVelocity(chassis, 0.15); 
         }
 
         let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
