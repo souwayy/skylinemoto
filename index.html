@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Skyline Moto</title>
+    <style>
+        /* Убираем отступы, чтобы игра была на весь экран */
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* Запрещаем прокрутку */
+            background-color: #000;
+        }
+        canvas {
+            display: block; /* Убираем лишние отступы у холста */
+        }
+    </style>
+</head>
+<body>
+
+<!-- Это наш холст, на котором мы будем рисовать -->
+<canvas id="gameCanvas"></canvas>
+
+<script>
+    // 1. Получаем доступ к холсту и его "кистям" (контексту)
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // Устанавливаем размер холста ровно под экран телефона
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // 2. Переменные для параллакса (движения гор)
+    let offset1 = 0; // Смещение для дальних гор
+    let offset2 = 0; // Смещение для средних гор
+    let offset3 = 0; // Смещение для передних гор (земли)
+
+    // Скорости движения слоев (чем дальше слой, тем медленнее он едет)
+    const speed1 = 0.5;
+    const speed2 = 1.5;
+    const speed3 = 3;
+
+    // 3. Функция для рисования гор
+    function drawMountainLayer(yOffset, height, color, offset) {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        // Начинаем рисовать с левого нижнего угла
+        ctx.moveTo(0, canvas.height);
+        
+        // Проходимся по всей ширине экрана с шагом 10 пикселей
+        for (let x = 0; x <= canvas.width; x += 10) {
+            // Математика синусоиды для создания плавных холмов
+            let y = canvas.height - yOffset 
+                    - Math.sin((x + offset) * 0.005) * height 
+                    - Math.cos((x + offset) * 0.01) * (height / 2);
+            ctx.lineTo(x, y);
+        }
+        
+        // Закрываем фигуру и заливаем цветом
+        ctx.lineTo(canvas.width, canvas.height);
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    // 4. Главный игровой цикл (выполняется 60 раз в секунду)
+    function update() {
+        // Очищаем экран перед отрисовкой нового кадра
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // --- РИСУЕМ ЗАКАТ ---
+        // Создаем градиент (сверху вниз)
+        const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        gradient.addColorStop(0, '#1a0b2e');   // Темно-фиолетовый космос
+        gradient.addColorStop(0.4, '#5a2b58'); // Пурпурный
+        gradient.addColorStop(0.7, '#d96b4e'); // Оранжевый
+        gradient.addColorStop(1, '#f5c26b');   // Желтый (сам закат)
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // --- РИСУЕМ СОЛНЦЕ ---
+        ctx.fillStyle = '#fff3d4';
+        ctx.beginPath();
+        // Солнце будет в правой верхней части
+        ctx.arc(canvas.width * 0.75, canvas.height * 0.35, 45, 0, Math.PI * 2);
+        ctx.fill();
+
+        // --- РИСУЕМ ГОРЫ (3 СЛОЯ) ---
+        // Дальние (самые светлые)
+        drawMountainLayer(120, 60, '#3a2354', offset1);
+        // Средние (темные)
+        drawMountainLayer(60, 100, '#1e1129', offset2);
+        // Передние (черная земля)
+        drawMountainLayer(0, 150, '#0a0a0a', offset3);
+
+        // --- ДВИГАЕМ ГОРЫ ---
+        offset1 += speed1;
+        offset2 += speed2;
+        offset3 += speed3;
+
+        // Повторяем функцию update на следующем кадре
+        requestAnimationFrame(update);
+    }
+
+    // Запускаем игру!
+    update();
+
+    // 5. Адаптация под поворот экрана
+    window.addEventListener('resize', () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    });
+</script>
+</body>
+</HTML>
