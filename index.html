@@ -42,11 +42,8 @@
 
     // --- ФИЗИКА МОТОЦИКЛА ---
     const wheelRadius = 20;
-    // Заднее колесо
     const wheelRear = Bodies.circle(startX - 40, 100, wheelRadius, { density: 0.05, friction: 1 });
-    // Переднее колесо
     const wheelFront = Bodies.circle(startX + 40, 100, wheelRadius, { density: 0.05, friction: 1 });
-    // Рама (невидимая физическая коробка, к которой крепится картинка)
     const chassis = Bodies.rectangle(startX, 90, 80, 20, { density: 0.1 });
 
     const suspensionRear = Constraint.create({ bodyA: wheelRear, pointB: { x: -40, y: 0 }, bodyB: chassis, stiffness: 0.1, damping: 0.1 });
@@ -55,29 +52,9 @@
     const moto = Composite.create({ bodies: [wheelRear, wheelFront, chassis], constraints: [suspensionRear, suspensionFront] });
     Composite.add(world, [ground, moto]);
 
-    // --- ВСТРОЕННЫЙ КРАСИВЫЙ СИЛУЭТ (SVG) ---
-    // Я нарисовал этот вектор вручную. Он идеально отмасштабирован под физику.
+    // --- ЗАГРУЖАЕМ ТВОЮ КАРТИНКУ ---
     const bikeImage = new Image();
-    const svgPath = `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 60">
-        <!-- Рама, двигатель, бак -->
-        <path fill="#000000" d="M 15,40 Q 20,30 30,30 L 45,30 Q 55,20 60,20 L 70,25 L 80,35 Q 85,35 85,40 L 75,45 L 65,40 L 50,45 L 40,45 L 35,40 L 25,45 Z"/>
-        <!-- Вилка -->
-        <path fill="#000000" d="M 70,25 L 75,10 L 80,10 L 78,28 Z"/>
-        <!-- Руль -->
-        <path fill="#000000" d="M 65,10 L 85,15 L 85,20 L 65,15 Z"/>
-        <!-- Водитель (туловище) -->
-        <path fill="#000000" d="M 30,30 Q 20,10 40,5 L 55,10 Q 60,20 55,25 L 40,25 Z"/>
-        <!-- Нога -->
-        <path fill="#000000" d="M 40,45 L 35,55 L 25,55 L 30,45 Z"/>
-        <!-- Рука -->
-        <path fill="#000000" d="M 50,10 L 70,15 L 68,18 L 48,15 Z"/>
-        <!-- Шлем -->
-        <circle cx="35" cy="-2" r="10" fill="#000000"/>
-    </svg>`;
-    
-    // Кодируем SVG в строку, чтобы браузер её понял
-    bikeImage.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgPath);
+    bikeImage.src = 'moto.png'; // Имя твоего файла
     
     let isImageLoaded = false;
     bikeImage.onload = () => { isImageLoaded = true; };
@@ -133,16 +110,35 @@
         }
     }
 
+    // --- УЛУЧШЕННЫЕ КОЛЕСА (С протектором) ---
     function drawWheel(wheel) {
         ctx.save();
         ctx.translate(wheel.position.x, wheel.position.y);
         ctx.rotate(wheel.angle);
+        
+        // Основное колесо
         ctx.fillStyle = '#000'; 
-        ctx.beginPath(); ctx.arc(0, 0, wheelRadius, 0, Math.PI * 2); ctx.fill();
-        // Спицы
+        ctx.beginPath(); 
+        ctx.arc(0, 0, wheelRadius, 0, Math.PI * 2); 
+        ctx.fill();
+
+        // Протектор (шипы по кругу)
+        ctx.strokeStyle = '#333'; 
+        ctx.lineWidth = 3;
+        for (let i = 0; i < 8; i++) {
+            let angle = (i / 8) * Math.PI * 2;
+            let x1 = Math.cos(angle) * (wheelRadius - 3);
+            let y1 = Math.sin(angle) * (wheelRadius - 3);
+            let x2 = Math.cos(angle) * (wheelRadius + 3);
+            let y2 = Math.sin(angle) * (wheelRadius + 3);
+            ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+        }
+
+        // Спицы (крестик)
         ctx.strokeStyle = '#333'; ctx.lineWidth = 2;
         ctx.beginPath(); ctx.moveTo(-wheelRadius+5, 0); ctx.lineTo(wheelRadius-5, 0);
         ctx.moveTo(0, -wheelRadius+5); ctx.lineTo(0, wheelRadius-5); ctx.stroke();
+        
         ctx.restore();
     }
 
@@ -184,13 +180,16 @@
         ctx.rotate(chassis.angle);
         
         if (isImageLoaded) {
-            // Картинка центрирована относительно физической рамы
-            // Размер подобран так, чтобы колеса идеально встали на места
-            ctx.drawImage(bikeImage, -45, -55, 100, 60); 
+            // Если мотоцикл "прыгает" или колеса не под ним, меняй эти 4 цифры:
+            // -50 это сдвиг влево/вправо
+            // -45 это сдвиг вверх/вниз
+            // 100 это ширина картинки
+            // 60 это высота картинки
+            ctx.drawImage(bikeImage, -50, -45, 100, 60); 
         }
         ctx.restore();
 
-        // Колеса рисуем ПОВЕРХ картинки, чтобы спицы было видно
+        // Колеса рисуем ПОВЕРХ картинки
         drawWheel(wheelRear);
         drawWheel(wheelFront);
 
