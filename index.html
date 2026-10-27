@@ -110,32 +110,31 @@
     const startX = 50000;
     let groundY = canvas.height - 80; 
 
-    // --- ГЕНЕРАЦИЯ ЛАНДШАФТА (С ТРАМПЛИНАМИ) ---
-    const terrainBlocks = [];
-    let lastGeneratedX = startX - 1500; 
-    const chunkWidth = 10; 
-    const groundRadius = 20; 
+    // --- ГЕНЕРАЦИЯ ШУМА ---
+    function noise(x) {
+        let i = Math.floor(x);
+        let f = x - i;
+        let u = f * f * (3.0 - 2.0 * f);
+        let r1 = Math.sin(i * 12.9898) * 43758.5453;
+        let r2 = Math.sin((i + 1) * 12.9898) * 43758.5453;
+        r1 = r1 - Math.floor(r1);
+        r2 = r2 - Math.floor(r2);
+        return r1 * (1 - u) + r2 * u;
+    }
 
     function getTerrainY(x) {
         let y = groundY;
-        y -= Math.sin(x * 0.002) * 30;  
-        
-        let zone = Math.floor(x / 2500);
-        let localX = x % 2500;
-        
-        if (zone % 2 === 0) {
-            if (localX > 1000 && localX < 1400) {
-                y -= (localX - 1000) * 0.3; 
-            } else if (localX >= 1400 && localX < 1600) {
-                y += (localX - 1400) * 0.5;
-            }
-        } else {
-            if (localX > 800 && localX < 1200) {
-                y += Math.sin((localX - 800) / 400 * Math.PI) * 150;
-            }
-        }
+        // Сделали горы чуть мягче, чтобы можно было разогнаться
+        y -= noise(x * 0.0015) * 80;  
+        y -= noise(x * 0.006) * 30;   
+        y -= noise(x * 0.02) * 10;    
         return y;
     }
+
+    const terrainBlocks = [];
+    let lastGeneratedX = startX - 1500; 
+    const chunkWidth = 5; 
+    const groundRadius = 25; 
 
     function generateTerrain() {
         while (lastGeneratedX < cameraX + (canvas.width / zoom) + 1000) {
@@ -158,7 +157,6 @@
         }
     }
 
-    // --- МОТОЦИКЛ ---
     const group = Body.nextGroup(true); 
     const wheelRadius = 10; 
     const wheelBase = 23; 
@@ -208,6 +206,7 @@
     bindBtn('btnLeanForward', 'isLeanForward');
 
     let cameraX = startX - (canvas.width * 0.3);
+    let cameraY = 0; 
     const zoom = 1.1; 
 
     let maxDistance = 0;
@@ -237,13 +236,13 @@
         ctx.lineWidth = 4; 
 
         ctx.beginPath();
-        ctx.moveTo(cameraX - 100, canvas.height + 500);
+        ctx.moveTo(cameraX - 100, canvas.height + 1000);
         
         for (let i = 0; i < terrainBlocks.length; i++) {
             ctx.lineTo(terrainBlocks[i].x, terrainBlocks[i].y);
         }
         
-        ctx.lineTo(lastGeneratedX, canvas.height + 500);
+        ctx.lineTo(lastGeneratedX, canvas.height + 1000);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
@@ -281,34 +280,42 @@
             Body.setAngularVelocity(wheelFront, 0); 
         }
         
-        // --- ОГРАНИЧЕННАЯ ЛОГИКА САЛЬТО ---
+        // --- УПРАВЛЕНИЕ НАКЛОНАМИ (ВИЛЛИ) ---
         let isAirborne = Math.abs(chassis.velocity.y) > 1.0; 
         
         if (window.isLeanBack) {
             if (isAirborne) {
-                // В воздухе: ограничиваем скорость вращения до 0.18 (одно сальто)
+                // В воздухе ограничиваем вращение (одно сальто)
                 let currentRot = chassis.angularVelocity;
-                if (currentRot > -0.18) {
-                    Body.setAngularVelocity(chassis, currentRot - 0.015); // Плавно раскручиваем
+                if (currentRot > -0.15) {
+                    Body.setAngularVelocity(chassis, currentRot - 0.01); 
                 }
             } else {
-                // На земле: только мягкий наклон
-                Body.setAngularVelocity(chassis, -0.1); 
+                // На земле: 0.18 — идеально для вилли
+                Body.setAngularVelocity(chassis, -0.18); 
             }
         } 
         else if (window.isLeanForward) {
             if (isAirborne) {
                 let currentRot = chassis.angularVelocity;
-                if (currentRot < 0.18) {
-                    Body.setAngularVelocity(chassis, currentRot + 0.015);
+                if (currentRot < 0.15) {
+                    Body.setAngularVelocity(chassis, currentRot + 0.01);
                 }
             } else {
-                Body.setAngularVelocity(chassis, 0.1); 
+                Body.setAngularVelocity(chassis, 0.18); 
             }
         }
 
         let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
         cameraX += (targetCameraX - cameraX) * 0.1; 
+        
+        // ИСПРАВЛЕННАЯ КАМЕРА ПО Y (Смотрит на реальную землю под мотоциклом)
+        let terrainUnderBike = getTerrainY(chassis.position.x);
+        let targetCameraY = 0;
+        if (chassis.position.y > terrainUnderBike) {
+            targetCameraY = chassis.position.y - terrainUnderBike;
+        }
+        cameraY += (targetCameraY - cameraY) * 0.1;
         
         generateTerrain();
         cleanupTerrain();
@@ -319,7 +326,7 @@
             distanceText.innerText = maxDistance;
         }
 
-        if (chassis.position.y > canvas.height + 200) {
+        if (chassis.position.y > canvas.height + 500) {
             let spawnX = cameraX + (canvas.width * 0.3) / zoom;
             let respawnHillY = getTerrainY(spawnX);
             let respawnY = respawnHillY - wheelRadius - 5;
@@ -337,6 +344,8 @@
             Body.setAngularVelocity(chassis, 0);
             Body.setAngularVelocity(wheelRear, 0);
             Body.setAngularVelocity(wheelFront, 0);
+            
+            cameraY = 0;
         }
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -349,7 +358,7 @@
 
         ctx.save();
         ctx.scale(zoom, zoom);
-        ctx.translate(0, (canvas.height * (1 - zoom)) / zoom);
+        ctx.translate(0, (canvas.height * (1 - zoom)) / zoom + cameraY);
         ctx.translate(-cameraX, 0);
 
         drawMountainLayer(120, 60, '#3a2354', cameraX * 0.2);
