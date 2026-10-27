@@ -22,35 +22,37 @@
             display: flex; justify-content: space-between; padding: 20px;
         }
         .btn-ui {
-            background: rgba(0,0,0,0.4); border: 2px solid rgba(255,255,255,0.5);
-            border-radius: 10px; color: white; padding: 8px 16px;
+            background: rgba(0,0,0,0.3); border: 2px solid rgba(255,255,255,0.4);
+            border-radius: 10px; color: white; padding: 6px 14px;
             font-size: 18px; font-weight: bold; pointer-events: auto;
         }
         .score {
-            font-size: 24px; font-weight: bold; color: white;
+            font-size: 28px; font-weight: bold; color: white;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
         }
 
-        /* Кнопки управления */
+        /* Кнопки управления (Точь-в-точь как в оригинале) */
         .controls {
-            position: absolute; bottom: 20px; width: 100%;
+            position: absolute; bottom: 25px; width: 100%;
             display: flex; justify-content: space-between;
-            padding: 0 15px; box-sizing: border-box;
+            padding: 0 25px; box-sizing: border-box;
         }
-        .group { display: flex; gap: 10px; }
+        .group { display: flex; gap: 15px; }
 
         .btn {
-            width: 65px; height: 65px; border-radius: 50%;
-            background: rgba(0, 0, 0, 0.4); border: 2px solid rgba(255, 255, 255, 0.5);
+            width: 75px; height: 75px; border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1); 
+            border: 3px solid rgba(255, 255, 255, 0.5);
             display: flex; align-items: center; justify-content: center;
-            pointer-events: auto; color: white; font-size: 28px; font-weight: bold;
-            backdrop-filter: blur(3px);
+            pointer-events: auto; color: white;
+            transition: background 0.1s;
         }
-        .btn:active { background: rgba(255, 255, 255, 0.4); }
+        .btn:active { background: rgba(255, 255, 255, 0.3); }
         
-        /* Цвета для наглядности */
-        #btnGas { border-color: rgba(0, 255, 0, 0.6); }
-        #btnBrake { border-color: rgba(255, 0, 0, 0.6); }
+        .btn svg {
+            width: 35px; height: 35px; fill: none; stroke: rgba(255, 255, 255, 0.7);
+            stroke-width: 3; stroke-linecap: round; stroke-linejoin: round;
+        }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 </head>
@@ -65,15 +67,23 @@
     </div>
 
     <div class="controls">
-        <!-- Слева: Наклоны (иконки стрелок) -->
+        <!-- Слева: Наклоны (изогнутые стрелки) -->
         <div class="group">
-            <div class="btn" id="btnLeanBack">↺</div>
-            <div class="btn" id="btnLeanForward">↻</div>
+            <div class="btn" id="btnLeanBack">
+                <svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>
+            </div>
+            <div class="btn" id="btnLeanForward">
+                <svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/></svg>
+            </div>
         </div>
-        <!-- Справа: Тормоз и Газ (иконки) -->
+        <!-- Справа: Тормоз и Газ -->
         <div class="group">
-            <div class="btn" id="btnBrake">⏹</div>
-            <div class="btn" id="btnGas">▶</div>
+            <div class="btn" id="btnBrake">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg>
+            </div>
+            <div class="btn" id="btnGas">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="5" fill="rgba(255,255,255,0.6)" stroke="none"/></svg>
+            </div>
         </div>
     </div>
 </div>
@@ -112,46 +122,26 @@
     let groundY = canvas.height - 80; 
     let ground = Bodies.rectangle(startX, groundY + 50, 100000, 100, { isStatic: true });
 
-    // --- ФИЗИКА ---
-    const wheelRadius = 10; 
-    const wheelBase = 30; // Расстояние от центра рамы до колес
+    // --- ФИЗИКА (НОРМАЛЬНЫЕ КОЛЕСА) ---
+    const wheelRadius = 16; // Вернули нормальный размер
+    const wheelBase = 45;   // Расстояние от центра рамы до колеса
     
     const wheelRear = Bodies.circle(startX - wheelBase, 100, wheelRadius, { density: 0.05, friction: 1 });
     const wheelFront = Bodies.circle(startX + wheelBase, 100, wheelRadius, { density: 0.05, friction: 1 });
-    const chassis = Bodies.rectangle(startX, 90, 80, 20, { density: 0.1 });
+    // Добавили inertia: Infinity, чтобы рама не кувыркалась сама по себе
+    const chassis = Bodies.rectangle(startX, 90, 80, 20, { density: 0.1, inertia: Infinity }); 
 
-    // 1. ЖЕСТКАЯ СВЯЗЬ МЕЖДУ КОЛЕСАМИ (чтобы они не разъезжались)
-    const wheelBaseConstraint = Constraint.create({
-        bodyA: wheelRear,
-        bodyB: wheelFront,
-        length: wheelBase * 2, // Фиксируем расстояние (60)
-        stiffness: 0.9,        // Очень жесткая
-        damping: 0.1
-    });
-
-    // 2. МЯГКАЯ ПОДВЕСКА (крепим колеса к раме, чтобы была амортизация)
+    // Настроили подвеску, чтобы не трясло, но амортизация была
     const suspensionRear = Constraint.create({ 
-        bodyA: wheelRear, 
-        pointB: { x: -wheelBase, y: 0 }, 
-        bodyB: chassis, 
-        stiffness: 0.05, // Мягкая пружина
-        damping: 0.1,
-        length: 0
+        bodyA: wheelRear, pointB: { x: -wheelBase, y: 0 }, bodyB: chassis, 
+        stiffness: 0.2, damping: 0.4, length: 0 
     });
-    
     const suspensionFront = Constraint.create({ 
-        bodyA: wheelFront, 
-        pointB: { x: wheelBase, y: 0 }, 
-        bodyB: chassis, 
-        stiffness: 0.05, 
-        damping: 0.1,
-        length: 0
+        bodyA: wheelFront, pointB: { x: wheelBase, y: 0 }, bodyB: chassis, 
+        stiffness: 0.2, damping: 0.4, length: 0 
     });
 
-    const moto = Composite.create({ 
-        bodies: [wheelRear, wheelFront, chassis], 
-        constraints: [wheelBaseConstraint, suspensionRear, suspensionFront] 
-    });
+    const moto = Composite.create({ bodies: [wheelRear, wheelFront, chassis], constraints: [suspensionRear, suspensionFront] });
     Composite.add(world, [ground, moto]);
 
     const bikeImage = new Image();
@@ -176,7 +166,7 @@
 
     // --- КАМЕРА ---
     let cameraX = startX - (canvas.width * 0.3);
-    const zoom = 1.25; 
+    const zoom = 1.1; // Оптимальный зум
 
     let maxDistance = 0;
     const distanceText = document.getElementById('distanceText');
@@ -184,7 +174,8 @@
     function drawMountainLayer(yOffset, height, color, parallaxOffset) {
         ctx.fillStyle = color;
         ctx.beginPath();
-        let startDrawX = cameraX - 100, endDrawX = cameraX + (canvas.width / zoom) + 100;
+        let startDrawX = Math.floor(cameraX) - 100;
+        let endDrawX = Math.floor(cameraX) + (canvas.width / zoom) + 100;
         ctx.moveTo(startDrawX, canvas.height * 1.5);
         for (let x = startDrawX; x <= endDrawX; x += 10) {
             let worldX = x + parallaxOffset;
@@ -196,11 +187,15 @@
         ctx.fill();
     }
 
+    // --- ИСПРАВЛЕННАЯ ТРАВА (БЕЗ МИГАНИЯ) ---
     function drawTerrain() {
         ctx.fillStyle = '#000'; 
         ctx.beginPath();
-        let startDrawX = cameraX - 100, endDrawX = cameraX + (canvas.width / zoom) + 100;
+        let startDrawX = Math.floor(cameraX) - 100;
+        let endDrawX = Math.floor(cameraX) + (canvas.width / zoom) + 100;
         let terrainY = canvas.height - 80;
+        
+        // Рисуем ровную землю
         ctx.moveTo(startDrawX, canvas.height * 1.5);
         ctx.lineTo(startDrawX, terrainY);
         ctx.lineTo(endDrawX, terrainY);
@@ -208,13 +203,18 @@
         ctx.closePath();
         ctx.fill();
 
+        // Рисуем траву. Привязка к x (мировые координаты) убирает мигание
         ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.lineCap = 'round';
         for (let x = startDrawX; x <= endDrawX; x += 20) {
-            if (Math.sin(x * 0.03) > 0.6) {
+            // Используем x (который уже привязан к сетке), а не cameraX
+            let patch = Math.sin(x * 0.03); 
+            if (patch > 0.6) {
                 let y = terrainY; 
                 for (let i = 0; i < 3; i++) {
-                    ctx.beginPath(); ctx.moveTo(x + (i * 4) - 4, y + 2);
-                    ctx.lineTo(x + (i * 4) - 4 + Math.sin(x * 0.1 + i) * 6, y - (6 + Math.cos(x * 0.2 + i) * 4)); ctx.stroke();
+                    ctx.beginPath(); 
+                    ctx.moveTo(x + (i * 4) - 4, y + 2);
+                    ctx.lineTo(x + (i * 4) - 4 + Math.sin(x * 0.1 + i) * 6, y - (6 + Math.cos(x * 0.2 + i) * 4)); 
+                    ctx.stroke();
                 }
             }
         }
@@ -225,28 +225,23 @@
         ctx.translate(wheel.position.x, wheel.position.y);
         ctx.rotate(wheel.angle);
         
+        // Внешняя шина
         ctx.fillStyle = '#000'; 
         ctx.beginPath(); ctx.arc(0, 0, wheelRadius, 0, Math.PI * 2); ctx.fill();
 
+        // Обод
         ctx.fillStyle = '#111'; 
-        ctx.beginPath(); ctx.arc(0, 0, wheelRadius - 2, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(0, 0, wheelRadius - 4, 0, Math.PI * 2); ctx.fill();
 
+        // Спицы
         ctx.strokeStyle = '#333'; ctx.lineWidth = 1.5;
-        for (let i = 0; i < 8; i++) {
-            let angle = (i / 8) * Math.PI * 2;
-            ctx.beginPath(); 
-            ctx.moveTo(Math.cos(angle) * (wheelRadius - 1), Math.sin(angle) * (wheelRadius - 1)); 
-            ctx.lineTo(Math.cos(angle) * (wheelRadius + 1), Math.sin(angle) * (wheelRadius + 1)); 
-            ctx.stroke();
-        }
-
-        ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
         for (let i = 0; i < 6; i++) {
             let angle = (i / 6) * Math.PI * 2;
-            ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(angle) * (wheelRadius - 2), Math.sin(angle) * (wheelRadius - 2)); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(angle) * (wheelRadius - 4), Math.sin(angle) * (wheelRadius - 4)); ctx.stroke();
         }
 
-        ctx.fillStyle = '#333'; ctx.beginPath(); ctx.arc(0, 0, 2, 0, Math.PI * 2); ctx.fill();
+        // Ступица
+        ctx.fillStyle = '#333'; ctx.beginPath(); ctx.arc(0, 0, 3, 0, Math.PI * 2); ctx.fill();
         ctx.restore();
     }
 
@@ -260,11 +255,12 @@
             Body.setAngularVelocity(wheelFront, 0); 
         }
         
+        // Наклоны
         if (window.isLeanBack) {
-            Body.applyForce(chassis, chassis.position, { x: 0, y: -0.002 });
+            Body.applyForce(chassis, chassis.position, { x: 0, y: -0.003 });
         }
         if (window.isLeanForward) {
-            Body.applyForce(chassis, chassis.position, { x: 0, y: 0.002 });
+            Body.applyForce(chassis, chassis.position, { x: 0, y: 0.003 });
         }
 
         let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
@@ -301,11 +297,13 @@
         drawMountainLayer(60, 100, '#1e1129', cameraX * 0.5);
         drawTerrain();
 
+        // --- МОТОЦИКЛ ---
         ctx.save();
         ctx.translate(chassis.position.x, chassis.position.y);
         ctx.rotate(chassis.angle);
         
         if (isImageLoaded) {
+            // Размер и сдвиг подогнаны под колеса радиусом 16
             ctx.drawImage(bikeImage, -45, -35, 90, 54); 
         }
         ctx.restore();
