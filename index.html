@@ -124,12 +124,10 @@
 
     function getTerrainY(x) {
         let y = groundY;
-        
-        // УВЕЛИЧИЛИ СЛОЖНОСТЬ: высота до 200 пикселей, резкие перепады
+        // Оставили сложный ландшафт
         y -= noise(x * 0.001) * 180;  
         y -= noise(x * 0.005) * 70;   
         y -= noise(x * 0.015) * 20;    
-        
         return y;
     }
 
@@ -167,24 +165,26 @@
     let startHillY = getTerrainY(startX);
     const startY = startHillY - wheelRadius - 5; 
     
+    // Уменьшили трение колес (1.2) чтобы не вцеплялся
     const wheelRear = Bodies.circle(startX - wheelBase, startY, wheelRadius, { 
-        density: 0.05, friction: 1.5, frictionStatic: 1.5, collisionFilter: { group: group } 
+        density: 0.05, friction: 1.2, frictionStatic: 1.2, collisionFilter: { group: group } 
     });
     const wheelFront = Bodies.circle(startX + wheelBase, startY, wheelRadius, { 
-        density: 0.05, friction: 1.5, frictionStatic: 1.5, collisionFilter: { group: group } 
+        density: 0.05, friction: 1.2, frictionStatic: 1.2, collisionFilter: { group: group } 
     });
+    // Увеличили плотность рамы (0.3) чтобы сильнее давила на подвеску
     const chassis = Bodies.rectangle(startX, startY - 15, 60, 15, { 
-        density: 0.1, collisionFilter: { group: group } 
+        density: 0.3, collisionFilter: { group: group } 
     }); 
 
-    // УЛУЧШЕННАЯ АМОРТИЗАЦИЯ (Мягкие пружины + сильное гашение)
+    // МЯГКАЯ АМОРТИЗАЦИЯ (Пружины мягкие, гашение слабое)
     const suspensionRear = Constraint.create({ 
         bodyA: wheelRear, pointB: { x: -wheelBase, y: 0 }, bodyB: chassis, 
-        stiffness: 0.15, damping: 0.7, length: 0 
+        stiffness: 0.05, damping: 0.1, length: 0 
     });
     const suspensionFront = Constraint.create({ 
         bodyA: wheelFront, pointB: { x: wheelBase, y: 0 }, bodyB: chassis, 
-        stiffness: 0.15, damping: 0.7, length: 0 
+        stiffness: 0.05, damping: 0.1, length: 0 
     });
 
     const moto = Composite.create({ bodies: [wheelRear, wheelFront, chassis], constraints: [suspensionRear, suspensionFront] });
@@ -223,13 +223,13 @@
         ctx.beginPath();
         let startDrawX = Math.floor(cameraX) - 100;
         let endDrawX = Math.floor(cameraX) + (canvas.width / zoom) + 100;
-        ctx.moveTo(startDrawX, canvas.height * 1.5);
+        ctx.moveTo(startDrawX, canvas.height * 2); // Увеличили, чтобы горы не заканчивались при спуске
         for (let x = startDrawX; x <= endDrawX; x += 10) {
             let worldX = x + parallaxOffset;
             let y = (canvas.height - yOffset) - Math.sin(worldX * 0.005) * height - Math.cos(worldX * 0.01) * (height / 2);
             ctx.lineTo(x, y);
         }
-        ctx.lineTo(endDrawX, canvas.height * 1.5);
+        ctx.lineTo(endDrawX, canvas.height * 2);
         ctx.closePath();
         ctx.fill();
     }
@@ -240,13 +240,13 @@
         ctx.lineWidth = 4; 
 
         ctx.beginPath();
-        ctx.moveTo(cameraX - 100, canvas.height + 1000);
+        ctx.moveTo(cameraX - 100, canvas.height + 2000); // Глубоко вниз
         
         for (let i = 0; i < terrainBlocks.length; i++) {
             ctx.lineTo(terrainBlocks[i].x, terrainBlocks[i].y);
         }
         
-        ctx.lineTo(lastGeneratedX, canvas.height + 1000);
+        ctx.lineTo(lastGeneratedX, canvas.height + 2000);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
@@ -275,9 +275,10 @@
     }
 
     function update() {
+        // УВЕЛИЧЕННАЯ СКОРОСТЬ (0.85)
         if (window.isGas) { 
-            Body.setAngularVelocity(wheelRear, 0.6); 
-            Body.setAngularVelocity(wheelFront, 0.6); 
+            Body.setAngularVelocity(wheelRear, 0.85); 
+            Body.setAngularVelocity(wheelFront, 0.85); 
         }
         if (window.isBrake) { 
             Body.setAngularVelocity(wheelRear, 0); 
@@ -290,32 +291,32 @@
         if (window.isLeanBack) {
             if (isAirborne) {
                 let currentRot = chassis.angularVelocity;
-                if (currentRot > -0.1) { // В воздухе
-                    Body.setAngularVelocity(chassis, currentRot - 0.01); 
+                if (currentRot > -0.06) { 
+                    Body.setAngularVelocity(chassis, currentRot - 0.005); 
                 }
             } else {
-                Body.setAngularVelocity(chassis, -0.12); // На земле (мягкое вилли)
+                Body.setAngularVelocity(chassis, -0.08); // Мягкое вилли
+                // Если жмем газ и делаем вилли, добавляем скорости (чтобы не тормозил)
+                if (window.isGas) Body.applyForce(chassis, chassis.position, { x: 0.0006, y: 0 });
             }
         } 
         else if (window.isLeanForward) {
             if (isAirborne) {
                 let currentRot = chassis.angularVelocity;
-                if (currentRot < 0.1) { // В воздухе
-                    Body.setAngularVelocity(chassis, currentRot + 0.01);
+                if (currentRot < 0.06) {
+                    Body.setAngularVelocity(chassis, currentRot + 0.005);
                 }
             } else {
-                Body.setAngularVelocity(chassis, 0.12); // На земле
+                Body.setAngularVelocity(chassis, 0.08); 
             }
         }
 
         let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
         cameraX += (targetCameraX - cameraX) * 0.1; 
         
-        let terrainUnderBike = getTerrainY(chassis.position.x);
-        let targetCameraY = 0;
-        if (chassis.position.y > terrainUnderBike) {
-            targetCameraY = chassis.position.y - terrainUnderBike;
-        }
+        // КАМЕРА ТЕПЕРЬ СЛЕДИТ ЗА ВЫСОТОЙ (Y)
+        // Мотоцикл всегда держится на уровне 60% от верха экрана
+        let targetCameraY = (canvas.height * 0.4) - chassis.position.y;
         cameraY += (targetCameraY - cameraY) * 0.1;
         
         generateTerrain();
@@ -327,7 +328,7 @@
             distanceText.innerText = maxDistance;
         }
 
-        if (chassis.position.y > canvas.height + 500) {
+        if (chassis.position.y > canvas.height + 1000) {
             let spawnX = cameraX + (canvas.width * 0.3) / zoom;
             let respawnHillY = getTerrainY(spawnX);
             let respawnY = respawnHillY - wheelRadius - 5;
@@ -345,8 +346,6 @@
             Body.setAngularVelocity(chassis, 0);
             Body.setAngularVelocity(wheelRear, 0);
             Body.setAngularVelocity(wheelFront, 0);
-            
-            cameraY = 0;
         }
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -359,7 +358,8 @@
 
         ctx.save();
         ctx.scale(zoom, zoom);
-        ctx.translate(0, (canvas.height * (1 - zoom)) / zoom + cameraY);
+        // Применяем камеру по X и Y
+        ctx.translate(0, cameraY);
         ctx.translate(-cameraX, 0);
 
         drawMountainLayer(120, 60, '#3a2354', cameraX * 0.2);
@@ -391,4 +391,4 @@
     });
 </script>
 </body>
-</html>
+</html>          
