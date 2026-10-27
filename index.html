@@ -113,8 +113,8 @@
 
     // --- ФИЗИКА ---
     const group = Body.nextGroup(true); 
-    const wheelRadius = 9; 
-    const wheelBase = 23; // Раздвинули колеса шире
+    const wheelRadius = 10; 
+    const wheelBase = 23; 
     const startY = groundY - wheelRadius - 5; 
     
     const wheelRear = Bodies.circle(startX - wheelBase, startY, wheelRadius, { 
@@ -218,27 +218,27 @@
     }
 
     function update() {
-        // СКОРОСТЬ БЛИЖЕ К БЫСТРОЙ (0.28)
+        // СКОРОСТЬ (0.65 - около 5 секунд на 100м)
         if (window.isGas) { 
-            Body.setAngularVelocity(wheelRear, 0.28); 
-            Body.setAngularVelocity(wheelFront, 0.28); 
+            Body.setAngularVelocity(wheelRear, 0.65); 
+            Body.setAngularVelocity(wheelFront, 0.65); 
         }
         if (window.isBrake) { 
             Body.setAngularVelocity(wheelRear, 0); 
             Body.setAngularVelocity(wheelFront, 0); 
         }
         
-        // НОВАЯ ЛОГИКА НАКЛОНОВ (Крутящий момент на раму)
-        const tiltPower = 0.0008; // Сила наклона
+        // НАКЛОНЫ (Применяем силу к передней и задней точке рамы)
+        const tiltForce = 0.006; 
         if (window.isLeanBack) {
-            // Поднимаем переднюю часть, опускаем заднюю
-            Body.applyForce(chassis, { x: chassis.position.x - 25, y: chassis.position.y }, { x: 0, y: tiltPower });
-            Body.applyForce(chassis, { x: chassis.position.x + 25, y: chassis.position.y }, { x: 0, y: -tiltPower });
+            // Поднимаем нос (сила вверх впереди, вниз сзади)
+            Body.applyForce(chassis, { x: chassis.position.x + 25, y: chassis.position.y }, { x: 0, y: -tiltForce });
+            Body.applyForce(chassis, { x: chassis.position.x - 25, y: chassis.position.y }, { x: 0, y: tiltForce });
         } 
         else if (window.isLeanForward) {
-            // Опускаем переднюю часть, поднимаем заднюю
-            Body.applyForce(chassis, { x: chassis.position.x - 25, y: chassis.position.y }, { x: 0, y: -tiltPower });
-            Body.applyForce(chassis, { x: chassis.position.x + 25, y: chassis.position.y }, { x: 0, y: tiltPower });
+            // Опускаем нос (сила вниз впереди, вверх сзади)
+            Body.applyForce(chassis, { x: chassis.position.x + 25, y: chassis.position.y }, { x: 0, y: tiltForce });
+            Body.applyForce(chassis, { x: chassis.position.x - 25, y: chassis.position.y }, { x: 0, y: -tiltForce });
         }
 
         let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
@@ -291,7 +291,6 @@
         ctx.rotate(chassis.angle);
         
         if (isImageLoaded) {
-            // ПРИПОДНЯЛИ МОТОЦИКЛ (-46 вместо -40)
             ctx.drawImage(bikeImage, -45, -46, 90, 54); 
         }
         ctx.restore();
