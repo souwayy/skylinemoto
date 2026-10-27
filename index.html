@@ -111,29 +111,29 @@
     let groundY = canvas.height - 80; 
     let ground = Bodies.rectangle(startX, groundY + 50, 100000, 100, { isStatic: true });
 
-    // --- ФИЗИКА (МЕНЬШЕ КОЛЕСА) ---
+    // --- ФИЗИКА ---
     const group = Body.nextGroup(true); 
-    const wheelRadius = 9; // Уменьшили до 9
-    const wheelBase = 19; 
+    const wheelRadius = 9; 
+    const wheelBase = 23; // Раздвинули колеса шире
     const startY = groundY - wheelRadius - 5; 
     
     const wheelRear = Bodies.circle(startX - wheelBase, startY, wheelRadius, { 
-        density: 0.05, friction: 1, collisionFilter: { group: group } 
+        density: 0.05, friction: 1.5, collisionFilter: { group: group } 
     });
     const wheelFront = Bodies.circle(startX + wheelBase, startY, wheelRadius, { 
-        density: 0.05, friction: 1, collisionFilter: { group: group } 
+        density: 0.05, friction: 1.5, collisionFilter: { group: group } 
     });
     const chassis = Bodies.rectangle(startX, startY - 15, 60, 15, { 
-        density: 0.1, collisionFilter: { group: group } 
+        density: 0.2, collisionFilter: { group: group } 
     }); 
 
     const suspensionRear = Constraint.create({ 
         bodyA: wheelRear, pointB: { x: -wheelBase, y: 0 }, bodyB: chassis, 
-        stiffness: 0.1, damping: 0.1, length: 0 
+        stiffness: 0.2, damping: 0.2, length: 0 
     });
     const suspensionFront = Constraint.create({ 
         bodyA: wheelFront, pointB: { x: wheelBase, y: 0 }, bodyB: chassis, 
-        stiffness: 0.1, damping: 0.1, length: 0 
+        stiffness: 0.2, damping: 0.2, length: 0 
     });
 
     const moto = Composite.create({ bodies: [wheelRear, wheelFront, chassis], constraints: [suspensionRear, suspensionFront] });
@@ -218,26 +218,27 @@
     }
 
     function update() {
-        // СРЕДНЯЯ СКОРОСТЬ (0.16)
+        // СКОРОСТЬ БЛИЖЕ К БЫСТРОЙ (0.28)
         if (window.isGas) { 
-            Body.setAngularVelocity(wheelRear, 0.16); 
-            Body.setAngularVelocity(wheelFront, 0.16); 
+            Body.setAngularVelocity(wheelRear, 0.28); 
+            Body.setAngularVelocity(wheelFront, 0.28); 
         }
         if (window.isBrake) { 
             Body.setAngularVelocity(wheelRear, 0); 
             Body.setAngularVelocity(wheelFront, 0); 
         }
         
-        // РАБОЧИЕ НАКЛОНЫ (Через силу на колеса)
+        // НОВАЯ ЛОГИКА НАКЛОНОВ (Крутящий момент на раму)
+        const tiltPower = 0.0008; // Сила наклона
         if (window.isLeanBack) {
-            // Поднимаем переднее, прижимаем заднее
-            Body.applyForce(wheelFront, wheelFront.position, { x: 0, y: -0.001 });
-            Body.applyForce(wheelRear, wheelRear.position, { x: 0, y: 0.001 });
+            // Поднимаем переднюю часть, опускаем заднюю
+            Body.applyForce(chassis, { x: chassis.position.x - 25, y: chassis.position.y }, { x: 0, y: tiltPower });
+            Body.applyForce(chassis, { x: chassis.position.x + 25, y: chassis.position.y }, { x: 0, y: -tiltPower });
         } 
         else if (window.isLeanForward) {
-            // Прижимаем переднее, поднимаем заднее
-            Body.applyForce(wheelFront, wheelFront.position, { x: 0, y: 0.001 });
-            Body.applyForce(wheelRear, wheelRear.position, { x: 0, y: -0.001 });
+            // Опускаем переднюю часть, поднимаем заднюю
+            Body.applyForce(chassis, { x: chassis.position.x - 25, y: chassis.position.y }, { x: 0, y: -tiltPower });
+            Body.applyForce(chassis, { x: chassis.position.x + 25, y: chassis.position.y }, { x: 0, y: tiltPower });
         }
 
         let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
@@ -290,8 +291,8 @@
         ctx.rotate(chassis.angle);
         
         if (isImageLoaded) {
-            // Опустили картинку на 2 пикселя из-за меньших колес
-            ctx.drawImage(bikeImage, -45, -40, 90, 54); 
+            // ПРИПОДНЯЛИ МОТОЦИКЛ (-46 вместо -40)
+            ctx.drawImage(bikeImage, -45, -46, 90, 54); 
         }
         ctx.restore();
 
