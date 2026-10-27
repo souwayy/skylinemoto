@@ -33,23 +33,9 @@
     const world = engine.world;
     engine.gravity.y = 0.8; 
 
-    // Физическая земля (невидимая линия, об которую бьется мотоцикл)
     let groundY = canvas.height - 80; 
-    let ground = Bodies.rectangle(
-        canvas.width / 2, 
-        groundY + 50, 
-        canvas.width * 5, 
-        100, 
-        { isStatic: true }
-    );
-
-    // Тестовый объект
-    let testBike = Bodies.rectangle(
-        canvas.width / 2, 
-        100, 
-        60, 30, 
-        { density: 0.05, friction: 0.5 }
-    );
+    let ground = Bodies.rectangle(canvas.width / 2, groundY + 50, canvas.width * 5, 100, { isStatic: true });
+    let testBike = Bodies.rectangle(canvas.width / 2, 100, 60, 30, { density: 0.05, friction: 0.5 });
 
     Composite.add(world, [ground, testBike]);
 
@@ -70,44 +56,64 @@
         ctx.fill();
     }
 
-    // --- НОВАЯ ИДЕАЛЬНАЯ ЗЕМЛЯ (Как в Mountain Bike) ---
+    // --- ИДЕАЛЬНАЯ ЗЕМЛЯ С ТОНКОЙ ТРАВОЙ ---
     function drawTerrain(offset) {
         ctx.fillStyle = '#000000'; // Сплошной черный
         ctx.beginPath();
         ctx.moveTo(0, canvas.height);
 
-        // Проходим по всей ширине экрана (шаг 3 для плавности)
+        // 1. Рисуем основной плавный силуэт (холмы)
         for (let x = 0; x <= canvas.width; x += 3) {
-            // Базовая линия земли
             let y = canvas.height - 80;
-
-            // 1. Плавные большие холмы
-            y -= Math.sin((x + offset) * 0.005) * 25;
             
-            // 2. Средние кочки/кусты
-            y -= Math.cos((x + offset) * 0.02) * 10;
+            // Большие плавные волны
+            y -= Math.sin((x + offset) * 0.005) * 30;
+            y -= Math.cos((x + offset) * 0.015) * 15;
 
-            // 3. Острые травинки (высокая частота)
-            // Math.abs делает пики острыми, а не волнистыми
-            let sharpGrass = Math.abs(Math.sin((x + offset) * 0.15)) * 12;
+            // Едва заметная микро-текстура края (чтобы не был идеально гладким)
+            y -= Math.sin((x + offset) * 0.1) * 2;
             
-            // Рисуем травинки не везде, а "пучками" (условие > 0)
-            if (Math.sin((x + offset) * 0.03) > 0) {
-                y -= sharpGrass;
-            }
-
             ctx.lineTo(x, y);
         }
 
         ctx.lineTo(canvas.width, canvas.height);
         ctx.closePath();
         ctx.fill();
+
+        // 2. Добавляем ОЧЕНЬ ТОНКИЕ и РЕДКИЕ травинки
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 2; // Толщина травинки
+        ctx.lineCap = 'round';
+
+        for (let x = 0; x <= canvas.width; x += 20) {
+            // Делаем так, чтобы трава росла "пучками" (где-то есть, где-то нет)
+            let patch = Math.sin((x + offset) * 0.03); 
+            
+            if (patch > 0.6) { // Трава появляется только на определенных участках
+                // Вычисляем высоту земли в этой точке
+                let y = canvas.height - 80;
+                y -= Math.sin((x + offset) * 0.005) * 30;
+                y -= Math.cos((x + offset) * 0.015) * 15;
+                
+                // Рисуем 2-3 тонкие травинки, наклоненные в разные стороны
+                for (let i = 0; i < 3; i++) {
+                    let startX = x + (i * 4) - 4;
+                    let lean = Math.sin((x + offset) * 0.1 + i) * 6; // Наклон в сторону
+                    let height = 6 + Math.cos((x + offset) * 0.2 + i) * 4; // Высота травинки
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(startX, y + 2);
+                    ctx.lineTo(startX + lean, y - height);
+                    ctx.stroke();
+                }
+            }
+        }
     }
 
     function update() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // 1. Закат
+        // Закат
         const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
         gradient.addColorStop(0, '#1a0b2e');
         gradient.addColorStop(0.4, '#5a2b58');
@@ -116,20 +122,20 @@
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // 2. Солнце
+        // Солнце
         ctx.fillStyle = '#fff3d4';
         ctx.beginPath();
         ctx.arc(canvas.width * 0.75, canvas.height * 0.35, 45, 0, Math.PI * 2);
         ctx.fill();
 
-        // 3. Задние горы
+        // Горы
         drawMountainLayer(120, 60, '#3a2354', offset1);
         drawMountainLayer(60, 100, '#1e1129', offset2);
         
-        // 4. Наша новая черная земля с травой
+        // Земля
         drawTerrain(offset3);
 
-        // 5. Рисуем мотоцикл (тестовый квадрат)
+        // Мотоцикл
         ctx.save();
         ctx.translate(testBike.position.x, testBike.position.y);
         ctx.rotate(testBike.angle);
@@ -137,7 +143,7 @@
         ctx.fillRect(-30, -15, 60, 30); 
         ctx.restore();
 
-        // 6. Движение
+        // Движение
         let bgSpeed = testBike.velocity.x * 1.5; 
         offset1 += bgSpeed * 0.3;
         offset2 += bgSpeed * 0.6;
