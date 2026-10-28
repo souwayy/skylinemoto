@@ -54,7 +54,7 @@
 
         .btn {
             position: absolute;
-            width: 50px; height: 50px; border-radius: 50%;
+            width: 55px; height: 55px; border-radius: 50%;
             background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(0,0,0,0.4) 100%);
             border: 2px solid rgba(255, 255, 255, 0.3);
             box-shadow: 0 0 10px rgba(0,0,0,0.5), inset 0 0 8px rgba(255,255,255,0.1);
@@ -68,8 +68,8 @@
         }
         
         .btn svg {
-            width: 24px; height: 24px; fill: none; stroke: rgba(255, 255, 255, 0.8);
-            stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+            width: 28px; height: 28px; fill: none; stroke: rgba(255, 255, 255, 0.9);
+            stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;
             filter: drop-shadow(0 0 2px rgba(255,255,255,0.5));
         }
 
@@ -134,6 +134,7 @@
     </div>
     
     <div class="controls" id="controls">
+        <!-- Твои любимые кнопки наклонов -->
         <div class="btn" id="btnLeanBack">
             <svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>
         </div>
@@ -141,26 +142,14 @@
             <svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/></svg>
         </div>
         
-        <!-- Газ (Ручка газа) -->
+        <!-- Газ (Стрелка вперед) -->
         <div class="btn" id="btnGas">
-            <svg viewBox="0 0 24 24">
-                <line x1="3" y1="17" x2="21" y2="17" stroke-width="2" stroke-linecap="round"/>
-                <rect x="7" y="11" width="10" height="9" rx="3" fill="rgba(255,255,255,0.15)"/>
-                <line x1="9.5" y1="12" x2="9.5" y2="19" stroke-width="1.5" />
-                <line x1="12" y1="12" x2="12" y2="19" stroke-width="1.5" />
-                <line x1="14.5" y1="12" x2="14.5" y2="19" stroke-width="1.5" />
-                <path d="M 13 8 A 7 7 0 0 1 19 14" stroke-width="2" fill="none"/>
-                <polyline points="17,14 19,14 19,12" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
+            <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </div>
 
-        <!-- Тормоз (Рычаг) -->
+        <!-- Тормоз (Квадрат стоп) -->
         <div class="btn" id="btnBrake">
-            <svg viewBox="0 0 24 24">
-                <circle cx="6" cy="18" r="3" fill="rgba(255,255,255,0.15)"/>
-                <line x1="8.5" y1="16" x2="20" y2="7" stroke-width="3" stroke-linecap="round"/>
-                <line x1="20" y1="7" x2="22" y2="9" stroke-width="3" stroke-linecap="round"/>
-            </svg>
+            <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
         </div>
     </div>
 
@@ -359,7 +348,7 @@
         }
     }
 
-    // --- НАСТРОЙКА ЗВУКА ---
+    // --- ЗВУКОВАЯ СИСТЕМА ---
     const idleAudio = new Audio('engine_idle.mp3');
     const revAudio = new Audio('engine_rev.mp3');
     const popAudio = new Audio('engine_pop.mp3');
@@ -371,7 +360,12 @@
     
     let isAudioInitialized = false;
     let previousGasState = false;
-    
+    let useSyntheticWind = true;
+
+    windAudio.addEventListener('loadeddata', () => {
+        useSyntheticWind = false;
+    });
+
     let audioCtx, windSource, windGain, windFilter;
 
     function initAudio() {
@@ -384,38 +378,37 @@
         
         idleAudio.play().catch(e => console.log("Idle blocked"));
         revAudio.play().catch(e => console.log("Rev blocked"));
-        windAudio.play().catch(e => {
-            // Резервный ветер, если файл не загрузился
-            try {
-                const AudioContext = window.AudioContext || window.webkitAudioContext;
-                audioCtx = new AudioContext();
-                if (audioCtx.state === 'suspended') audioCtx.resume();
+        windAudio.play().catch(e => console.log("Wind blocked"));
 
-                const bufferSize = audioCtx.sampleRate * 2; 
-                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-                const data = buffer.getChannelData(0);
-                for (let i = 0; i < bufferSize; i++) {
-                    data[i] = Math.random() * 2 - 1; 
-                }
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
 
-                windSource = audioCtx.createBufferSource();
-                windSource.buffer = buffer;
-                windSource.loop = true;
+            const bufferSize = audioCtx.sampleRate * 2; 
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1; 
+            }
 
-                windFilter = audioCtx.createBiquadFilter();
-                windFilter.type = 'lowpass';
-                windFilter.frequency.value = 400; 
+            windSource = audioCtx.createBufferSource();
+            windSource.buffer = buffer;
+            windSource.loop = true;
 
-                windGain = audioCtx.createGain();
-                windGain.gain.value = 0; 
+            windFilter = audioCtx.createBiquadFilter();
+            windFilter.type = 'lowpass';
+            windFilter.frequency.value = 400; 
 
-                windSource.connect(windFilter);
-                windFilter.connect(windGain);
-                windGain.connect(audioCtx.destination);
+            windGain = audioCtx.createGain();
+            windGain.gain.value = 0; 
 
-                windSource.start();
-            } catch(err) {}
-        });
+            windSource.connect(windFilter);
+            windFilter.connect(windGain);
+            windGain.connect(audioCtx.destination);
+
+            windSource.start();
+        } catch(e) { console.log("Wind synthetic error: ", e); }
         
         isAudioInitialized = true;
     }
@@ -551,17 +544,41 @@
     }
 
     let lastDisplayedDistance = -1;
+    let targetWheelSpeed = 0;
 
     function update() {
         if (gameState === 'playing') {
+            
+            // --- ПЛАВНАЯ ФИЗИКА ---
+            if (window.isGas) targetWheelSpeed = 1.2;
+            if (window.isBrake) targetWheelSpeed = 0; 
+            if (!window.isGas && !window.isBrake) targetWheelSpeed = 0;
+
+            let currentRear = wheelRear.angularVelocity;
+            let newRear = currentRear + (targetWheelSpeed - currentRear) * 0.05; 
+            Body.setAngularVelocity(wheelRear, newRear);
+
+            let currentFront = wheelFront.angularVelocity;
+            let newFront = currentFront + (targetWheelSpeed - currentFront) * 0.05;
+            Body.setAngularVelocity(wheelFront, newFront);
+
+            if (Math.abs(chassis.velocity.x) > 1 && window.isGas) {
+                createDust(wheelRear.position.x, wheelRear.position.y);
+            }
+            
             let speed = Math.abs(wheelRear.angularVelocity);
             
             // --- ЛОГИКА ЗВУКА ---
             if (isAudioInitialized) {
+                let targetIdle = window.isGas ? 0 : 0.3;
+                let targetRev = window.isGas ? 0.4 : 0;
+                let targetWind = Math.min(0.5, 0.02 + speed * 0.2);
+
+                idleAudio.volume += (targetIdle - idleAudio.volume) * 0.1;
+                revAudio.volume += (targetRev - revAudio.volume) * 0.1;
+                windAudio.volume += (targetWind - windAudio.volume) * 0.1;
+
                 if (window.isGas) {
-                    idleAudio.volume = Math.max(0, idleAudio.volume - 0.05);
-                    revAudio.volume = Math.min(0.4, revAudio.volume + 0.05);
-                    
                     let targetRate = 0.8 + (speed * 1.5); 
                     revAudio.playbackRate = Math.min(2.0, targetRate);
                     
@@ -571,40 +588,17 @@
                     }
                     previousGasState = true;
                 } else {
-                    idleAudio.volume = Math.min(0.3, idleAudio.volume + 0.05);
-                    revAudio.volume = Math.max(0, revAudio.volume - 0.05);
                     previousGasState = false;
                 }
 
-                let targetWindVolume = 0.02 + (speed * 0.2); 
-
-                if (windAudio.readyState >= 2 && windAudio.error === null) {
-                    windAudio.volume = Math.min(0.6, targetWindVolume);
-                    if (windGain) windGain.gain.value = 0;
-                } else {
-                    windAudio.volume = 0;
-                    if (windGain) {
-                        windGain.gain.setTargetAtTime(targetWindVolume * 0.5, audioCtx.currentTime, 0.1);
-                    }
+                if (useSyntheticWind && windGain) {
+                    windGain.gain.setTargetAtTime(targetWind * 0.5, audioCtx.currentTime, 0.1);
                 }
             }
 
-            // --- ФИЗИКА ---
-            if (window.isGas) { 
-                Body.setAngularVelocity(wheelRear, 1.1); 
-                Body.setAngularVelocity(wheelFront, 1.1); 
-                
-                if (Math.abs(chassis.velocity.x) > 1) {
-                    createDust(wheelRear.position.x, wheelRear.position.y);
-                }
-            }
-            if (window.isBrake) { 
-                Body.setAngularVelocity(wheelRear, wheelRear.angularVelocity * 0.97); 
-                Body.setAngularVelocity(wheelFront, wheelFront.angularVelocity * 0.97); 
-            }
-            
             let isAirborne = Math.abs(chassis.velocity.y) > 1.5; 
 
+            // Наклоны (не трогал)
             let tiltAccel = 0.008; 
             let maxTiltSpeed = 0.4; 
 
@@ -749,4 +743,4 @@
     });
 </script>
 </body>
-    </html>
+</html>
