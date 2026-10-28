@@ -123,46 +123,26 @@
         return r1 * (1 - u) + r2 * u;
     }
 
-    // --- НОВЫЙ ГЕНЕРАТОР С КИКЕРАМИ (ПОДЪЕМАМИ) ---
+    // --- ЧИСТЫЙ РАНДОМ БЕЗ ТРАМПЛИНОВ ---
     function getTerrainY(x) {
         let y = groundY;
-        
-        // Базовые плавные холмы
-        y -= noise(x * 0.001) * 60;  
-        
-        // Определяем зоны для трамплинов (используя шум)
-        // Если шум в этой точке > 0.6, значит здесь будет трамплин
-        let isRampZone = noise(x * 0.0006); 
-        
-        if (isRampZone > 0.6) {
-            // Локальная координата внутри зоны трамплина
-            let localX = (x % 2000); 
-            
-            if (localX > 500 && localX < 1200) {
-                // 1. Плавный подъем (чтобы разогнаться)
-                let progress = (localX - 500) / 700;
-                y -= Math.sin(progress * Math.PI / 2) * 150; // Поднимаем землю на 150px
-            } else if (localX >= 1200 && localX < 1300) {
-                // 2. Кикер (Резкий отрыв)
-                y -= 150; 
-                y -= (localX - 1200) * 0.5; // Еще чуть-чуть вверх
-            }
-            // После 1300px земля резко падает вниз (обрыв)
-        }
-        
+        y -= noise(x * 0.001) * 100;  // Длинные волны
+        y -= noise(x * 0.005) * 50;   // Средние кочки
+        y -= noise(x * 0.02) * 25;    // Резкие бугры (для отрыва)
         return y;
     }
 
     const terrainBlocks = [];
     let lastGeneratedX = startX - 1500; 
     const chunkWidth = 1; 
-    const groundRadius = 5; 
+    const groundRadius = 10; 
 
     function generateTerrain() {
         while (lastGeneratedX < cameraX + (canvas.width / zoom) + 1000) {
             let hillY = getTerrainY(lastGeneratedX);
+            // ВОЗВРАЩАЕМ ТРЕНИЕ ЗЕМЛЕ (0.5), чтобы колеса цеплялись
             let block = Bodies.circle(lastGeneratedX, hillY + groundRadius, groundRadius, { 
-                isStatic: true, friction: 0, frictionStatic: 0, collisionFilter: { category: 0x0002 } 
+                isStatic: true, friction: 0.5, frictionStatic: 0.5, collisionFilter: { category: 0x0002 } 
             });
             terrainBlocks.push({ body: block, x: lastGeneratedX, y: hillY });
             Composite.add(world, block);
@@ -186,6 +166,7 @@
     let startHillY = getTerrainY(startX);
     const startY = startHillY - wheelRadius - 5; 
     
+    // Трение колес 1.5
     const wheelRear = Bodies.circle(startX - wheelBase, startY, wheelRadius, { 
         density: 0.05, friction: 1.5, frictionStatic: 1.5, collisionFilter: { group: group } 
     });
@@ -314,9 +295,10 @@
     }
 
     function update() {
+        // СКОРОСТЬ УВЕЛИЧЕНА ДО 2.5
         if (window.isGas) { 
-            Body.setAngularVelocity(wheelRear, 1.1); 
-            Body.setAngularVelocity(wheelFront, 1.1); 
+            Body.setAngularVelocity(wheelRear, 2.5); 
+            Body.setAngularVelocity(wheelFront, 2.5); 
         }
         if (window.isBrake) { 
             Body.setAngularVelocity(wheelRear, wheelRear.angularVelocity * 0.9); 
