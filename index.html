@@ -345,74 +345,119 @@
         }
     }
 
-    // --- ЗВУКОВАЯ СИСТЕМА ---
-    const idleAudio = new Audio('engine_idle.mp3');
-    const revAudio = new Audio('engine_rev.mp3');
-    const popAudio = new Audio('engine_pop.mp3');
-    const windAudio = new Audio('wind.mp3');
+    // --- НОВАЯ ЗВУКОВАЯ СИСТЕМА (WEB AUDIO API) ---
+    let audioCtx;
+    let idleBuffer, revBuffer, popBuffer, windBuffer;
     
-    idleAudio.loop = true;
-    revAudio.loop = true;
-    windAudio.loop = true;
-    
-    // Фикс: если браузер сбрасывает loop при ускорении, перезапускаем принудительно
-    idleAudio.addEventListener('ended', () => { idleAudio.currentTime = 0; idleAudio.play(); });
-    revAudio.addEventListener('ended', () => { revAudio.currentTime = 0; revAudio.play(); });
-    windAudio.addEventListener('ended', () => { windAudio.currentTime = 0; windAudio.play(); });
+    let idleSource, revSource, windSource;
+    let idleGain, revGain, windGain;
     
     let isAudioInitialized = false;
     let previousGasState = false;
-    let useSyntheticWind = true;
+    
+    // Загрузчик аудиофайлов
+    async function loadAudio(url) {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const arrayBuffer = await response.arrayBuffer();
+            return await audioCtx.decodeAudioData(arrayBuffer);
+        } catch (e) {
+            console.log(`Не удалось загрузить ${url}:`, e);
+            return null;
+        }
+    }
 
-    windAudio.addEventListener('loadeddata', () => {
-        useSyntheticWind = false;
-    });
-
-    let audioCtx, windSource, windGain, windFilter;
-
-    function initAudio() {
+    async function initAudio() {
         if (isAudioInitialized) return;
         
-        idleAudio.volume = 0;
-        revAudio.volume = 0;
-        popAudio.volume = 0.5;
-        windAudio.volume = 0;
-        
-        idleAudio.play().catch(e => console.log("Idle blocked"));
-        revAudio.play().catch(e => console.log("Rev blocked"));
-        windAudio.play().catch(e => console.log("Wind blocked"));
-
         try {
             const AudioContext = window.AudioContext || window.webkitAudioContext;
             audioCtx = new AudioContext();
             if (audioCtx.state === 'suspended') audioCtx.resume();
 
-            const bufferSize = audioCtx.sampleRate * 2; 
-            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-            const data = buffer.getChannelData(0);
-            for (let i = 0; i < bufferSize; i++) {
-                data[i] = Math.random() * 2 - 1; 
-            }
+            // Загружаем все файлы
+            idleBuffer = await loadAudio('engine_idle.mp3');
+            revBuffer = await loadAudio('engine_rev.mp3');
+            popBuffer = await loadAudio('engine_pop.mp3');
+            windBuffer = await loadAudio('wind.mp3');
 
-            windSource = audioCtx.createBufferSource();
-            windSource.buffer = buffer;
-            windSource.loop = true;
-
-            windFilter = audioCtx.createBiquadFilter();
-            windFilter.type = 'lowpass';
-            windFilter.frequency.value = 400; 
-
+            // Создаем громкости (GainNodes)
+            idleGain = audioCtx.createGain();
+            revGain = audioCtx.createGain();
             windGain = audioCtx.createGain();
-            windGain.gain.value = 0; 
-
-            windSource.connect(windFilter);
-            windFilter.connect(windGain);
+            
+            idleGain.gain.value = 0;
+            revGain.gain.value = 0;
+            windGain.gain.value = 0;
+            
+            idleGain.connect(audioCtx.destination);
+            revGain.connect(audioCtx.destination);
             windGain.connect(audioCtx.destination);
 
-            windSource.start();
-        } catch(e) { console.log("Wind synthetic error: ", e); }
-        
-        isAudioInitialized = true;
+            // Настраиваем и запускаем IDLE (Холостой ход)
+            if (idleBuffer) {
+                idleSource = audioCtx.createBufferSource();
+                idleSource.buffer = idleBuffer;
+                idleSource.loop = true;
+                idleSource.connect(idleGain);
+                idleSource.start();
+            }
+
+            // Настраиваем и запускаем REV (Рев)
+            if (revBuffer) {
+                revSource = audioCtx.createBufferSource();
+                revSource.buffer = revBuffer;
+                revSource.loop = true;
+                revSource.connect(revGain);
+                revSource.start();
+            }
+
+            // Настраиваем и запускаем WIND (Ветер)
+            if (windBuffer) {
+                windSource = audioCtx.createBufferSource();
+                windSource.buffer = windBuffer;
+                windSource.loop = true;
+                windSource.connect(windGain);
+                windSource.start();
+            } else {
+                // Если файла ветра нет, создаем синтетический шум
+                console.log("Создаю синтетический ветер");
+                const bufferSize = audioCtx.sampleRate * 2; 
+                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1; 
+                }
+                windSource = audioCtx.createBufferSource();
+                windSource.buffer = buffer;
+                windSource.loop = true;
+                
+                const windFilter = audioCtx.createBiquadFilter();
+                windFilter.type = 'lowpass';
+                windFilter.frequency.value = 400;
+                
+                windSource.connect(windFilter);
+                windFilter.connect(windGain);
+                windSource.start();
+            }
+
+            isAudioInitialized = true;
+            console.log("Аудио успешно инициализировано");
+        } catch (e) {
+            console.log("Ошибка инициализации аудио: ", e);
+        }
+    }
+
+    function playPop() {
+        if (!popBuffer || !audioCtx) return;
+        const popSource = audioCtx.createBufferSource();
+        const popGain = audioCtx.createGain();
+        popSource.buffer = popBuffer;
+        popSource.connect(popGain);
+        popGain.connect(audioCtx.destination);
+        popGain.gain.value = 0.5;
+        popSource.start();
     }
 
     function bindBtn(id, variableName) {
@@ -459,20 +504,19 @@
         window.isLeanBack = false; window.isLeanForward = false;
         
         if (isAudioInitialized) {
-            idleAudio.volume = 0.3;
-            revAudio.volume = 0;
-            revAudio.playbackRate = 1;
-            windAudio.volume = 0;
-            if (windGain) windGain.gain.value = 0;
+            idleGain.gain.value = 0.3;
+            revGain.gain.value = 0;
+            if (revSource) revSource.playbackRate.value = 1;
+            windGain.gain.value = 0;
         }
 
         document.getElementById('distanceText').innerText = "0";
         generateTerrain();
     }
 
-    document.getElementById('startScreen').addEventListener('touchstart', (e) => {
+    document.getElementById('startScreen').addEventListener('touchstart', async (e) => {
         e.preventDefault();
-        initAudio(); 
+        await initAudio(); 
         
         document.getElementById('startScreen').style.display = 'none';
         document.getElementById('controls').classList.add('active');
@@ -550,7 +594,7 @@
     function update() {
         if (gameState === 'playing') {
             
-            // --- ТВОЯ ФИЗИКА (НЕ ТРОНУТА) ---
+            // ТВОЯ ФИЗИКА (НЕ ТРОНУТА)
             if (window.isGas) { 
                 Body.setAngularVelocity(wheelRear, 1.2); 
                 Body.setAngularVelocity(wheelFront, 1.2); 
@@ -566,32 +610,28 @@
             
             let speed = Math.abs(wheelRear.angularVelocity);
             
-            // --- ЛОГИКА ЗВУКА ---
+            // --- ЛОГИКА ЗВУКА (WEB AUDIO) ---
             if (isAudioInitialized) {
                 let targetIdle = window.isGas ? 0 : 0.3;
                 let targetRev = window.isGas ? 0.4 : 0;
-                let targetWind = Math.min(0.8, 0.1 + speed * 0.4); // Громкость ветра усилена
+                let targetWind = Math.min(0.8, 0.1 + speed * 0.4); 
 
-                idleAudio.volume += (targetIdle - idleAudio.volume) * 0.1;
-                revAudio.volume += (targetRev - revAudio.volume) * 0.1;
-                windAudio.volume += (targetWind - windAudio.volume) * 0.1;
+                // Плавно меняем громкость
+                idleGain.gain.setTargetAtTime(targetIdle, audioCtx.currentTime, 0.1);
+                revGain.gain.setTargetAtTime(targetRev, audioCtx.currentTime, 0.1);
+                windGain.gain.setTargetAtTime(targetWind, audioCtx.currentTime, 0.1);
 
-                if (window.isGas) {
+                // Ускоряем рев
+                if (window.isGas && revSource) {
                     let targetRate = 0.8 + (speed * 1.5); 
-                    revAudio.playbackRate = Math.min(2.0, targetRate);
+                    revSource.playbackRate.setTargetAtTime(Math.min(2.0, targetRate), audioCtx.currentTime, 0.1);
                     
                     if (previousGasState === false && Math.random() > 0.5) {
-                        popAudio.currentTime = 0;
-                        popAudio.play().catch(e => {});
+                        playPop();
                     }
                     previousGasState = true;
                 } else {
                     previousGasState = false;
-                }
-
-                // Если MP3-ветер не работает — включаем синтетический
-                if (useSyntheticWind && windGain) {
-                    windGain.gain.setTargetAtTime(targetWind, audioCtx.currentTime, 0.1); // Усилено
                 }
             }
 
@@ -625,10 +665,9 @@
                 gameState = 'gameover';
                 document.getElementById('gameOverScreen').style.display = 'flex';
                 if (isAudioInitialized) {
-                    idleAudio.volume = 0; 
-                    revAudio.volume = 0;
-                    windAudio.volume = 0;
-                    if (windGain) windGain.gain.value = 0;
+                    idleGain.gain.value = 0; 
+                    revGain.gain.value = 0;
+                    windGain.gain.value = 0;
                 }
             }
 
@@ -741,4 +780,4 @@
     });
 </script>
 </body>
-</html>
+    </html>
