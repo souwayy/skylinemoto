@@ -22,7 +22,8 @@
             display: flex; justify-content: space-between; padding: 20px;
             align-items: flex-start;
         }
-        .stats {
+        
+        .stats-left {
             display: flex;
             flex-direction: column;
             gap: 5px;
@@ -32,18 +33,12 @@
             text-transform: uppercase;
             letter-spacing: 1px;
         }
-        .score {
-            font-size: 32px; font-weight: bold; color: white;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-            line-height: 1;
-        }
         
-        /* Время и Передача */
-        .right-panel {
+        .stats-right {
             display: flex;
             flex-direction: column;
             align-items: flex-end;
-            gap: 10px;
+            gap: 5px;
         }
         .clock {
             font-size: 18px;
@@ -52,32 +47,19 @@
             font-family: monospace;
             text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
         }
-        .gear-display {
-            display: flex;
-            align-items: baseline;
-            gap: 5px;
-            background: rgba(0,0,0,0.4);
-            padding: 5px 10px;
-            border-radius: 8px;
-            border: 1px solid rgba(255,255,255,0.2);
-        }
-        .gear-num {
-            font-size: 24px;
-            font-weight: 900;
-            color: #FF2E4D;
-        }
-        .gear-label {
-            font-size: 12px;
-            color: rgba(255,255,255,0.6);
+        .score {
+            font-size: 32px; font-weight: bold; color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            line-height: 1;
         }
 
-        /* Кнопки управления (Мото-стиль) */
+        /* Кнопки (УМЕНЬШЕНЫ ДО 50px) */
         .btn {
             position: absolute;
-            width: 75px; height: 75px; border-radius: 50%;
+            width: 50px; height: 50px; border-radius: 50%;
             background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(0,0,0,0.4) 100%);
             border: 2px solid rgba(255, 255, 255, 0.3);
-            box-shadow: 0 0 15px rgba(0,0,0,0.5), inset 0 0 10px rgba(255,255,255,0.1);
+            box-shadow: 0 0 10px rgba(0,0,0,0.5), inset 0 0 8px rgba(255,255,255,0.1);
             display: flex; align-items: center; justify-content: center;
             pointer-events: auto; color: white;
             transition: transform 0.1s, background 0.1s;
@@ -88,16 +70,16 @@
         }
         
         .btn svg {
-            width: 35px; height: 35px; fill: none; stroke: rgba(255, 255, 255, 0.8);
-            stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;
+            width: 24px; height: 24px; fill: none; stroke: rgba(255, 255, 255, 0.8);
+            stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
             filter: drop-shadow(0 0 2px rgba(255,255,255,0.5));
         }
 
         /* Расположение */
-        #btnLeanBack    { bottom: 130px; left: 25px; }
-        #btnLeanForward { bottom: 40px;  left: 70px; }
-        #btnGas         { bottom: 130px; right: 25px; }
-        #btnBrake       { bottom: 40px;  right: 70px; }
+        #btnLeanBack    { bottom: 100px; left: 15px; }
+        #btnLeanForward { bottom: 30px;  left: 50px; }
+        #btnGas         { bottom: 100px; right: 15px; }
+        #btnBrake       { bottom: 30px;  right: 50px; }
 
         .controls { display: none; } 
         .controls.active { display: block; }
@@ -145,31 +127,39 @@
 
 <div class="ui-layer">
     <div class="top-bar">
-        <div class="stats">
+        <div class="stats-left">
             <div class="stat-text">Best: <span id="bestDistanceText">0</span>m</div>
-            <div class="score"><span id="distanceText">0</span> m</div>
         </div>
-        <div class="right-panel">
+        
+        <div class="stats-right">
             <div class="clock" id="clockText">00:00</div>
-            <div class="gear-display" id="gearPanel" style="display:none;">
-                <div class="gear-num" id="gearNum">1</div>
-                <div class="gear-label">GEAR</div>
-            </div>
+            <div class="score"><span id="distanceText">0</span> m</div>
         </div>
     </div>
     
     <div class="controls" id="controls">
+        <!-- Наклоны -->
         <div class="btn" id="btnLeanBack">
             <svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>
         </div>
         <div class="btn" id="btnLeanForward">
             <svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/></svg>
         </div>
+        <!-- Газ (Ручка газа) -->
         <div class="btn" id="btnGas">
-            <svg viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            <svg viewBox="0 0 24 24">
+                <rect x="6" y="7" width="12" height="10" rx="2" />
+                <line x1="8" y1="9" x2="16" y2="9" />
+                <line x1="8" y1="12" x2="16" y2="12" />
+                <line x1="8" y1="15" x2="16" y2="15" />
+            </svg>
         </div>
+        <!-- Тормоз (Рычаг) -->
         <div class="btn" id="btnBrake">
-            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
+            <svg viewBox="0 0 24 24">
+                <path d="M5 12h14M19 12l-3-6" stroke-width="2.5"/>
+                <circle cx="5" cy="12" r="2" />
+            </svg>
         </div>
     </div>
 
@@ -262,7 +252,6 @@
     const wheelRadius = 10; 
     const wheelBase = 23; 
     
-    // Создаем объекты в нулевых координатах, чтобы не было рывка при старте
     const wheelRear = Bodies.circle(0, 0, wheelRadius, { 
         density: 0.05, friction: 1.5, frictionStatic: 1.5, collisionFilter: { group: group } 
     });
@@ -369,9 +358,10 @@
         }
     }
 
+    // --- ЗВУК (ДВИГАТЕЛЬ + ВЕТЕР) ---
     let audioCtx, oscillator, gainNode, filterNode;
+    let windSource, windGain, windFilter;
     let isAudioInitialized = false;
-    let currentGear = 1;
 
     function initAudio() {
         if (isAudioInitialized) return;
@@ -380,6 +370,7 @@
             audioCtx = new AudioContext();
             if (audioCtx.state === 'suspended') audioCtx.resume();
 
+            // --- Двигатель ---
             oscillator = audioCtx.createOscillator();
             gainNode = audioCtx.createGain();
             filterNode = audioCtx.createBiquadFilter();
@@ -394,8 +385,35 @@
             
             oscillator.start();
             gainNode.gain.value = 0; 
+
+            // --- Ветер (Белый шум) ---
+            const bufferSize = audioCtx.sampleRate * 2;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1; // Генерация шума
+            }
+
+            windSource = audioCtx.createBufferSource();
+            windSource.buffer = buffer;
+            windSource.loop = true;
+
+            windFilter = audioCtx.createBiquadFilter();
+            windFilter.type = 'lowpass';
+            windFilter.frequency.value = 400; // Приглушаем высокие частоты, чтобы звучало как ветер
+
+            windGain = audioCtx.createGain();
+            windGain.gain.value = 0; // Изначально тихо
+
+            windSource.connect(windFilter);
+            windFilter.connect(windGain);
+            windGain.connect(audioCtx.destination);
+
+            windSource.start();
+            
             isAudioInitialized = true;
-        } catch(e) { console.log("Аудио не поддерживается"); }
+            console.log("Audio Initialized Successfully");
+        } catch(e) { console.log("Аудио не поддерживается: ", e); }
     }
 
     function bindBtn(id, variableName) {
@@ -441,9 +459,9 @@
         window.isGas = false; window.isBrake = false; 
         window.isLeanBack = false; window.isLeanForward = false;
         
-        // Сброс звука при рестарте
         if (isAudioInitialized) {
             gainNode.gain.value = 0;
+            windGain.gain.value = 0;
             oscillator.frequency.value = 60;
         }
 
@@ -453,10 +471,10 @@
 
     document.getElementById('startScreen').addEventListener('touchstart', (e) => {
         e.preventDefault();
-        initAudio();
+        initAudio(); 
+        
         document.getElementById('startScreen').style.display = 'none';
         document.getElementById('controls').classList.add('active');
-        document.getElementById('gearPanel').style.display = 'flex';
         
         resetGame();
         gameState = 'playing';
@@ -532,25 +550,19 @@
         if (gameState === 'playing') {
             let speed = Math.abs(wheelRear.angularVelocity);
             
-            if (speed < 0.3) currentGear = 1;
-            else if (speed < 0.6) currentGear = 2;
-            else if (speed < 0.9) currentGear = 3;
-            else currentGear = 4;
-            
-            if (document.getElementById('gearNum').innerText != currentGear) {
-                document.getElementById('gearNum').innerText = currentGear;
-            }
-
+            // ЗВУК
             if (isAudioInitialized) {
                 if (window.isGas) {
-                    let baseFreq = 60 + (currentGear * 20); 
-                    let rpmFactor = (speed % 0.3) * 200; 
-                    
-                    oscillator.frequency.setTargetAtTime(baseFreq + rpmFactor, audioCtx.currentTime, 0.05);
+                    let baseFreq = 60 + (speed * 50); 
+                    oscillator.frequency.setTargetAtTime(baseFreq, audioCtx.currentTime, 0.05);
                     gainNode.gain.setTargetAtTime(0.05, audioCtx.currentTime, 0.1);
                     filterNode.frequency.setTargetAtTime(400 + (speed * 800), audioCtx.currentTime, 0.1);
+                    
+                    // Ветер усиливается со скоростью
+                    windGain.gain.setTargetAtTime(0.02 + (speed * 0.05), audioCtx.currentTime, 0.1);
                 } else {
                     gainNode.gain.setTargetAtTime(0, audioCtx.currentTime, 0.2);
+                    windGain.gain.setTargetAtTime(0.01, audioCtx.currentTime, 0.2); // Легкий фоновый ветер
                 }
             }
 
@@ -596,7 +608,10 @@
             if ((headY >= groundUnderHead && !isAirborne) || chassis.position.y > canvas.height + 500) {
                 gameState = 'gameover';
                 document.getElementById('gameOverScreen').style.display = 'flex';
-                if (isAudioInitialized) gainNode.gain.value = 0; 
+                if (isAudioInitialized) {
+                    gainNode.gain.value = 0; 
+                    windGain.gain.value = 0;
+                }
             }
 
             let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
@@ -677,7 +692,6 @@
     Runner.run(runner, engine);
     update();
     
-    // --- ИСПРАВЛЕННЫЙ РЕСАЙЗ (Чтобы мотоцикл не разрывало на части) ---
     let resizeTimeout;
     window.addEventListener('resize', () => { 
         clearTimeout(resizeTimeout);
@@ -695,7 +709,6 @@
             let currentGround = getTerrainY(chassis.position.x);
             if (chassis.position.y > currentGround) {
                  let newY = currentGround - wheelRadius - 10;
-                 // Двигаем ВСЕ части мотоцикла
                  Body.setPosition(chassis, { x: chassis.position.x, y: newY });
                  Body.setPosition(wheelRear, { x: chassis.position.x - wheelBase, y: newY + 10 });
                  Body.setPosition(wheelFront, { x: chassis.position.x + wheelBase, y: newY + 10 });
