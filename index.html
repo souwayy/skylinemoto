@@ -105,8 +105,11 @@
 
     const engine = Engine.create();
     const world = engine.world;
-    engine.positionIterations = 15; 
-    engine.velocityIterations = 15;
+    
+    // 1. УВЕЛИЧИЛИ ТОЧНОСТЬ ФИЗИКИ
+    engine.positionIterations = 20; 
+    engine.velocityIterations = 20;
+    
     engine.gravity.y = 1; 
 
     const startX = 50000;
@@ -134,7 +137,9 @@
     const terrainBlocks = [];
     let lastGeneratedX = startX - 1500; 
     const chunkWidth = 1; 
-    const groundRadius = 10; 
+    
+    // 2. УВЕЛИЧИЛИ РАДИУС ЗЕМЛИ (для гладкости)
+    const groundRadius = 20; 
 
     function generateTerrain() {
         while (lastGeneratedX < cameraX + (canvas.width / zoom) + 1000) {
@@ -157,7 +162,6 @@
         }
     }
 
-    // --- ВОЗВРАЩАЕМ ТВОИ НАСТРОЙКИ КОЛЕС ---
     const group = Body.nextGroup(true); 
     const wheelRadius = 10; 
     const wheelBase = 23; 
@@ -165,24 +169,25 @@
     let startHillY = getTerrainY(startX);
     const startY = startHillY - wheelRadius - 5; 
     
+    // 3. ДОБАВИЛИ СОПРОТИВЛЕНИЕ ВОЗДУХА (frictionAir)
     const wheelRear = Bodies.circle(startX - wheelBase, startY, wheelRadius, { 
-        density: 0.05, friction: 1.5, frictionStatic: 1.5, collisionFilter: { group: group } 
+        density: 0.05, friction: 1.5, frictionStatic: 1.5, frictionAir: 0.02, collisionFilter: { group: group } 
     });
     const wheelFront = Bodies.circle(startX + wheelBase, startY, wheelRadius, { 
-        density: 0.05, friction: 1.5, frictionStatic: 1.5, collisionFilter: { group: group } 
+        density: 0.05, friction: 1.5, frictionStatic: 1.5, frictionAir: 0.02, collisionFilter: { group: group } 
     });
     const chassis = Bodies.rectangle(startX, startY - 15, 60, 15, { 
         density: 0.2, collisionFilter: { group: group } 
     }); 
 
-    // --- ВОЗВРАЩАЕМ ТВОИ НАСТРОЙКИ ПОДВЕСКИ ---
+    // 4. УВЕЛИЧИЛИ ГАШЕНИЕ ПОДВЕСКИ (damping: 0.8)
     const suspensionRear = Constraint.create({ 
         bodyA: wheelRear, pointB: { x: -wheelBase, y: 0 }, bodyB: chassis, 
-        stiffness: 0.2, damping: 0.4, length: 0 
+        stiffness: 0.2, damping: 0.8, length: 0 
     });
     const suspensionFront = Constraint.create({ 
         bodyA: wheelFront, pointB: { x: wheelBase, y: 0 }, bodyB: chassis, 
-        stiffness: 0.2, damping: 0.4, length: 0 
+        stiffness: 0.2, damping: 0.8, length: 0 
     });
 
     const moto = Composite.create({ bodies: [wheelRear, wheelFront, chassis], constraints: [suspensionRear, suspensionFront] });
@@ -294,10 +299,10 @@
     }
 
     function update() {
-        // ТВОЯ СКОРОСТЬ (можешь менять цифру 4)
+        // СКОРОСТЬ
         if (window.isGas) { 
-            Body.setAngularVelocity(wheelRear, 2.5); 
-            Body.setAngularVelocity(wheelFront, 2.5); 
+            Body.setAngularVelocity(wheelRear, 4); 
+            Body.setAngularVelocity(wheelFront, 4); 
         }
         if (window.isBrake) { 
             Body.setAngularVelocity(wheelRear, wheelRear.angularVelocity * 0.9); 
@@ -306,7 +311,7 @@
         
         let isAirborne = Math.abs(chassis.velocity.y) > 1.5; 
 
-        // ТВОИ ПЛАВНЫЕ НАКЛОНЫ (0.008 и 0.4)
+        // НАКЛОНЫ
         let tiltAccel = 0.008; 
         let maxTiltSpeed = 0.4; 
 
