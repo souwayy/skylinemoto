@@ -53,7 +53,7 @@
             line-height: 1;
         }
 
-        /* Кнопки (УМЕНЬШЕНЫ ДО 50px) */
+        /* Кнопки (50px) */
         .btn {
             position: absolute;
             width: 50px; height: 50px; border-radius: 50%;
@@ -145,13 +145,20 @@
         <div class="btn" id="btnLeanForward">
             <svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/></svg>
         </div>
-        <!-- Газ (Ручка газа) -->
+        <!-- Газ (Ручка газа с насечками и стрелкой) -->
         <div class="btn" id="btnGas">
             <svg viewBox="0 0 24 24">
-                <rect x="6" y="7" width="12" height="10" rx="2" />
-                <line x1="8" y1="9" x2="16" y2="9" />
-                <line x1="8" y1="12" x2="16" y2="12" />
-                <line x1="8" y1="15" x2="16" y2="15" />
+                <!-- Трос/руль -->
+                <line x1="2" y1="16" x2="22" y2="16" />
+                <!-- Ручка газа -->
+                <rect x="7" y="12" width="9" height="8" rx="2" fill="rgba(255,255,255,0.1)"/>
+                <!-- Насечки на ручке -->
+                <line x1="9" y1="13" x2="9" y2="19" />
+                <line x1="12" y1="13" x2="12" y2="19" />
+                <line x1="14" y1="13" x2="14" y2="19" />
+                <!-- Стрелка поворота -->
+                <path d="M 17 8 A 4 4 0 0 1 13 4" />
+                <polyline points="11,4 13,4 13,6" />
             </svg>
         </div>
         <!-- Тормоз (Рычаг) -->
@@ -358,7 +365,6 @@
         }
     }
 
-    // --- ЗВУК (ДВИГАТЕЛЬ + ВЕТЕР) ---
     let audioCtx, oscillator, gainNode, filterNode;
     let windSource, windGain, windFilter;
     let isAudioInitialized = false;
@@ -370,7 +376,6 @@
             audioCtx = new AudioContext();
             if (audioCtx.state === 'suspended') audioCtx.resume();
 
-            // --- Двигатель ---
             oscillator = audioCtx.createOscillator();
             gainNode = audioCtx.createGain();
             filterNode = audioCtx.createBiquadFilter();
@@ -386,12 +391,11 @@
             oscillator.start();
             gainNode.gain.value = 0; 
 
-            // --- Ветер (Белый шум) ---
             const bufferSize = audioCtx.sampleRate * 2;
             const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
             const data = buffer.getChannelData(0);
             for (let i = 0; i < bufferSize; i++) {
-                data[i] = Math.random() * 2 - 1; // Генерация шума
+                data[i] = Math.random() * 2 - 1; 
             }
 
             windSource = audioCtx.createBufferSource();
@@ -400,10 +404,10 @@
 
             windFilter = audioCtx.createBiquadFilter();
             windFilter.type = 'lowpass';
-            windFilter.frequency.value = 400; // Приглушаем высокие частоты, чтобы звучало как ветер
+            windFilter.frequency.value = 400; 
 
             windGain = audioCtx.createGain();
-            windGain.gain.value = 0; // Изначально тихо
+            windGain.gain.value = 0; 
 
             windSource.connect(windFilter);
             windFilter.connect(windGain);
@@ -412,7 +416,6 @@
             windSource.start();
             
             isAudioInitialized = true;
-            console.log("Audio Initialized Successfully");
         } catch(e) { console.log("Аудио не поддерживается: ", e); }
     }
 
@@ -550,7 +553,6 @@
         if (gameState === 'playing') {
             let speed = Math.abs(wheelRear.angularVelocity);
             
-            // ЗВУК
             if (isAudioInitialized) {
                 if (window.isGas) {
                     let baseFreq = 60 + (speed * 50); 
@@ -558,11 +560,10 @@
                     gainNode.gain.setTargetAtTime(0.05, audioCtx.currentTime, 0.1);
                     filterNode.frequency.setTargetAtTime(400 + (speed * 800), audioCtx.currentTime, 0.1);
                     
-                    // Ветер усиливается со скоростью
                     windGain.gain.setTargetAtTime(0.02 + (speed * 0.05), audioCtx.currentTime, 0.1);
                 } else {
                     gainNode.gain.setTargetAtTime(0, audioCtx.currentTime, 0.2);
-                    windGain.gain.setTargetAtTime(0.01, audioCtx.currentTime, 0.2); // Легкий фоновый ветер
+                    windGain.gain.setTargetAtTime(0.01, audioCtx.currentTime, 0.2); 
                 }
             }
 
