@@ -124,11 +124,28 @@
         return r1 * (1 - u) + r2 * u;
     }
 
+    // --- АБСОЛЮТНО СЛУЧАЙНЫЙ ЛАНДШАФТ (БЕЗ ПОВТОРЕНИЙ) ---
     function getTerrainY(x) {
         let y = groundY;
-        y -= noise(x * 0.0005) * 250; 
-        y -= noise(x * 0.003) * 80; 
-        y -= noise(x * 0.015) * 20; 
+        
+        // 1. Длинные плавные горы (для разгона)
+        y -= Math.sin(x * 0.001) * 120;
+        
+        // 2. Резкие трамплины (возводим шум в куб, чтобы они были редкими но высокими)
+        let jumpNoise = noise(x * 0.004);
+        if (jumpNoise > 0.55) {
+            y -= Math.pow(jumpNoise - 0.55, 2) * 2000; 
+        }
+        
+        // 3. Глубокие ямы (смещаем фазу шума, чтобы ямы не совпадали с трамплинами)
+        let pitNoise = noise(x * 0.003 + 500); 
+        if (pitNoise > 0.6) {
+            y += Math.pow(pitNoise - 0.6, 2) * 3000; 
+        }
+        
+        // 4. Мелкие кочки на ровной поверхности
+        y -= noise(x * 0.02) * 20;
+
         return y;
     }
 
@@ -158,33 +175,32 @@
         }
     }
 
-    // --- ТЯЖЕЛЫЕ КОЛЕСА И РАМА ---
+    // --- ТВОИ НАСТРОЙКИ ---
     const group = Body.nextGroup(true); 
     const wheelRadius = 10; 
-    const wheelBase = 24; 
+    const wheelBase = 23; 
     
     let startHillY = getTerrainY(startX);
-    const startY = startHillY - wheelRadius - 5; 
+    const startY = startHillY - wheelRadius - 15; 
     
     const wheelRear = Bodies.circle(startX - wheelBase, startY, wheelRadius, { 
-        density: 0.3, friction: 0.8, frictionStatic: 0.8, restitution: 0, collisionFilter: { group: group } 
+        density: 0.3, friction: 0.5, frictionStatic: 0.5, restitution: 0, collisionFilter: { group: group } 
     });
     const wheelFront = Bodies.circle(startX + wheelBase, startY, wheelRadius, { 
-        density: 0.3, friction: 0.8, frictionStatic: 0.8, restitution: 0, collisionFilter: { group: group } 
+        density: 0.3, friction: 0.5, frictionStatic: 0.5, restitution: 0, collisionFilter: { group: group } 
     });
     
-    const chassis = Bodies.rectangle(startX, startY - 20, 60, 15, { 
+    const chassis = Bodies.rectangle(startX, startY - 15, 60, 15, { 
         density: 0.8, restitution: 0, collisionFilter: { group: group } 
     }); 
 
-    // --- ЖЕСТКАЯ ПОДВЕСКА (БЕЗ ВИБРАЦИЙ) ---
     const suspensionRear = Constraint.create({ 
         bodyA: wheelRear, pointB: { x: -wheelBase, y: 0 }, bodyB: chassis, 
-        stiffness: 0.7, damping: 0.1, length: 0 
+        stiffness: 0.15, damping: 0.3, length: 10 
     });
     const suspensionFront = Constraint.create({ 
         bodyA: wheelFront, pointB: { x: wheelBase, y: 0 }, bodyB: chassis, 
-        stiffness: 0.7, damping: 0.1, length: 0 
+        stiffness: 0.15, damping: 0.3, length: 10 
     });
 
     const moto = Composite.create({ bodies: [wheelRear, wheelFront, chassis], constraints: [suspensionRear, suspensionFront] });
@@ -262,14 +278,14 @@
         ctx.beginPath(); ctx.arc(0, 0, wheelRadius, 0, Math.PI * 2); ctx.fill();
 
         ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(0, 0, wheelRadius - 3, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(0, 0, wheelRadius - 2, 0, Math.PI * 2); ctx.stroke();
 
-        ctx.strokeStyle = '#333'; ctx.lineWidth = 1.5;
+        ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
         for (let i = 0; i < 4; i++) {
             let angle = (i / 4) * Math.PI * 2;
             ctx.beginPath(); 
             ctx.moveTo(0, 0); 
-            ctx.lineTo(Math.cos(angle) * (wheelRadius - 3), Math.sin(angle) * (wheelRadius - 3)); 
+            ctx.lineTo(Math.cos(angle) * (wheelRadius - 2), Math.sin(angle) * (wheelRadius - 2)); 
             ctx.stroke();
         }
         ctx.restore();
@@ -278,11 +294,11 @@
     function respawn() {
         let spawnX = cameraX + (canvas.width * 0.3) / zoom;
         let respawnHillY = getTerrainY(spawnX);
-        let respawnY = respawnHillY - wheelRadius - 5;
+        let respawnY = respawnHillY - wheelRadius - 15;
         
         Body.setPosition(wheelRear, { x: spawnX - wheelBase, y: respawnY });
         Body.setPosition(wheelFront, { x: spawnX + wheelBase, y: respawnY });
-        Body.setPosition(chassis, { x: spawnX, y: respawnY - 20 });
+        Body.setPosition(chassis, { x: spawnX, y: respawnY - 15 });
         
         Body.setVelocity(chassis, { x: 0, y: 0 }); 
         Body.setVelocity(wheelRear, { x: 0, y: 0 }); 
@@ -296,7 +312,6 @@
     }
 
     function update() {
-        // СКОРОСТЬ 2.5 (медленнее, без ракеты)
         if (window.isGas) { 
             Body.setAngularVelocity(wheelRear, 1.2); 
             Body.setAngularVelocity(wheelFront, 1.2); 
@@ -377,7 +392,6 @@
         ctx.rotate(chassis.angle);
         
         if (isImageLoaded) {
-            // Из-за того что колеса стали больше, картинку мотоцикла пришлось чуть приподнять
             ctx.drawImage(bikeImage, -45, -45, 90, 54); 
         }
         ctx.restore();
