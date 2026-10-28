@@ -101,8 +101,7 @@
           Bodies = Matter.Bodies,
           Composite = Matter.Composite,
           Constraint = Matter.Constraint,
-          Body = Matter.Body,
-          Vertices = Matter.Vertices;
+          Body = Matter.Body;
 
     const engine = Engine.create();
     const world = engine.world;
@@ -111,48 +110,49 @@
     const startX = 50000;
     let groundY = canvas.height - 80; 
 
-    // --- ГЛАДКАЯ ФУНКЦИЯ ХОЛМОВ ---
+    // --- ГЕНЕРАЦИЯ ШУМА ---
+    function noise(x) {
+        let i = Math.floor(x);
+        let f = x - i;
+        let u = f * f * (3.0 - 2.0 * f);
+        let r1 = Math.sin(i * 12.9898) * 43758.5453;
+        let r2 = Math.sin((i + 1) * 12.9898) * 43758.5453;
+        r1 = r1 - Math.floor(r1);
+        r2 = r2 - Math.floor(r2);
+        return r1 * (1 - u) + r2 * u;
+    }
+
     function getTerrainY(x) {
         let y = groundY;
-        y -= Math.sin(x * 0.0015) * 60;  
-        y -= Math.sin(x * 0.006) * 25;   
-        y -= Math.sin(x * 0.02) * 8;     
+        y -= noise(x * 0.001) * 80;  
+        y -= noise(x * 0.005) * 25;   
+        y -= noise(x * 0.015) * 5;    
         return y;
     }
 
-    // --- ЗЕМЛЯ КАК ЕДИНОЕ ФИЗИЧЕСКОЕ ТЕЛО ---
-    let currentTerrain = null;
-    let terrainStartX = startX - 2000;
-    const chunkWidth = 2000; // Ширина куска земли
-    const step = 10; // Шаг точек для полигона
+    const terrainBlocks = [];
+    let lastGeneratedX = startX - 1500; 
+    const chunkWidth = 2; 
+    const groundRadius = 30; 
 
-    function createTerrainChunk(startXPos) {
-        let vertices = [];
-        // Верхняя линия (холмы)
-        for (let x = 0; x <= chunkWidth; x += step) {
-            vertices.push({ x: x, y: getTerrainY(startXPos + x) - groundY });
+    function generateTerrain() {
+        while (lastGeneratedX < cameraX + (canvas.width / zoom) + 1000) {
+            let hillY = getTerrainY(lastGeneratedX);
+            let block = Bodies.circle(lastGeneratedX, hillY + groundRadius, groundRadius, { 
+                isStatic: true, friction: 1, collisionFilter: { category: 0x0002 } 
+            });
+            terrainBlocks.push({ body: block, x: lastGeneratedX, y: hillY });
+            Composite.add(world, block);
+            lastGeneratedX += chunkWidth;
         }
-        // Добавляем нижние углы (чтобы получился закрытый полигон)
-        vertices.push({ x: chunkWidth, y: 2000 });
-        vertices.push({ x: 0, y: 2000 });
-
-        let body = Bodies.fromVertices(startXPos, groundY, [vertices], { 
-            isStatic: true, 
-            friction: 1, 
-            collisionFilter: { category: 0x0002 } 
-        });
-
-        return body;
     }
 
-    function updateTerrain() {
-        // Если у нас нет земли, или мы ушли далеко вперед
-        if (!currentTerrain || chassis.position.x > terrainStartX + chunkWidth - 1000) {
-            if (currentTerrain) Composite.remove(world, currentTerrain);
-            
-            terrainStartX = Math.floor(chassis.position.x / chunkWidth) * chunkWidth - 1000;
-            currentTerrain = createTerrainChunk(terrainStartX);
-            Composite.add(world, currentTerrain);
+    function cleanupTerrain() {
+        for (let i = terrainBlocks.length - 1; i >= 0; i--) {
+            if (terrainBlocks[i].x < cameraX - 1500) {
+                Composite.remove(world, terrainBlocks[i].body);
+                terrainBlocks.splice(i, 1);
+            }
         }
     }
 
@@ -164,11 +164,12 @@
     let startHillY = getTerrainY(startX);
     const startY = startHillY - wheelRadius - 5; 
     
+    // УМЕНЬШЕННОЕ СЦЕПЛЕНИЕ (friction: 0.8 вместо 1.5)
     const wheelRear = Bodies.circle(startX - wheelBase, startY, wheelRadius, { 
-        density: 0.05, friction: 1.0, frictionStatic: 1.0, collisionFilter: { group: group } 
+        density: 0.05, friction: 0.8, frictionStatic: 0.8, collisionFilter: { group: group } 
     });
     const wheelFront = Bodies.circle(startX + wheelBase, startY, wheelRadius, { 
-        density: 0.05, friction: 1.0, frictionStatic: 1.0, collisionFilter: { group: group } 
+        density: 0.05, friction: 0.8, frictionStatic: 0.8, collisionFilter: { group: group } 
     });
     const chassis = Bodies.rectangle(startX, startY - 15, 60, 15, { 
         density: 0.2, collisionFilter: { group: group } 
@@ -176,11 +177,11 @@
 
     const suspensionRear = Constraint.create({ 
         bodyA: wheelRear, pointB: { x: -wheelBase, y: 0 }, bodyB: chassis, 
-        stiffness: 0.1, damping: 0.3, length: 0 
+        stiffness: 0.2, damping: 0.4, length: 0 
     });
     const suspensionFront = Constraint.create({ 
         bodyA: wheelFront, pointB: { x: wheelBase, y: 0 }, bodyB: chassis, 
-        stiffness: 0.1, damping: 0.3, length: 0 
+        stiffness: 0.2, damping: 0.4, length: 0 
     });
 
     const moto = Composite.create({ bodies: [wheelRear, wheelFront, chassis], constraints: [suspensionRear, suspensionFront] });
@@ -212,8 +213,7 @@
     let maxDistance = 0;
     const distanceText = document.getElementById('distanceText');
 
-    // Создаем первый кусок
-    updateTerrain();
+    generateTerrain();
 
     function drawMountainLayer(yOffset, height, color, parallaxOffset) {
         ctx.fillStyle = color;
@@ -237,18 +237,13 @@
         ctx.lineWidth = 4; 
 
         ctx.beginPath();
+        ctx.moveTo(cameraX - 100, canvas.height + 2000);
         
-        let startDrawX = Math.floor(cameraX) - 100;
-        let endDrawX = Math.floor(cameraX) + (canvas.width / zoom) + 100;
-        
-        ctx.moveTo(startDrawX, canvas.height + 2000);
-        
-        // Рисуем только то, что видно на экране
-        for (let x = startDrawX; x <= endDrawX; x += 10) {
-            ctx.lineTo(x, getTerrainY(x));
+        for (let i = 0; i < terrainBlocks.length; i++) {
+            ctx.lineTo(terrainBlocks[i].x, terrainBlocks[i].y);
         }
         
-        ctx.lineTo(endDrawX, canvas.height + 2000);
+        ctx.lineTo(lastGeneratedX, canvas.height + 2000);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
@@ -287,7 +282,6 @@
         }
         
         let isAirborne = Math.abs(chassis.velocity.y) > 1.0; 
-        let speed = Math.abs(chassis.velocity.x);
         
         if (window.isLeanBack) {
             if (isAirborne) {
@@ -296,8 +290,7 @@
                     Body.setAngularVelocity(chassis, currentRot - 0.01); 
                 }
             } else {
-                let tiltForce = speed > 5 ? -0.1 : -0.05;
-                Body.setAngularVelocity(chassis, tiltForce); 
+                Body.setAngularVelocity(chassis, -0.1); 
             }
         } 
         else if (window.isLeanForward) {
@@ -317,8 +310,8 @@
         let targetCameraY = (canvas.height * 0.4) - chassis.position.y;
         cameraY += (targetCameraY - cameraY) * 0.1;
         
-        // ОБНОВЛЯЕМ ЗЕМЛЮ
-        updateTerrain();
+        generateTerrain();
+        cleanupTerrain();
 
         let currentDistance = Math.max(0, Math.floor((chassis.position.x - startX) / 10));
         if (currentDistance > maxDistance) {
@@ -344,8 +337,6 @@
             Body.setAngularVelocity(chassis, 0);
             Body.setAngularVelocity(wheelRear, 0);
             Body.setAngularVelocity(wheelFront, 0);
-            
-            updateTerrain(); // Пересоздаем землю на новом месте
         }
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
