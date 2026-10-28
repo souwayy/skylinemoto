@@ -110,20 +110,20 @@
     const startX = 50000;
     let groundY = canvas.height - 80; 
 
-    // --- ИДЕАЛЬНЫЕ ХОЛМЫ (СМЕСЬ СИНУСОИД) ---
+    // --- ПРОСТАЯ, НО НЕ ПОВТОРЯЮЩАЯСЯ ГЕНЕРАЦИЯ ---
     function getTerrainY(x) {
         let y = groundY;
-        // Смешиваем три волны. Они не повторяются и создают естественный рельеф.
-        y -= Math.sin(x * 0.0015) * 70;  // Большие горы
-        y -= Math.sin(x * 0.006) * 25;   // Средние кочки
-        y -= Math.sin(x * 0.02) * 5;     // Микро-неровности
+        // Смесь трех волн (создает пологие, но разные холмы)
+        y -= Math.sin(x * 0.0015) * 60;  
+        y -= Math.sin(x * 0.006) * 25;   
+        y -= Math.sin(x * 0.02) * 8;     
         return y;
     }
 
-    // --- ФИЗИЧЕСКАЯ ЗЕМЛЯ ---
+    // --- НАДЕЖНАЯ ФИЗИЧЕСКАЯ ЗЕМЛЯ (ПЛОТНЫЕ ПРЯМОУГОЛЬНИКИ) ---
     const terrainBlocks = [];
     let lastGeneratedX = startX - 1500; 
-    const chunkWidth = 20; 
+    const chunkWidth = 10; // Шаг 10 пикселей (плотно)
     const chunkHeight = 2000; 
 
     function generateTerrain() {
@@ -141,8 +141,8 @@
             let cx = midX + Math.sin(angle) * (chunkHeight / 2);
             let cy = midY + Math.cos(angle) * (chunkHeight / 2);
 
-            // Создаем блоки, которые перекрывают друг друга, чтобы не было стен
-            let block = Bodies.rectangle(cx, cy, dist + 5, chunkHeight, { 
+            // Прямоугольник с перекрытием (чтобы не было зазоров)
+            let block = Bodies.rectangle(cx, cy, dist + 2, chunkHeight, { 
                 isStatic: true,
                 angle: angle,
                 friction: 1, 
@@ -165,7 +165,7 @@
         }
     }
 
-    // --- МОТОЦИКЛ ---
+    // --- МОТОЦИКЛ (СТАБИЛЬНЫЙ) ---
     const group = Body.nextGroup(true); 
     const wheelRadius = 10; 
     const wheelBase = 23; 
@@ -183,14 +183,14 @@
         density: 0.2, collisionFilter: { group: group } 
     }); 
 
-    // --- РЕАЛИСТИЧНАЯ АМОРТИЗАЦИЯ (Высокий damping = гасит тряску) ---
+    // Умеренная подвеска
     const suspensionRear = Constraint.create({ 
         bodyA: wheelRear, pointB: { x: -wheelBase, y: 0 }, bodyB: chassis, 
-        stiffness: 0.05, damping: 0.9, length: 0 
+        stiffness: 0.1, damping: 0.3, length: 0 
     });
     const suspensionFront = Constraint.create({ 
         bodyA: wheelFront, pointB: { x: wheelBase, y: 0 }, bodyB: chassis, 
-        stiffness: 0.05, damping: 0.9, length: 0 
+        stiffness: 0.1, damping: 0.3, length: 0 
     });
 
     const moto = Composite.create({ bodies: [wheelRear, wheelFront, chassis], constraints: [suspensionRear, suspensionFront] });
@@ -290,7 +290,6 @@
             Body.setAngularVelocity(wheelFront, wheelFront.angularVelocity * 0.9); 
         }
         
-        // ПОВОРОТЫ (Плавные)
         let isAirborne = Math.abs(chassis.velocity.y) > 1.0; 
         let speed = Math.abs(chassis.velocity.x);
         
