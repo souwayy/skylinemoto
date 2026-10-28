@@ -8,7 +8,7 @@
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
             touch-action: none; -webkit-user-select: none; user-select: none; 
-            font-family: sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         canvas { display: block; touch-action: none; }
 
@@ -17,53 +17,125 @@
             pointer-events: none; z-index: 10;
         }
 
+        /* Верхняя панель */
         .top-bar {
             display: flex; justify-content: space-between; padding: 20px;
+            align-items: flex-start;
         }
-        .btn-ui {
-            background: rgba(0,0,0,0.3); border: 2px solid rgba(255,255,255,0.4);
-            border-radius: 10px; color: white; padding: 6px 14px;
-            font-size: 18px; font-weight: bold; pointer-events: auto;
+        .stats {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
         }
-        .score-container {
+        .stat-text {
+            font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.7);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .score {
+            font-size: 32px; font-weight: bold; color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            line-height: 1;
+        }
+        
+        /* Время и Передача */
+        .right-panel {
             display: flex;
             flex-direction: column;
             align-items: flex-end;
+            gap: 10px;
         }
-        .score {
-            font-size: 28px; font-weight: bold; color: white;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-        }
-        .version {
-            font-size: 12px;
-            color: #FF2E4D;
+        .clock {
+            font-size: 18px;
+            font-weight: 600;
+            color: rgba(255,255,255,0.8);
             font-family: monospace;
-            background: rgba(0,0,0,0.5);
-            padding: 2px 6px;
-            border-radius: 4px;
-            margin-top: 4px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+        .gear-display {
+            display: flex;
+            align-items: baseline;
+            gap: 5px;
+            background: rgba(0,0,0,0.4);
+            padding: 5px 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .gear-num {
+            font-size: 24px;
+            font-weight: 900;
+            color: #FF2E4D;
+        }
+        .gear-label {
+            font-size: 12px;
+            color: rgba(255,255,255,0.6);
         }
 
+        /* Кнопки управления (Мото-стиль) */
         .btn {
             position: absolute;
-            width: 65px; height: 65px; border-radius: 50%;
-            background: rgba(255, 255, 255, 0.05); 
-            border: 2px solid rgba(255, 255, 255, 0.5);
+            width: 75px; height: 75px; border-radius: 50%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(0,0,0,0.4) 100%);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 0 15px rgba(0,0,0,0.5), inset 0 0 10px rgba(255,255,255,0.1);
             display: flex; align-items: center; justify-content: center;
             pointer-events: auto; color: white;
-            transition: background 0.1s;
+            transition: transform 0.1s, background 0.1s;
         }
-        .btn:active { background: rgba(255, 255, 255, 0.3); }
+        .btn:active { 
+            transform: scale(0.95);
+            background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, rgba(0,0,0,0.5) 100%);
+        }
         
         .btn svg {
-            width: 30px; height: 30px; fill: none; stroke: rgba(255, 255, 255, 0.7);
-            stroke-width: 3; stroke-linecap: round; stroke-linejoin: round;
+            width: 35px; height: 35px; fill: none; stroke: rgba(255, 255, 255, 0.8);
+            stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;
+            filter: drop-shadow(0 0 2px rgba(255,255,255,0.5));
         }
 
-        #btnLeanBack    { bottom: 110px; left: 20px; }
-        #btnLeanForward { bottom: 30px;  left: 60px; }
-        #btnGas         { bottom: 110px; right: 20px; }
-        #btnBrake       { bottom: 30px;  right: 60px; }
+        /* Расположение */
+        #btnLeanBack    { bottom: 130px; left: 25px; }
+        #btnLeanForward { bottom: 40px;  left: 70px; }
+        #btnGas         { bottom: 130px; right: 25px; }
+        #btnBrake       { bottom: 40px;  right: 70px; }
+
+        .controls { display: none; } 
+        .controls.active { display: block; }
+
+        /* Экраны Start и GameOver */
+        .overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.4);
+            pointer-events: auto;
+            transition: opacity 0.3s;
+            z-index: 20;
+        }
+        .overlay h1 {
+            font-size: 42px; color: white; text-transform: uppercase; letter-spacing: 2px;
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.8);
+            margin-bottom: 20px;
+        }
+        .overlay p {
+            font-size: 18px; color: rgba(255,255,255,0.8);
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 0.5; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
+        }
+        
+        #gameOverScreen { 
+            display: none; 
+            background: #000; 
+            justify-content: flex-end; 
+            padding-bottom: 100px;
+        }
+        #gameOverScreen p {
+            color: rgba(255,255,255,0.8);
+            font-size: 20px;
+        }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 </head>
@@ -73,25 +145,41 @@
 
 <div class="ui-layer">
     <div class="top-bar">
-        <div class="btn-ui">II</div>
-        <div class="score-container">
+        <div class="stats">
+            <div class="stat-text">Best: <span id="bestDistanceText">0</span>m</div>
             <div class="score"><span id="distanceText">0</span> m</div>
-            <div class="version">v1.1 (Fix)</div> <!-- ПРОВЕРКА ВЕРСИИ -->
+        </div>
+        <div class="right-panel">
+            <div class="clock" id="clockText">00:00</div>
+            <div class="gear-display" id="gearPanel" style="display:none;">
+                <div class="gear-num" id="gearNum">1</div>
+                <div class="gear-label">GEAR</div>
+            </div>
         </div>
     </div>
     
-    <div class="btn" id="btnLeanBack">
-        <svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>
-    </div>
-    <div class="btn" id="btnLeanForward">
-        <svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/></svg>
+    <div class="controls" id="controls">
+        <div class="btn" id="btnLeanBack">
+            <svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>
+        </div>
+        <div class="btn" id="btnLeanForward">
+            <svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/></svg>
+        </div>
+        <div class="btn" id="btnGas">
+            <svg viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </div>
+        <div class="btn" id="btnBrake">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
+        </div>
     </div>
 
-    <div class="btn" id="btnGas">
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4" fill="rgba(255,255,255,0.6)" stroke="none"/></svg>
+    <div class="overlay" id="startScreen">
+        <h1>Skyline Moto</h1>
+        <p>Нажми, чтобы начать</p>
     </div>
-    <div class="btn" id="btnBrake">
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg>
+
+    <div class="overlay" id="gameOverScreen">
+        <p>Tap to continue</p>
     </div>
 </div>
 
@@ -123,6 +211,7 @@
 
     const startX = 50000;
     let groundY = canvas.height - 80; 
+    let terrainOffset = 0; 
 
     function noise(x) {
         let i = Math.floor(x);
@@ -137,9 +226,9 @@
 
     function getTerrainY(x) {
         let y = groundY;
-        y -= noise(x * 0.001) * 120;  
-        y -= noise(x * 0.005) * 30;   
-        y -= noise(x * 0.015) * 8;    
+        y -= noise((x + terrainOffset) * 0.001) * 120;  
+        y -= noise((x + terrainOffset) * 0.005) * 30;   
+        y -= noise((x + terrainOffset) * 0.015) * 8;    
         return y;
     }
 
@@ -173,17 +262,14 @@
     const wheelRadius = 10; 
     const wheelBase = 23; 
     
-    let startHillY = getTerrainY(startX);
-    const startY = startHillY - wheelRadius - 5; 
-    
-    const wheelRear = Bodies.circle(startX - wheelBase, startY, wheelRadius, { 
+    // Создаем объекты в нулевых координатах, чтобы не было рывка при старте
+    const wheelRear = Bodies.circle(0, 0, wheelRadius, { 
         density: 0.05, friction: 1.5, frictionStatic: 1.5, collisionFilter: { group: group } 
     });
-    const wheelFront = Bodies.circle(startX + wheelBase, startY, wheelRadius, { 
+    const wheelFront = Bodies.circle(0, 0, wheelRadius, { 
         density: 0.05, friction: 1.5, frictionStatic: 1.5, collisionFilter: { group: group } 
     });
-    
-    const chassis = Bodies.rectangle(startX, startY - 15, 60, 15, { 
+    const chassis = Bodies.rectangle(0, 0, 60, 15, { 
         density: 0.2, collisionFilter: { group: group } 
     }); 
 
@@ -207,67 +293,29 @@
     window.isGas = false; window.isBrake = false; 
     window.isLeanBack = false; window.isLeanForward = false;
 
-    // --- ЗВУК (Привязан к любому касанию экрана) ---
-    let audioCtx, oscillator, gainNode;
-    let isAudioInitialized = false;
-
-    function initAudio() {
-        if (isAudioInitialized) return;
-        try {
-            const AudioContext = window.AudioContext || window.webkitAudioContext;
-            audioCtx = new AudioContext();
-            // Принудительный запуск на мобильных
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume().then(() => {
-                    console.log("Audio resumed");
-                });
-            }
-            oscillator = audioCtx.createOscillator();
-            gainNode = audioCtx.createGain();
-            oscillator.type = 'sawtooth'; 
-            oscillator.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-            oscillator.start();
-            gainNode.gain.value = 0; 
-            isAudioInitialized = true;
-        } catch(e) { console.log("Аудио не поддерживается: ", e); }
-    }
-
-    // Включаем звук при первом тапе куда угодно
-    document.body.addEventListener('touchstart', initAudio, { once: true });
-    document.body.addEventListener('click', initAudio, { once: true });
-
-    function bindBtn(id, variableName) {
-        const el = document.getElementById(id);
-        el.addEventListener('touchstart', (e) => { e.preventDefault(); window[variableName] = true; });
-        el.addEventListener('touchend', (e) => { e.preventDefault(); window[variableName] = false; });
-        el.addEventListener('touchcancel', (e) => { e.preventDefault(); window[variableName] = false; });
-    }
-    
-    bindBtn('btnGas', 'isGas');
-    bindBtn('btnBrake', 'isBrake');
-    bindBtn('btnLeanBack', 'isLeanBack');
-    bindBtn('btnLeanForward', 'isLeanForward');
+    let gameState = 'start'; 
+    let maxDistance = parseInt(localStorage.getItem('bestDistance')) || 0;
+    document.getElementById('bestDistanceText').innerText = maxDistance;
 
     let cameraX = startX - (canvas.width * 0.3);
     let cameraY = 0; 
     const zoom = 1.1; 
 
-    let maxDistance = 0;
-    const distanceText = document.getElementById('distanceText');
+    setInterval(() => {
+        const now = new Date();
+        const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+        document.getElementById('clockText').innerText = timeStr;
+    }, 1000);
 
-    generateTerrain();
-
-    // --- ПЫЛЬ (ПОДНЯТА ВЫШЕ) ---
     const particles = [];
     function createDust(x, y) {
-        if (particles.length > 50) return; 
+        if (particles.length > 40) return; 
         particles.push({
             x: x + (Math.random() - 0.5) * 10,
-            y: y, // Центр колеса
+            y: y + wheelRadius - 2, 
             vx: -Math.random() * 2 - 1,
-            vy: -Math.random() * 2 - 0.5, // Чуть сильнее вверх
-            radius: Math.random() * 5 + 2,
+            vy: -Math.random() * 1.5 - 0.5, 
+            radius: Math.random() * 4 + 2,
             alpha: 0.8
         });
     }
@@ -275,7 +323,7 @@
     function drawParticles() {
         for (let i = particles.length - 1; i >= 0; i--) {
             let p = particles[i];
-            ctx.fillStyle = `rgba(100, 100, 100, ${p.alpha})`; // Светлее, чтобы было видно
+            ctx.fillStyle = `rgba(100, 100, 100, ${p.alpha})`; 
             ctx.beginPath();
             ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
             ctx.fill();
@@ -285,6 +333,142 @@
             if (p.alpha <= 0) particles.splice(i, 1);
         }
     }
+
+    const birds = [];
+    function spawnBird() {
+        if (gameState !== 'playing') return; 
+        if (birds.length > 4) return;
+        birds.push({
+            x: cameraX + canvas.width + 100,
+            y: groundY - 200 - Math.random() * 300,
+            speed: 2 + Math.random() * 2,
+            wingPhase: Math.random() * Math.PI * 2
+        });
+    }
+    setInterval(spawnBird, 4000); 
+
+    function drawBirds() {
+        ctx.strokeStyle = '#2a1b3d';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        
+        for (let i = birds.length - 1; i >= 0; i--) {
+            let b = birds[i];
+            b.x -= b.speed;
+            b.wingPhase += 0.2;
+            
+            let wingY = Math.sin(b.wingPhase) * 8;
+            
+            ctx.beginPath();
+            ctx.moveTo(b.x - 10, b.y + wingY);
+            ctx.quadraticCurveTo(b.x - 5, b.y - 5, b.x, b.y);
+            ctx.quadraticCurveTo(b.x + 5, b.y - 5, b.x + 10, b.y + wingY);
+            ctx.stroke();
+
+            if (b.x < cameraX - 200) birds.splice(i, 1);
+        }
+    }
+
+    let audioCtx, oscillator, gainNode, filterNode;
+    let isAudioInitialized = false;
+    let currentGear = 1;
+
+    function initAudio() {
+        if (isAudioInitialized) return;
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            oscillator = audioCtx.createOscillator();
+            gainNode = audioCtx.createGain();
+            filterNode = audioCtx.createBiquadFilter();
+            
+            oscillator.type = 'sawtooth'; 
+            filterNode.type = 'lowpass';
+            filterNode.frequency.value = 800; 
+
+            oscillator.connect(filterNode);
+            filterNode.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            oscillator.start();
+            gainNode.gain.value = 0; 
+            isAudioInitialized = true;
+        } catch(e) { console.log("Аудио не поддерживается"); }
+    }
+
+    function bindBtn(id, variableName) {
+        const el = document.getElementById(id);
+        el.addEventListener('touchstart', (e) => { e.preventDefault(); if(gameState === 'playing') window[variableName] = true; });
+        el.addEventListener('touchend', (e) => { e.preventDefault(); window[variableName] = false; });
+        el.addEventListener('touchcancel', (e) => { e.preventDefault(); window[variableName] = false; });
+    }
+    
+    bindBtn('btnGas', 'isGas');
+    bindBtn('btnBrake', 'isBrake');
+    bindBtn('btnLeanBack', 'isLeanBack');
+    bindBtn('btnLeanForward', 'isLeanForward');
+
+    function resetGame() {
+        terrainOffset = Math.random() * 10000;
+        
+        for (let i = 0; i < terrainBlocks.length; i++) {
+            Composite.remove(world, terrainBlocks[i].body);
+        }
+        terrainBlocks.length = 0;
+        
+        lastGeneratedX = startX - 1500;
+        cameraX = startX - (canvas.width * 0.3);
+        
+        let startHillY = getTerrainY(startX);
+        let startY = startHillY - wheelRadius - 5;
+        
+        Body.setPosition(wheelRear, { x: startX - wheelBase, y: startY });
+        Body.setPosition(wheelFront, { x: startX + wheelBase, y: startY });
+        Body.setPosition(chassis, { x: startX, y: startY - 15 });
+        
+        Body.setVelocity(chassis, { x: 0, y: 0 }); 
+        Body.setVelocity(wheelRear, { x: 0, y: 0 }); 
+        Body.setVelocity(wheelFront, { x: 0, y: 0 });
+        Body.setAngle(chassis, 0);
+        Body.setAngle(wheelRear, 0);
+        Body.setAngle(wheelFront, 0);
+        Body.setAngularVelocity(chassis, 0);
+        Body.setAngularVelocity(wheelRear, 0);
+        Body.setAngularVelocity(wheelFront, 0);
+
+        window.isGas = false; window.isBrake = false; 
+        window.isLeanBack = false; window.isLeanForward = false;
+        
+        // Сброс звука при рестарте
+        if (isAudioInitialized) {
+            gainNode.gain.value = 0;
+            oscillator.frequency.value = 60;
+        }
+
+        document.getElementById('distanceText').innerText = "0";
+        generateTerrain();
+    }
+
+    document.getElementById('startScreen').addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        initAudio();
+        document.getElementById('startScreen').style.display = 'none';
+        document.getElementById('controls').classList.add('active');
+        document.getElementById('gearPanel').style.display = 'flex';
+        
+        resetGame();
+        gameState = 'playing';
+    });
+
+    document.getElementById('gameOverScreen').addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        document.getElementById('gameOverScreen').style.display = 'none';
+        
+        resetGame(); 
+        gameState = 'playing';
+    });
 
     function drawMountainLayer(yOffset, height, color, parallaxOffset) {
         ctx.fillStyle = color;
@@ -342,96 +526,100 @@
         ctx.restore();
     }
 
-    function respawn() {
-        let spawnX = cameraX + (canvas.width * 0.3) / zoom;
-        let respawnHillY = getTerrainY(spawnX);
-        let respawnY = respawnHillY - wheelRadius - 5;
-        
-        Body.setPosition(wheelRear, { x: spawnX - wheelBase, y: respawnY });
-        Body.setPosition(wheelFront, { x: spawnX + wheelBase, y: respawnY });
-        Body.setPosition(chassis, { x: spawnX, y: respawnY - 15 });
-        
-        Body.setVelocity(chassis, { x: 0, y: 0 }); 
-        Body.setVelocity(wheelRear, { x: 0, y: 0 }); 
-        Body.setVelocity(wheelFront, { x: 0, y: 0 });
-        Body.setAngle(chassis, 0);
-        Body.setAngle(wheelRear, 0);
-        Body.setAngle(wheelFront, 0);
-        Body.setAngularVelocity(chassis, 0);
-        Body.setAngularVelocity(wheelRear, 0);
-        Body.setAngularVelocity(wheelFront, 0);
-    }
+    let lastDisplayedDistance = -1;
 
     function update() {
-        if (isAudioInitialized) {
-            if (window.isGas) {
-                gainNode.gain.value = 0.03; 
-                oscillator.frequency.value = 60 + Math.abs(wheelRear.angularVelocity) * 40;
-            } else {
-                gainNode.gain.value = 0; 
-            }
-        }
-
-        if (window.isGas) { 
-            Body.setAngularVelocity(wheelRear, 1.1); 
-            Body.setAngularVelocity(wheelFront, 1.1); 
+        if (gameState === 'playing') {
+            let speed = Math.abs(wheelRear.angularVelocity);
             
-            if (Math.abs(chassis.velocity.x) > 1) {
-                createDust(wheelRear.position.x, wheelRear.position.y);
+            if (speed < 0.3) currentGear = 1;
+            else if (speed < 0.6) currentGear = 2;
+            else if (speed < 0.9) currentGear = 3;
+            else currentGear = 4;
+            
+            if (document.getElementById('gearNum').innerText != currentGear) {
+                document.getElementById('gearNum').innerText = currentGear;
             }
-        }
-        if (window.isBrake) { 
-            Body.setAngularVelocity(wheelRear, wheelRear.angularVelocity * 0.9); 
-            Body.setAngularVelocity(wheelFront, wheelFront.angularVelocity * 0.9); 
-        }
-        
-        let isAirborne = Math.abs(chassis.velocity.y) > 1.5; 
 
-        let tiltAccel = 0.008; 
-        let maxTiltSpeed = 0.4; 
-
-        if (window.isLeanBack) {
-            let currentAV = chassis.angularVelocity;
-            if (currentAV > -maxTiltSpeed) {
-                Body.setAngularVelocity(chassis, currentAV - tiltAccel);
+            if (isAudioInitialized) {
+                if (window.isGas) {
+                    let baseFreq = 60 + (currentGear * 20); 
+                    let rpmFactor = (speed % 0.3) * 200; 
+                    
+                    oscillator.frequency.setTargetAtTime(baseFreq + rpmFactor, audioCtx.currentTime, 0.05);
+                    gainNode.gain.setTargetAtTime(0.05, audioCtx.currentTime, 0.1);
+                    filterNode.frequency.setTargetAtTime(400 + (speed * 800), audioCtx.currentTime, 0.1);
+                } else {
+                    gainNode.gain.setTargetAtTime(0, audioCtx.currentTime, 0.2);
+                }
             }
-        } 
-        else if (window.isLeanForward) {
-            let currentAV = chassis.angularVelocity;
-            if (currentAV < maxTiltSpeed) {
-                Body.setAngularVelocity(chassis, currentAV + tiltAccel);
+
+            if (window.isGas) { 
+                Body.setAngularVelocity(wheelRear, 1.1); 
+                Body.setAngularVelocity(wheelFront, 1.1); 
+                
+                if (Math.abs(chassis.velocity.x) > 1) {
+                    createDust(wheelRear.position.x, wheelRear.position.y);
+                }
             }
-        } else {
-            if (!isAirborne) {
-                Body.setAngularVelocity(chassis, chassis.angularVelocity * 0.95);
+            if (window.isBrake) { 
+                Body.setAngularVelocity(wheelRear, wheelRear.angularVelocity * 0.97); 
+                Body.setAngularVelocity(wheelFront, wheelFront.angularVelocity * 0.97); 
             }
-        }
+            
+            let isAirborne = Math.abs(chassis.velocity.y) > 1.5; 
 
-        let headX = chassis.position.x + Math.sin(chassis.angle) * 35;
-        let headY = chassis.position.y - Math.cos(chassis.angle) * 35;
-        let groundUnderHead = getTerrainY(headX);
+            let tiltAccel = 0.008; 
+            let maxTiltSpeed = 0.4; 
 
-        if (headY >= groundUnderHead && !isAirborne) {
-            respawn();
-        }
+            if (window.isLeanBack) {
+                let currentAV = chassis.angularVelocity;
+                if (currentAV > -maxTiltSpeed) {
+                    Body.setAngularVelocity(chassis, currentAV - tiltAccel);
+                }
+            } 
+            else if (window.isLeanForward) {
+                let currentAV = chassis.angularVelocity;
+                if (currentAV < maxTiltSpeed) {
+                    Body.setAngularVelocity(chassis, currentAV + tiltAccel);
+                }
+            } else {
+                if (!isAirborne) {
+                    Body.setAngularVelocity(chassis, chassis.angularVelocity * 0.95);
+                }
+            }
 
-        let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
-        cameraX += (targetCameraX - cameraX) * 0.1; 
-        
-        let targetCameraY = (canvas.height * 0.5) - chassis.position.y;
-        cameraY += (targetCameraY - cameraY) * 0.1;
-        
-        generateTerrain();
-        cleanupTerrain();
+            let headX = chassis.position.x + Math.sin(chassis.angle) * 35;
+            let headY = chassis.position.y - Math.cos(chassis.angle) * 35;
+            let groundUnderHead = getTerrainY(headX);
 
-        let currentDistance = Math.max(0, Math.floor((chassis.position.x - startX) / 10));
-        if (currentDistance > maxDistance) {
-            maxDistance = currentDistance;
-            distanceText.innerText = maxDistance;
-        }
+            if ((headY >= groundUnderHead && !isAirborne) || chassis.position.y > canvas.height + 500) {
+                gameState = 'gameover';
+                document.getElementById('gameOverScreen').style.display = 'flex';
+                if (isAudioInitialized) gainNode.gain.value = 0; 
+            }
 
-        if (chassis.position.y > canvas.height + 1000) {
-            respawn();
+            let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
+            cameraX += (targetCameraX - cameraX) * 0.1; 
+            
+            let targetCameraY = (canvas.height * 0.5) - chassis.position.y;
+            cameraY += (targetCameraY - cameraY) * 0.1;
+            
+            generateTerrain();
+            cleanupTerrain();
+
+            let currentDistance = Math.max(0, Math.floor((chassis.position.x - startX) / 10));
+            
+            if (currentDistance !== lastDisplayedDistance) {
+                document.getElementById('distanceText').innerText = currentDistance;
+                lastDisplayedDistance = currentDistance;
+            }
+            
+            if (currentDistance > maxDistance) {
+                maxDistance = currentDistance;
+                localStorage.setItem('bestDistance', maxDistance);
+                document.getElementById('bestDistanceText').innerText = maxDistance;
+            }
         }
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -440,7 +628,20 @@
         gradient.addColorStop(0, '#1a0b2e'); gradient.addColorStop(0.4, '#5a2b58'); gradient.addColorStop(0.7, '#d96b4e'); gradient.addColorStop(1, '#f5c26b');
         ctx.fillStyle = gradient; ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        ctx.fillStyle = '#fff3d4'; ctx.beginPath(); ctx.arc(canvas.width * 0.75, canvas.height * 0.35, 45, 0, Math.PI * 2); ctx.fill();
+        let sunX = canvas.width * 0.75;
+        let sunY = canvas.height * 0.35;
+        
+        let sunGlow = ctx.createRadialGradient(sunX, sunY, 10, sunX, sunY, 150);
+        sunGlow.addColorStop(0, 'rgba(255, 243, 212, 0.8)');
+        sunGlow.addColorStop(0.5, 'rgba(255, 243, 212, 0.2)');
+        sunGlow.addColorStop(1, 'rgba(255, 243, 212, 0)');
+        ctx.fillStyle = sunGlow;
+        ctx.beginPath();
+        ctx.arc(sunX, sunY, 150, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#fff3d4'; 
+        ctx.beginPath(); ctx.arc(sunX, sunY, 45, 0, Math.PI * 2); ctx.fill();
 
         ctx.save();
         ctx.scale(zoom, zoom);
@@ -449,21 +650,24 @@
 
         drawMountainLayer(120, 60, '#3a2354', cameraX * 0.2);
         drawMountainLayer(60, 100, '#1e1129', cameraX * 0.5);
-
+        
+        drawBirds(); 
         drawTerrain();
         drawParticles();
 
-        ctx.save();
-        ctx.translate(chassis.position.x, chassis.position.y);
-        ctx.rotate(chassis.angle);
-        
-        if (isImageLoaded) {
-            ctx.drawImage(bikeImage, -45, -45, 90, 54); 
-        }
-        ctx.restore();
+        if (gameState !== 'gameover') {
+            ctx.save();
+            ctx.translate(chassis.position.x, chassis.position.y);
+            ctx.rotate(chassis.angle);
+            
+            if (isImageLoaded) {
+                ctx.drawImage(bikeImage, -45, -45, 90, 54); 
+            }
+            ctx.restore();
 
-        drawWheel(wheelRear);
-        drawWheel(wheelFront);
+            drawWheel(wheelRear);
+            drawWheel(wheelFront);
+        }
 
         ctx.restore(); 
         requestAnimationFrame(update);
@@ -473,7 +677,7 @@
     Runner.run(runner, engine);
     update();
     
-    // --- БЕЗОПАСНЫЙ ПОВОРОТ ЭКРАНА (БЕЗ БЕСКОНЕЧНОГО РЕСПАВНА) ---
+    // --- ИСПРАВЛЕННЫЙ РЕСАЙЗ (Чтобы мотоцикл не разрывало на части) ---
     let resizeTimeout;
     window.addEventListener('resize', () => { 
         clearTimeout(resizeTimeout);
@@ -481,7 +685,6 @@
             resizeCanvas(); 
             groundY = canvas.height - 80; 
             
-            // Пересчитываем позиции всех существующих блоков земли под новую высоту
             for (let i = 0; i < terrainBlocks.length; i++) {
                 let b = terrainBlocks[i];
                 let newY = getTerrainY(b.x);
@@ -489,15 +692,21 @@
                 b.y = newY;
             }
             
-            // Просто поднимаем мотоцикл на поверхность, если он провалился
             let currentGround = getTerrainY(chassis.position.x);
             if (chassis.position.y > currentGround) {
-                 Body.setPosition(chassis, { x: chassis.position.x, y: currentGround - wheelRadius - 10 });
+                 let newY = currentGround - wheelRadius - 10;
+                 // Двигаем ВСЕ части мотоцикла
+                 Body.setPosition(chassis, { x: chassis.position.x, y: newY });
+                 Body.setPosition(wheelRear, { x: chassis.position.x - wheelBase, y: newY + 10 });
+                 Body.setPosition(wheelFront, { x: chassis.position.x + wheelBase, y: newY + 10 });
+                 
                  Body.setVelocity(chassis, { x: 0, y: 0 });
+                 Body.setVelocity(wheelRear, { x: 0, y: 0 });
+                 Body.setVelocity(wheelFront, { x: 0, y: 0 });
             }
             
             cameraY = (canvas.height * 0.5) - chassis.position.y;
-        }, 200); // Ждем 200мс, пока экран перестроится
+        }, 200); 
     });
 </script>
 </body>
