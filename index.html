@@ -347,7 +347,7 @@
 
     // --- ЗВУКОВАЯ СИСТЕМА (WEB AUDIO API) ---
     let audioCtx;
-    let idleBuffer, revBuffer, popBuffer, windBuffer;
+    let idleBuffer, popBuffer, windBuffer;
     
     let idleSource, revSource, windSource;
     let idleGain, revGain, windGain;
@@ -376,7 +376,6 @@
             if (audioCtx.state === 'suspended') audioCtx.resume();
 
             idleBuffer = await loadAudio('engine_idle.mp3');
-            revBuffer = await loadAudio('engine_rev.mp3');
             popBuffer = await loadAudio('engine_pop.mp3');
             windBuffer = await loadAudio('wind.mp3');
 
@@ -392,31 +391,29 @@
             revGain.connect(audioCtx.destination);
             windGain.connect(audioCtx.destination);
 
-            // IDLE
             if (idleBuffer) {
+                // Холостой ход (играет всегда)
                 idleSource = audioCtx.createBufferSource();
                 idleSource.buffer = idleBuffer;
                 idleSource.loop = true;
                 idleSource.connect(idleGain);
                 idleSource.start();
-            }
 
-            // REV (с добавлением фильтра для мягкости)
-            if (revBuffer) {
+                // Рев (использует ТОТ ЖЕ файл, но ускоряется)
                 revSource = audioCtx.createBufferSource();
-                revSource.buffer = revBuffer;
+                revSource.buffer = idleBuffer;
                 revSource.loop = true;
                 
                 const revFilter = audioCtx.createBiquadFilter();
                 revFilter.type = 'lowpass';
-                revFilter.frequency.value = 1000; // Срезаем визг
+                revFilter.frequency.value = 800; 
                 
                 revSource.connect(revFilter);
                 revFilter.connect(revGain);
                 revSource.start();
             }
 
-            // WIND (или синтетика)
+            // Ветер
             if (windBuffer) {
                 windSource = audioCtx.createBufferSource();
                 windSource.buffer = windBuffer;
@@ -424,6 +421,7 @@
                 windSource.connect(windGain);
                 windSource.start();
             } else {
+                // Синтетический ветер (если нет MP3)
                 console.log("Создаю синтетический ветер");
                 const bufferSize = audioCtx.sampleRate * 2; 
                 const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
@@ -437,7 +435,7 @@
                 
                 const windFilter = audioCtx.createBiquadFilter();
                 windFilter.type = 'lowpass';
-                windFilter.frequency.value = 800; // Подняли частоту, чтобы "шипело" как ветер
+                windFilter.frequency.value = 600; 
                 
                 windSource.connect(windFilter);
                 windFilter.connect(windGain);
@@ -611,9 +609,8 @@
             let speed = Math.abs(wheelRear.angularVelocity);
             
             if (isAudioInitialized) {
-                let targetIdle = window.isGas ? 0 : 0.3;
-                let targetRev = window.isGas ? 0.4 : 0;
-                // УВЕЛИЧЕНА ГРОМКОСТЬ ВЕТРА
+                let targetIdle = window.isGas ? 0.05 : 0.4; // Чуть громче холостой
+                let targetRev = window.isGas ? 0.5 : 0;    // Громкость рева
                 let targetWind = Math.min(0.8, 0.3 + speed * 0.4); 
 
                 idleGain.gain.setTargetAtTime(targetIdle, audioCtx.currentTime, 0.1);
@@ -621,9 +618,9 @@
                 windGain.gain.setTargetAtTime(targetWind, audioCtx.currentTime, 0.1);
 
                 if (window.isGas && revSource) {
-                    // УМЕНЬШЕНО УСКОРЕНИЕ (чтобы не звучал как бурундук)
-                    let targetRate = 1.0 + (speed * 0.2); 
-                    revSource.playbackRate.setTargetAtTime(targetRate, audioCtx.currentTime, 0.1);
+                    // Ускоряем звук холостого хода, чтобы сделать рев
+                    let targetRate = 1.0 + (speed * 0.8); 
+                    revSource.playbackRate.setTargetAtTime(Math.min(2.0, targetRate), audioCtx.currentTime, 0.1);
                     
                     if (previousGasState === false && Math.random() > 0.5) {
                         playPop();
@@ -779,4 +776,4 @@
     });
 </script>
 </body>
-    </html>
+</html>
