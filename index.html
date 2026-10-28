@@ -106,7 +106,6 @@
     const engine = Engine.create();
     const world = engine.world;
     
-    // Точность физики
     engine.positionIterations = 20; 
     engine.velocityIterations = 20;
     engine.gravity.y = 1; 
@@ -135,8 +134,6 @@
 
     const terrainBlocks = [];
     let lastGeneratedX = startX - 1500; 
-    
-    // ГЛАВНЫЙ ФИКС: Увеличили шаг земли до 10 пикселей (меньше коллизий)
     const chunkWidth = 10; 
     const groundRadius = 30; 
 
@@ -161,32 +158,33 @@
         }
     }
 
+    // --- ТЯЖЕЛЫЕ КОЛЕСА И РАМА ---
     const group = Body.nextGroup(true); 
-    const wheelRadius = 10; 
-    const wheelBase = 23; 
+    const wheelRadius = 15; 
+    const wheelBase = 25; 
     
     let startHillY = getTerrainY(startX);
     const startY = startHillY - wheelRadius - 5; 
     
-    // Убрали frictionAir, так как он создавал конфликт с газом
     const wheelRear = Bodies.circle(startX - wheelBase, startY, wheelRadius, { 
-        density: 0.05, friction: 1.5, frictionStatic: 1.5, collisionFilter: { group: group } 
+        density: 0.3, friction: 0.8, frictionStatic: 0.8, restitution: 0, collisionFilter: { group: group } 
     });
     const wheelFront = Bodies.circle(startX + wheelBase, startY, wheelRadius, { 
-        density: 0.05, friction: 1.5, frictionStatic: 1.5, collisionFilter: { group: group } 
+        density: 0.3, friction: 0.8, frictionStatic: 0.8, restitution: 0, collisionFilter: { group: group } 
     });
-    const chassis = Bodies.rectangle(startX, startY - 15, 60, 15, { 
-        density: 0.2, collisionFilter: { group: group } 
+    
+    const chassis = Bodies.rectangle(startX, startY - 20, 60, 15, { 
+        density: 0.8, restitution: 0, collisionFilter: { group: group } 
     }); 
 
-    // Идеальный баланс амортизации (damping: 0.5)
+    // --- ЖЕСТКАЯ ПОДВЕСКА (БЕЗ ВИБРАЦИЙ) ---
     const suspensionRear = Constraint.create({ 
         bodyA: wheelRear, pointB: { x: -wheelBase, y: 0 }, bodyB: chassis, 
-        stiffness: 0.2, damping: 0.5, length: 0 
+        stiffness: 0.7, damping: 0.1, length: 0 
     });
     const suspensionFront = Constraint.create({ 
         bodyA: wheelFront, pointB: { x: wheelBase, y: 0 }, bodyB: chassis, 
-        stiffness: 0.2, damping: 0.5, length: 0 
+        stiffness: 0.7, damping: 0.1, length: 0 
     });
 
     const moto = Composite.create({ bodies: [wheelRear, wheelFront, chassis], constraints: [suspensionRear, suspensionFront] });
@@ -264,14 +262,14 @@
         ctx.beginPath(); ctx.arc(0, 0, wheelRadius, 0, Math.PI * 2); ctx.fill();
 
         ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(0, 0, wheelRadius - 2, 0, Math.PI * 2); ctx.stroke();
+        ctx.beginPath(); ctx.arc(0, 0, wheelRadius - 3, 0, Math.PI * 2); ctx.stroke();
 
-        ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
+        ctx.strokeStyle = '#333'; ctx.lineWidth = 1.5;
         for (let i = 0; i < 4; i++) {
             let angle = (i / 4) * Math.PI * 2;
             ctx.beginPath(); 
             ctx.moveTo(0, 0); 
-            ctx.lineTo(Math.cos(angle) * (wheelRadius - 2), Math.sin(angle) * (wheelRadius - 2)); 
+            ctx.lineTo(Math.cos(angle) * (wheelRadius - 3), Math.sin(angle) * (wheelRadius - 3)); 
             ctx.stroke();
         }
         ctx.restore();
@@ -284,7 +282,7 @@
         
         Body.setPosition(wheelRear, { x: spawnX - wheelBase, y: respawnY });
         Body.setPosition(wheelFront, { x: spawnX + wheelBase, y: respawnY });
-        Body.setPosition(chassis, { x: spawnX, y: respawnY - 15 });
+        Body.setPosition(chassis, { x: spawnX, y: respawnY - 20 });
         
         Body.setVelocity(chassis, { x: 0, y: 0 }); 
         Body.setVelocity(wheelRear, { x: 0, y: 0 }); 
@@ -298,9 +296,10 @@
     }
 
     function update() {
+        // СКОРОСТЬ 2.5 (медленнее, без ракеты)
         if (window.isGas) { 
-            Body.setAngularVelocity(wheelRear, 4); 
-            Body.setAngularVelocity(wheelFront, 4); 
+            Body.setAngularVelocity(wheelRear, 2.5); 
+            Body.setAngularVelocity(wheelFront, 2.5); 
         }
         if (window.isBrake) { 
             Body.setAngularVelocity(wheelRear, wheelRear.angularVelocity * 0.9); 
@@ -378,7 +377,8 @@
         ctx.rotate(chassis.angle);
         
         if (isImageLoaded) {
-            ctx.drawImage(bikeImage, -45, -46, 90, 54); 
+            // Из-за того что колеса стали больше, картинку мотоцикла пришлось чуть приподнять
+            ctx.drawImage(bikeImage, -45, -50, 90, 54); 
         }
         ctx.restore();
 
