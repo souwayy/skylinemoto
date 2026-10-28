@@ -345,7 +345,7 @@
         }
     }
 
-    // --- ЗВУКОВАЯ СИСТЕМА (WEB AUDIO API) ---
+    // --- ЗВУКОВАЯ СИСТЕМА ---
     let audioCtx;
     let idleBuffer, popBuffer, windBuffer;
     
@@ -362,7 +362,6 @@
             const arrayBuffer = await response.arrayBuffer();
             return await audioCtx.decodeAudioData(arrayBuffer);
         } catch (e) {
-            console.log(`Не удалось загрузить ${url}`);
             return null;
         }
     }
@@ -392,24 +391,19 @@
             windGain.connect(audioCtx.destination);
 
             if (idleBuffer) {
-                // Холостой ход (играет всегда)
+                // Холостой ход
                 idleSource = audioCtx.createBufferSource();
                 idleSource.buffer = idleBuffer;
                 idleSource.loop = true;
                 idleSource.connect(idleGain);
                 idleSource.start();
 
-                // Рев (использует ТОТ ЖЕ файл, но ускоряется)
+                // Рев (тот же файл, но ускоренный)
                 revSource = audioCtx.createBufferSource();
                 revSource.buffer = idleBuffer;
                 revSource.loop = true;
-                
-                const revFilter = audioCtx.createBiquadFilter();
-                revFilter.type = 'lowpass';
-                revFilter.frequency.value = 800; 
-                
-                revSource.connect(revFilter);
-                revFilter.connect(revGain);
+                // Убираем фильтр, чтобы звук был ярким
+                revSource.connect(revGain);
                 revSource.start();
             }
 
@@ -421,8 +415,7 @@
                 windSource.connect(windGain);
                 windSource.start();
             } else {
-                // Синтетический ветер (если нет MP3)
-                console.log("Создаю синтетический ветер");
+                // Синтетический ветер
                 const bufferSize = audioCtx.sampleRate * 2; 
                 const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
                 const data = buffer.getChannelData(0);
@@ -503,7 +496,7 @@
         window.isLeanBack = false; window.isLeanForward = false;
         
         if (isAudioInitialized) {
-            idleGain.gain.value = 0.3;
+            idleGain.gain.value = 0.4;
             revGain.gain.value = 0;
             if (revSource) revSource.playbackRate.value = 1;
             windGain.gain.value = 0;
@@ -609,16 +602,18 @@
             let speed = Math.abs(wheelRear.angularVelocity);
             
             if (isAudioInitialized) {
-                let targetIdle = window.isGas ? 0.05 : 0.4; // Чуть громче холостой
-                let targetRev = window.isGas ? 0.5 : 0;    // Громкость рева
-                let targetWind = Math.min(0.8, 0.3 + speed * 0.4); 
+                // Холостой ход затихает при газе
+                let targetIdle = window.isGas ? 0.05 : 0.4; 
+                // Рев становится очень громким
+                let targetRev = window.isGas ? 0.9 : 0;    
+                // Ветер сделан тихим фоном (максимум 0.3)
+                let targetWind = Math.min(0.3, 0.05 + speed * 0.15); 
 
                 idleGain.gain.setTargetAtTime(targetIdle, audioCtx.currentTime, 0.1);
                 revGain.gain.setTargetAtTime(targetRev, audioCtx.currentTime, 0.1);
                 windGain.gain.setTargetAtTime(targetWind, audioCtx.currentTime, 0.1);
 
                 if (window.isGas && revSource) {
-                    // Ускоряем звук холостого хода, чтобы сделать рев
                     let targetRate = 1.0 + (speed * 0.8); 
                     revSource.playbackRate.setTargetAtTime(Math.min(2.0, targetRate), audioCtx.currentTime, 0.1);
                     
