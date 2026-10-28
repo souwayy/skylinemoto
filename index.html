@@ -30,7 +30,6 @@
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
         }
 
-        /* Кнопки лесенкой как в Mountain Bike */
         .btn {
             position: absolute;
             width: 65px; height: 65px; border-radius: 50%;
@@ -111,7 +110,6 @@
     const startX = 50000;
     let groundY = canvas.height - 80; 
 
-    // Твоя генерация холмов
     function noise(x) {
         let i = Math.floor(x);
         let f = x - i;
@@ -157,7 +155,7 @@
         }
     }
 
-    // Мотоцикл (твои настройки шин)
+    // ТВОИ НАСТРОЙКИ КОЛЕС
     const group = Body.nextGroup(true); 
     const wheelRadius = 10; 
     const wheelBase = 23; 
@@ -273,37 +271,31 @@
     }
 
     function update() {
-        // Твоя скорость
+        // СКОРОСТЬ
         if (window.isGas) { 
-            Body.setAngularVelocity(wheelRear, 1.1); 
-            Body.setAngularVelocity(wheelFront, 1.1); 
+            Body.setAngularVelocity(wheelRear, 1.5); 
+            Body.setAngularVelocity(wheelFront, 1.5); 
         }
         if (window.isBrake) { 
             Body.setAngularVelocity(wheelRear, wheelRear.angularVelocity * 0.9); 
             Body.setAngularVelocity(wheelFront, wheelFront.angularVelocity * 0.9); 
         }
         
-        let isAirborne = Math.abs(chassis.velocity.y) > 1.0; 
-        
-        // Твои наклоны 0.3
+        // --- ИДЕАЛЬНОЕ ВИЛЛИ (С ОГРАНИЧИТЕЛЕМ УГЛА) ---
         if (window.isLeanBack) {
-            if (isAirborne) {
-                let currentRot = chassis.angularVelocity;
-                if (currentRot > -0.12) { 
-                    Body.setAngularVelocity(chassis, currentRot - 0.01); 
-                }
+            // Если угол рамы меньше 70 градусов (в радианах это примерно 1.2), крутим
+            if (chassis.angle > -1.2) {
+                Body.setAngularVelocity(chassis, -0.3); 
             } else {
-                Body.setAngularVelocity(chassis, -0.3); // ТВОИ 0.3
+                // Если достигли предела, фиксируем (не даем крутить сальто)
+                Body.setAngularVelocity(chassis, 0); 
             }
         } 
         else if (window.isLeanForward) {
-            if (isAirborne) {
-                let currentRot = chassis.angularVelocity;
-                if (currentRot < 0.12) {
-                    Body.setAngularVelocity(chassis, currentRot + 0.01);
-                }
+            if (chassis.angle < 1.2) {
+                Body.setAngularVelocity(chassis, 0.3); 
             } else {
-                Body.setAngularVelocity(chassis, 0.3); // ТВОИ 0.3
+                Body.setAngularVelocity(chassis, 0);
             }
         }
 
