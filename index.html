@@ -110,7 +110,6 @@
     const startX = 50000;
     let groundY = canvas.height - 80; 
 
-    // --- ГЕНЕРАЦИЯ ШУМА ---
     function noise(x) {
         let i = Math.floor(x);
         let f = x - i;
@@ -138,8 +137,9 @@
     function generateTerrain() {
         while (lastGeneratedX < cameraX + (canvas.width / zoom) + 1000) {
             let hillY = getTerrainY(lastGeneratedX);
+            // УБРАЛИ ТРЕНИЕ У ЗЕМЛИ (friction: 0), ЧТОБЫ НЕ БЫЛО СТЕНОК
             let block = Bodies.circle(lastGeneratedX, hillY + groundRadius, groundRadius, { 
-                isStatic: true, friction: 1, collisionFilter: { category: 0x0002 } 
+                isStatic: true, friction: 0, frictionStatic: 0, collisionFilter: { category: 0x0002 } 
             });
             terrainBlocks.push({ body: block, x: lastGeneratedX, y: hillY });
             Composite.add(world, block);
@@ -164,12 +164,12 @@
     let startHillY = getTerrainY(startX);
     const startY = startHillY - wheelRadius - 5; 
     
-    // УМЕНЬШЕННОЕ СЦЕПЛЕНИЕ (friction: 0.8 вместо 1.5)
+    // Сцепление оставили только на колесах (friction: 1.0)
     const wheelRear = Bodies.circle(startX - wheelBase, startY, wheelRadius, { 
-        density: 0.05, friction: 0.8, frictionStatic: 0.8, collisionFilter: { group: group } 
+        density: 0.05, friction: 1.0, frictionStatic: 1.0, collisionFilter: { group: group } 
     });
     const wheelFront = Bodies.circle(startX + wheelBase, startY, wheelRadius, { 
-        density: 0.05, friction: 0.8, frictionStatic: 0.8, collisionFilter: { group: group } 
+        density: 0.05, friction: 1.0, frictionStatic: 1.0, collisionFilter: { group: group } 
     });
     const chassis = Bodies.rectangle(startX, startY - 15, 60, 15, { 
         density: 0.2, collisionFilter: { group: group } 
@@ -307,7 +307,8 @@
         let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
         cameraX += (targetCameraX - cameraX) * 0.1; 
         
-        let targetCameraY = (canvas.height * 0.4) - chassis.position.y;
+        // ИСПРАВЛЕНИЕ КАМЕРЫ: Теперь она смотрит туда, где мотоцикл, но не задирается слишком высоко
+        let targetCameraY = Math.min(0, chassis.position.y - (canvas.height * 0.6));
         cameraY += (targetCameraY - cameraY) * 0.1;
         
         generateTerrain();
