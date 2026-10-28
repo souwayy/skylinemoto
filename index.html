@@ -110,6 +110,7 @@
     const startX = 50000;
     let groundY = canvas.height - 80; 
 
+    // --- ГЕНЕРАЦИЯ ШУМА ---
     function noise(x) {
         let i = Math.floor(x);
         let f = x - i;
@@ -123,9 +124,10 @@
 
     function getTerrainY(x) {
         let y = groundY;
-        y -= noise(x * 0.001) * 80;  
-        y -= noise(x * 0.005) * 25;   
-        y -= noise(x * 0.015) * 5;    
+        // СЛОЖНЫЕ ХОЛМЫ (амплитуда увеличена до 160)
+        y -= noise(x * 0.001) * 160;  
+        y -= noise(x * 0.005) * 40;   
+        y -= noise(x * 0.015) * 10;    
         return y;
     }
 
@@ -137,7 +139,7 @@
     function generateTerrain() {
         while (lastGeneratedX < cameraX + (canvas.width / zoom) + 1000) {
             let hillY = getTerrainY(lastGeneratedX);
-            // УБРАЛИ ТРЕНИЕ У ЗЕМЛИ (friction: 0), ЧТОБЫ НЕ БЫЛО СТЕНОК
+            // Земля без трения (чтобы не было стенок)
             let block = Bodies.circle(lastGeneratedX, hillY + groundRadius, groundRadius, { 
                 isStatic: true, friction: 0, frictionStatic: 0, collisionFilter: { category: 0x0002 } 
             });
@@ -164,7 +166,6 @@
     let startHillY = getTerrainY(startX);
     const startY = startHillY - wheelRadius - 5; 
     
-    // Сцепление оставили только на колесах (friction: 1.0)
     const wheelRear = Bodies.circle(startX - wheelBase, startY, wheelRadius, { 
         density: 0.05, friction: 1.0, frictionStatic: 1.0, collisionFilter: { group: group } 
     });
@@ -304,11 +305,12 @@
             }
         }
 
+        // КАМЕРА ПО X
         let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
         cameraX += (targetCameraX - cameraX) * 0.1; 
         
-        // ИСПРАВЛЕНИЕ КАМЕРЫ: Теперь она смотрит туда, где мотоцикл, но не задирается слишком высоко
-        let targetCameraY = Math.min(0, chassis.position.y - (canvas.height * 0.6));
+        // КАМЕРА ПО Y (Следит за центром мотоцикла с задержкой)
+        let targetCameraY = (canvas.height * 0.5) - chassis.position.y;
         cameraY += (targetCameraY - cameraY) * 0.1;
         
         generateTerrain();
