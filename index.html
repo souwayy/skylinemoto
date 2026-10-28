@@ -110,7 +110,7 @@
     const startX = 50000;
     let groundY = canvas.height - 80; 
 
-    // --- ГЕНЕРАЦИЯ ШУМА ---
+    // --- СЛОЖНЫЙ ЛАНДШАФТ ---
     function noise(x) {
         let i = Math.floor(x);
         let f = x - i;
@@ -124,26 +124,47 @@
 
     function getTerrainY(x) {
         let y = groundY;
-        // УМЕНЬШИЛИ ВЫСОТУ (с 180 до 80), чтобы можно было заехать
-        y -= noise(x * 0.001) * 80;  
-        y -= noise(x * 0.005) * 25;   
-        y -= noise(x * 0.015) * 5;    
+        // Высота до 150 пикселей (сложно проехать)
+        y -= noise(x * 0.001) * 150;  
+        y -= noise(x * 0.005) * 50;   
+        y -= noise(x * 0.015) * 15;    
         return y;
     }
 
+    // --- ГЕНЕРАЦИЯ НАКЛОННЫХ БЛОКОВ (ВМЕСТО КРУГОВ) ---
     const terrainBlocks = [];
     let lastGeneratedX = startX - 1500; 
-    const chunkWidth = 2; // ОЧЕНЬ ПЛОТНО (чтобы не проваливаться)
-    const groundRadius = 30; // Большие круги
+    const chunkWidth = 30; // Широкие блоки (меньше нагрузки)
+    const chunkHeight = 2000; 
 
     function generateTerrain() {
         while (lastGeneratedX < cameraX + (canvas.width / zoom) + 1000) {
-            let hillY = getTerrainY(lastGeneratedX);
-            let block = Bodies.circle(lastGeneratedX, hillY + groundRadius, groundRadius, { 
-                isStatic: true, friction: 1, collisionFilter: { category: 0x0002 } 
+            let x1 = lastGeneratedX;
+            let x2 = x1 + chunkWidth;
+            let y1 = getTerrainY(x1);
+            let y2 = getTerrainY(x2);
+
+            // Вычисляем угол наклона
+            let angle = Math.atan2(y2 - y1, x2 - x1);
+            let dist = Math.hypot(x2 - x1, y2 - y1);
+            
+            // Центрируем блок
+            let midX = (x1 + x2) / 2;
+            let midY = (y1 + y2) / 2;
+            let cx = midX + Math.sin(angle) * (chunkHeight / 2);
+            let cy = midY + Math.cos(angle) * (chunkHeight / 2);
+
+            // Создаем повернутый прямоугольник (идеально гладкий стык)
+            let block = Bodies.rectangle(cx, cy, dist + 2, chunkHeight, { 
+                isStatic: true,
+                angle: angle,
+                friction: 1, 
+                collisionFilter: { category: 0x0002 } 
             });
-            terrainBlocks.push({ body: block, x: lastGeneratedX, y: hillY });
+            
+            terrainBlocks.push({ body: block, x: x1, y: y1 });
             Composite.add(world, block);
+            
             lastGeneratedX += chunkWidth;
         }
     }
@@ -157,7 +178,7 @@
         }
     }
 
-    // --- МОТОЦИКЛ (РЕАЛИСТИЧНЫЕ НАСТРОЙКИ) ---
+    // --- МОТОЦИКЛ ---
     const group = Body.nextGroup(true); 
     const wheelRadius = 10; 
     const wheelBase = 23; 
@@ -165,19 +186,17 @@
     let startHillY = getTerrainY(startX);
     const startY = startHillY - wheelRadius - 5; 
     
-    // Трение 1.5 (хорошее сцепление)
+    // Нормальное сцепление
     const wheelRear = Bodies.circle(startX - wheelBase, startY, wheelRadius, { 
-        density: 0.05, friction: 1.5, frictionStatic: 1.5, collisionFilter: { group: group } 
+        density: 0.05, friction: 1.0, frictionStatic: 1.0, collisionFilter: { group: group } 
     });
     const wheelFront = Bodies.circle(startX + wheelBase, startY, wheelRadius, { 
-        density: 0.05, friction: 1.5, frictionStatic: 1.5, collisionFilter: { group: group } 
+        density: 0.05, friction: 1.0, frictionStatic: 1.0, collisionFilter: { group: group } 
     });
-    // Вес рамы 0.2 (средний)
     const chassis = Bodies.rectangle(startX, startY - 15, 60, 15, { 
         density: 0.2, collisionFilter: { group: group } 
     }); 
 
-    // РЕАЛИСТИЧНАЯ ПОДВЕСКА (Упругая, но с хорошим гашением)
     const suspensionRear = Constraint.create({ 
         bodyA: wheelRear, pointB: { x: -wheelBase, y: 0 }, bodyB: chassis, 
         stiffness: 0.2, damping: 0.4, length: 0 
@@ -242,6 +261,7 @@
         ctx.beginPath();
         ctx.moveTo(cameraX - 100, canvas.height + 2000);
         
+        // Рисуем по точкам созданных блоков
         for (let i = 0; i < terrainBlocks.length; i++) {
             ctx.lineTo(terrainBlocks[i].x, terrainBlocks[i].y);
         }
@@ -275,38 +295,39 @@
     }
 
     function update() {
-        // СКОРОСТЬ (1.1 для быстрой езды)
+        // ГАЗ
         if (window.isGas) { 
             Body.setAngularVelocity(wheelRear, 1.1); 
             Body.setAngularVelocity(wheelFront, 1.1); 
         }
+        // ПЛАВНЫЙ ТОРМОЗ
         if (window.isBrake) { 
-            Body.setAngularVelocity(wheelRear, 0); 
-            Body.setAngularVelocity(wheelFront, 0); 
+            // Плавно снижаем скорость вращения (умножаем на 0.9 каждый кадр)
+            Body.setAngularVelocity(wheelRear, wheelRear.angularVelocity * 0.9); 
+            Body.setAngularVelocity(wheelFront, wheelFront.angularVelocity * 0.9); 
         }
         
-        // ВИЛЛИ (Мягкое, реалистичное)
+        // ПОВОРОТЫ
         let isAirborne = Math.abs(chassis.velocity.y) > 1.0; 
         
         if (window.isLeanBack) {
             if (isAirborne) {
                 let currentRot = chassis.angularVelocity;
-                if (currentRot > -0.05) { 
-                    Body.setAngularVelocity(chassis, currentRot - 0.005); 
+                if (currentRot > -0.12) { 
+                    Body.setAngularVelocity(chassis, currentRot - 0.01); 
                 }
             } else {
-                // На земле 0.04 (чтобы не переворачивался)
-                Body.setAngularVelocity(chassis, -0.04); 
+                Body.setAngularVelocity(chassis, -0.1); 
             }
         } 
         else if (window.isLeanForward) {
             if (isAirborne) {
                 let currentRot = chassis.angularVelocity;
-                if (currentRot < 0.05) {
-                    Body.setAngularVelocity(chassis, currentRot + 0.005);
+                if (currentRot < 0.12) {
+                    Body.setAngularVelocity(chassis, currentRot + 0.01);
                 }
             } else {
-                Body.setAngularVelocity(chassis, 0.04); 
+                Body.setAngularVelocity(chassis, 0.1); 
             }
         }
 
