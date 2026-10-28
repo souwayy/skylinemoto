@@ -121,11 +121,12 @@
         return r1 * (1 - u) + r2 * u;
     }
 
+    // --- СЛОЖНЫЕ ХОЛМЫ ---
     function getTerrainY(x) {
         let y = groundY;
         y -= noise(x * 0.001) * 120;  
         y -= noise(x * 0.005) * 30;   
-        y -= noise(x * 0.015) * 8;    
+        y -= noise(x * 0.015) * 80;   // <-- УВЕЛИЧИЛИ МЕЛКИЕ НЕРОВНОСТИ (было 8)
         return y;
     }
 
@@ -163,7 +164,6 @@
     let startHillY = getTerrainY(startX);
     const startY = startHillY - wheelRadius - 5; 
     
-    // Сцепление 1.2
     const wheelRear = Bodies.circle(startX - wheelBase, startY, wheelRadius, { 
         density: 0.05, friction: 1.2, frictionStatic: 1.2, collisionFilter: { group: group } 
     });
@@ -174,7 +174,6 @@
         density: 0.2, collisionFilter: { group: group } 
     }); 
 
-    // Жесткая подвеска (без тряски)
     const suspensionRear = Constraint.create({ 
         bodyA: wheelRear, pointB: { x: -wheelBase, y: 0 }, bodyB: chassis, 
         stiffness: 0.25, damping: 0.5, length: 0 
@@ -272,7 +271,6 @@
     }
 
     function update() {
-        // СКОРОСТЬ УВЕЛИЧЕНА ДО 1.4 (чтобы компенсировать вилли)
         if (window.isGas) { 
             Body.setAngularVelocity(wheelRear, 1.4); 
             Body.setAngularVelocity(wheelFront, 1.4); 
@@ -284,7 +282,7 @@
         
         let isAirborne = Math.abs(chassis.velocity.y) > 1.0; 
         
-        // ПОВОРОТЫ (БЕЗ БУСТА)
+        // --- ПЕРЕРАБОТАННОЕ ВИЛЛИ (ЧЕРЕЗ КРУТЯЩИЙ МОМЕНТ) ---
         if (window.isLeanBack) {
             if (isAirborne) {
                 let currentRot = chassis.angularVelocity;
@@ -292,7 +290,9 @@
                     Body.setAngularVelocity(chassis, currentRot - 0.01); 
                 }
             } else {
-                Body.setAngularVelocity(chassis, -0.1); 
+                // Прикладываем силу к раме (сзади вверх, спереди вниз)
+                Body.applyForce(chassis, { x: chassis.position.x - 20, y: chassis.position.y }, { x: 0, y: -0.003 });
+                Body.applyForce(chassis, { x: chassis.position.x + 20, y: chassis.position.y }, { x: 0, y: 0.003 });
             }
         } 
         else if (window.isLeanForward) {
@@ -302,8 +302,16 @@
                     Body.setAngularVelocity(chassis, currentRot + 0.01);
                 }
             } else {
-                Body.setAngularVelocity(chassis, 0.1); 
+                // Прикладываем силу (спереди вниз, сзади вверх)
+                Body.applyForce(chassis, { x: chassis.position.x + 20, y: chassis.position.y }, { x: 0, y: 0.003 });
+                Body.applyForce(chassis, { x: chassis.position.x - 20, y: chassis.position.y }, { x: 0, y: -0.003 });
             }
+        }
+        
+        // АВТОМАТИЧЕСКОЕ ВЫРАВНИВАНИЕ (если кнопки не нажаты)
+        if (!window.isLeanBack && !window.isLeanForward && !isAirborne) {
+            // Мягко гасим вращение рамы, чтобы она не качалась бесконечно
+            Body.setAngularVelocity(chassis, chassis.angularVelocity * 0.8);
         }
 
         let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
