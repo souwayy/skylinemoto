@@ -187,7 +187,7 @@
     });
     const suspensionFront = Constraint.create({ 
         bodyA: wheelFront, pointB: { x: wheelBase, y: 0 }, bodyB: chassis, 
-        stiffness: 0.2, damping: 0.8, length: 0 
+        stiffness: 0.2, damping: 1, length: 0 
     });
 
     const moto = Composite.create({ bodies: [wheelRear, wheelFront, chassis], constraints: [suspensionRear, suspensionFront] });
