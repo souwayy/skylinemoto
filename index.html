@@ -101,7 +101,8 @@
           Bodies = Matter.Bodies,
           Composite = Matter.Composite,
           Constraint = Matter.Constraint,
-          Body = Matter.Body;
+          Body = Matter.Body,
+          Vertices = Matter.Vertices;
 
     const engine = Engine.create();
     const world = engine.world;
@@ -119,48 +120,39 @@
         return y;
     }
 
-    // --- ФИЗИЧЕСКАЯ ЗЕМЛЯ (БОЛЬШИЕ БЛОКИ БЕЗ ШВОВ) ---
-    const terrainBlocks = [];
-    let lastGeneratedX = startX - 2000; 
-    const chunkWidth = 50; // Большие блоки
-    const chunkHeight = 3000; 
+    // --- ЗЕМЛЯ КАК ЕДИНОЕ ФИЗИЧЕСКОЕ ТЕЛО ---
+    let currentTerrain = null;
+    let terrainStartX = startX - 2000;
+    const chunkWidth = 2000; // Ширина куска земли
+    const step = 10; // Шаг точек для полигона
 
-    function generateTerrain() {
-        while (lastGeneratedX < cameraX + (canvas.width / zoom) + 1000) {
-            let x1 = lastGeneratedX;
-            let x2 = x1 + chunkWidth;
-            let y1 = getTerrainY(x1);
-            let y2 = getTerrainY(x2);
-
-            let angle = Math.atan2(y2 - y1, x2 - x1);
-            let dist = Math.hypot(x2 - x1, y2 - y1);
-            
-            let midX = (x1 + x2) / 2;
-            let midY = (y1 + y2) / 2;
-            let cx = midX + Math.sin(angle) * (chunkHeight / 2);
-            let cy = midY + Math.cos(angle) * (chunkHeight / 2);
-
-            // Перекрытие (dist + 10) убирает невидимые стены
-            let block = Bodies.rectangle(cx, cy, dist + 10, chunkHeight, { 
-                isStatic: true,
-                angle: angle,
-                friction: 1, 
-                collisionFilter: { category: 0x0002 } 
-            });
-            
-            terrainBlocks.push({ body: block, x: x1, y: y1 });
-            Composite.add(world, block);
-            
-            lastGeneratedX += chunkWidth;
+    function createTerrainChunk(startXPos) {
+        let vertices = [];
+        // Верхняя линия (холмы)
+        for (let x = 0; x <= chunkWidth; x += step) {
+            vertices.push({ x: x, y: getTerrainY(startXPos + x) - groundY });
         }
+        // Добавляем нижние углы (чтобы получился закрытый полигон)
+        vertices.push({ x: chunkWidth, y: 2000 });
+        vertices.push({ x: 0, y: 2000 });
+
+        let body = Bodies.fromVertices(startXPos, groundY, [vertices], { 
+            isStatic: true, 
+            friction: 1, 
+            collisionFilter: { category: 0x0002 } 
+        });
+
+        return body;
     }
 
-    function cleanupTerrain() {
-        for (let i = terrainBlocks.length - 1; i >= 0; i--) {
-            if (terrainBlocks[i].x < cameraX - 2000) {
-                Composite.remove(world, terrainBlocks[i].body);
-                terrainBlocks.splice(i, 1);
-            }
+    function updateTerrain() {
+        // Если у нас нет земли, или мы ушли далеко вперед
+        if (!currentTerrain || chassis.position.x > terrainStartX + chunkWidth - 1000) {
+            if (currentTerrain) Composite.remove(world, currentTerrain);
+            
+            terrainStartX = Math.floor(chassis.position.x / chunkWidth) * chunkWidth - 1000;
+            currentTerrain = createTerrainChunk(terrainStartX);
+            Composite.add(world, currentTerrain);
         }
     }
 
@@ -220,7 +212,8 @@
     let maxDistance = 0;
     const distanceText = document.getElementById('distanceText');
 
-    generateTerrain();
+    // Создаем первый кусок
+    updateTerrain();
 
     function drawMountainLayer(yOffset, height, color, parallaxOffset) {
         ctx.fillStyle = color;
@@ -238,25 +231,23 @@
         ctx.fill();
     }
 
-    // --- ИДЕАЛЬНАЯ ОТРИСОВКА ЗЕМЛИ (БЕЗ ЗАВОРОТОВ) ---
     function drawTerrain() {
         ctx.fillStyle = '#000'; 
         ctx.strokeStyle = '#000';
         ctx.lineWidth = 4; 
 
         ctx.beginPath();
-        // Начинаем с левого нижнего угла экрана
-        ctx.moveTo(cameraX - 100, canvas.height + 2000);
         
-        // Идем строго слева направо по функции холмов
         let startDrawX = Math.floor(cameraX) - 100;
         let endDrawX = Math.floor(cameraX) + (canvas.width / zoom) + 100;
         
+        ctx.moveTo(startDrawX, canvas.height + 2000);
+        
+        // Рисуем только то, что видно на экране
         for (let x = startDrawX; x <= endDrawX; x += 10) {
             ctx.lineTo(x, getTerrainY(x));
         }
         
-        // Закрываем в правом нижнем углу
         ctx.lineTo(endDrawX, canvas.height + 2000);
         ctx.closePath();
         ctx.fill();
@@ -326,8 +317,8 @@
         let targetCameraY = (canvas.height * 0.4) - chassis.position.y;
         cameraY += (targetCameraY - cameraY) * 0.1;
         
-        generateTerrain();
-        cleanupTerrain();
+        // ОБНОВЛЯЕМ ЗЕМЛЮ
+        updateTerrain();
 
         let currentDistance = Math.max(0, Math.floor((chassis.position.x - startX) / 10));
         if (currentDistance > maxDistance) {
@@ -353,6 +344,8 @@
             Body.setAngularVelocity(chassis, 0);
             Body.setAngularVelocity(wheelRear, 0);
             Body.setAngularVelocity(wheelFront, 0);
+            
+            updateTerrain(); // Пересоздаем землю на новом месте
         }
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
