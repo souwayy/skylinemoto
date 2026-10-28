@@ -30,12 +30,12 @@
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
         }
 
-        /* Оставляем только две кнопки справа */
+        /* Кнопки разнесены по краям */
         .btn {
             position: absolute;
-            width: 65px; height: 65px; border-radius: 50%;
+            width: 70px; height: 70px; border-radius: 50%;
             background: rgba(255, 255, 255, 0.05); 
-            border: 2px solid rgba(255, 255, 255, 0.5);
+            border: 3px solid rgba(255, 255, 255, 0.5);
             display: flex; align-items: center; justify-content: center;
             pointer-events: auto; color: white;
             transition: background 0.1s;
@@ -43,12 +43,12 @@
         .btn:active { background: rgba(255, 255, 255, 0.3); }
         
         .btn svg {
-            width: 30px; height: 30px; fill: none; stroke: rgba(255, 255, 255, 0.7);
+            width: 35px; height: 35px; fill: none; stroke: rgba(255, 255, 255, 0.7);
             stroke-width: 3; stroke-linecap: round; stroke-linejoin: round;
         }
 
-        #btnGas         { bottom: 90px; right: 20px; }
-        #btnBrake       { bottom: 20px; right: 90px; }
+        #btnGas         { bottom: 40px; right: 30px; }
+        #btnBrake       { bottom: 40px; left: 30px; }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 </head>
@@ -62,11 +62,12 @@
         <div class="score"><span id="distanceText">0</span> m</div>
     </div>
     
-    <div class="btn" id="btnGas">
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4" fill="rgba(255,255,255,0.6)" stroke="none"/></svg>
-    </div>
     <div class="btn" id="btnBrake">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M4.93 4.93l14.14 14.14"/></svg>
+    </div>
+
+    <div class="btn" id="btnGas">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4" fill="rgba(255,255,255,0.6)" stroke="none"/></svg>
     </div>
 </div>
 
@@ -147,7 +148,7 @@
         }
     }
 
-    // --- МОТОЦИКЛ (ФИЗИКА КРУТЯЩЕГО МОМЕНТА) ---
+    // --- МОТОЦИКЛ (ИЗМЕНЕННЫЙ ВЕС) ---
     const group = Body.nextGroup(true); 
     const wheelRadius = 10; 
     const wheelBase = 23; 
@@ -155,17 +156,18 @@
     let startHillY = getTerrainY(startX);
     const startY = startHillY - wheelRadius - 5; 
     
-    // Колеса: высокое сцепление, чтобы был крутящий момент
+    // Заднее колесо тяжелее, чтобы давало инерцию
     const wheelRear = Bodies.circle(startX - wheelBase, startY, wheelRadius, { 
-        density: 0.05, friction: 1.5, frictionStatic: 1.5, collisionFilter: { group: group } 
+        density: 0.15, friction: 1.5, frictionStatic: 1.5, collisionFilter: { group: group } 
     });
+    // Переднее колесо легче
     const wheelFront = Bodies.circle(startX + wheelBase, startY, wheelRadius, { 
         density: 0.05, friction: 1.5, frictionStatic: 1.5, collisionFilter: { group: group } 
     });
     
-    // Рама тяжелее, чтобы была инерция
+    // Рама с центром тяжести ближе к заду
     const chassis = Bodies.rectangle(startX, startY - 15, 60, 15, { 
-        density: 0.3, collisionFilter: { group: group } 
+        density: 0.2, collisionFilter: { group: group } 
     }); 
 
     const suspensionRear = Constraint.create({ 
@@ -185,7 +187,7 @@
     let isImageLoaded = false;
     bikeImage.onload = () => { isImageLoaded = true; };
 
-    // --- УПРАВЛЕНИЕ (ТОЛЬКО ГАЗ И ТОРМОЗ) ---
+    // --- УПРАВЛЕНИЕ ---
     window.isGas = false; window.isBrake = false;
 
     function bindBtn(id, variableName) {
@@ -264,26 +266,16 @@
     }
 
     function update() {
-        // --- ФИЗИКА КРУТЯЩЕГО МОМЕНТА ---
+        // --- ГАЗ И ТОРМОЗ ---
         if (window.isGas) { 
-            // Прикладываем момент к заднему колесу (заставляет его крутиться)
-            // Сила 0.08 достаточна для начала движения и подъема носа
-            Body.applyForce(wheelRear, wheelRear.position, { x: 0.08, y: 0 });
-            
-            // Небольшой момент к переднему колесу для стабильности
-            Body.applyForce(wheelFront, wheelFront.position, { x: 0.04, y: 0 });
+            // Прикладываем силу (крутящий момент) к колесам
+            Body.setAngularVelocity(wheelRear, 1.8); 
+            Body.setAngularVelocity(wheelFront, 1.8); 
         }
-        
         if (window.isBrake) { 
-            // Тормоз: замедляем колеса физически
-            Body.setAngularVelocity(wheelRear, wheelRear.angularVelocity * 0.95); 
-            Body.setAngularVelocity(wheelFront, wheelFront.angularVelocity * 0.95); 
+            Body.setAngularVelocity(wheelRear, wheelRear.angularVelocity * 0.9); 
+            Body.setAngularVelocity(wheelFront, wheelFront.angularVelocity * 0.9); 
         }
-
-        // Физика сама поднимет нос при ускорении и опустит при замедлении.
-        // Если хочешь сделать управление сложнее, можешь добавить небольшое 
-        // гашение вращения рамы, чтобы она не крутилась вечно.
-        Body.setAngularVelocity(chassis, chassis.angularVelocity * 0.95);
 
         let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
         cameraX += (targetCameraX - cameraX) * 0.1; 
