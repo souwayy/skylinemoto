@@ -123,12 +123,16 @@
         return r1 * (1 - u) + r2 * u;
     }
 
-    // --- ЧИСТЫЙ РАНДОМ БЕЗ ТРАМПЛИНОВ ---
+    // БОЛЬШИЕ РАНДОМНЫЕ ГОРЫ
     function getTerrainY(x) {
         let y = groundY;
-        y -= noise(x * 0.001) * 100;  // Длинные волны
-        y -= noise(x * 0.005) * 50;   // Средние кочки
-        y -= noise(x * 0.02) * 25;    // Резкие бугры (для отрыва)
+        // Высокие длинные горы (для разгона и полетов)
+        y -= noise(x * 0.0005) * 300; 
+        // Средние горки
+        y -= noise(x * 0.003) * 100; 
+        // Мелкие кочки
+        y -= noise(x * 0.015) * 20; 
+        
         return y;
     }
 
@@ -140,7 +144,6 @@
     function generateTerrain() {
         while (lastGeneratedX < cameraX + (canvas.width / zoom) + 1000) {
             let hillY = getTerrainY(lastGeneratedX);
-            // ВОЗВРАЩАЕМ ТРЕНИЕ ЗЕМЛЕ (0.5), чтобы колеса цеплялись
             let block = Bodies.circle(lastGeneratedX, hillY + groundRadius, groundRadius, { 
                 isStatic: true, friction: 0.5, frictionStatic: 0.5, collisionFilter: { category: 0x0002 } 
             });
@@ -166,7 +169,6 @@
     let startHillY = getTerrainY(startX);
     const startY = startHillY - wheelRadius - 5; 
     
-    // Трение колес 1.5
     const wheelRear = Bodies.circle(startX - wheelBase, startY, wheelRadius, { 
         density: 0.05, friction: 1.5, frictionStatic: 1.5, collisionFilter: { group: group } 
     });
@@ -295,10 +297,10 @@
     }
 
     function update() {
-        // СКОРОСТЬ УВЕЛИЧЕНА ДО 2.5
+        // СКОРОСТЬ УВЕЛИЧЕНА ДО 20
         if (window.isGas) { 
-            Body.setAngularVelocity(wheelRear, 2.5); 
-            Body.setAngularVelocity(wheelFront, 2.5); 
+            Body.setAngularVelocity(wheelRear, 20); 
+            Body.setAngularVelocity(wheelFront, 20); 
         }
         if (window.isBrake) { 
             Body.setAngularVelocity(wheelRear, wheelRear.angularVelocity * 0.9); 
@@ -327,7 +329,6 @@
             }
         }
 
-        // СМЕРТЬ ПРИ КАСАНИИ ГОЛОВЫ
         let headX = chassis.position.x + Math.sin(chassis.angle) * 35;
         let headY = chassis.position.y - Math.cos(chassis.angle) * 35;
         let groundUnderHead = getTerrainY(headX);
