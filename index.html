@@ -46,10 +46,8 @@
             stroke-width: 3; stroke-linecap: round; stroke-linejoin: round;
         }
 
-        /* Расположение кнопок */
         #btnLeanBack    { bottom: 110px; left: 20px; }
         #btnLeanForward { bottom: 30px;  left: 20px; }
-        
         #btnGas         { bottom: 110px; right: 20px; }
         #btnBrake       { bottom: 30px;  right: 20px; }
     </style>
@@ -65,7 +63,6 @@
         <div class="score"><span id="distanceText">0</span> m</div>
     </div>
     
-    <!-- Левая сторона: Смещение веса -->
     <div class="btn" id="btnLeanBack">
         <svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>
     </div>
@@ -73,7 +70,6 @@
         <svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/></svg>
     </div>
 
-    <!-- Правая сторона: Газ и Тормоз -->
     <div class="btn" id="btnGas">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4" fill="rgba(255,255,255,0.6)" stroke="none"/></svg>
     </div>
@@ -114,21 +110,12 @@
     const startX = 50000;
     let groundY = canvas.height - 80; 
 
-    function noise(x) {
-        let i = Math.floor(x);
-        let f = x - i;
-        let u = f * f * (3.0 - 2.0 * f);
-        let r1 = Math.sin(i * 12.9898) * 43758.5453;
-        let r2 = Math.sin((i + 1) * 12.9898) * 43758.5453;
-        r1 = r1 - Math.floor(r1);
-        r2 = r2 - Math.floor(r2);
-        return r1 * (1 - u) + r2 * u;
-    }
-
+    // --- СЛОЖНЫЙ ЛАНДШАФТ (СИНУСОИДЫ) ---
     function getTerrainY(x) {
         let y = groundY;
-        y -= noise(x * 0.001) * 100;  
-        y -= noise(x * 0.005) * 25;   
+        y -= Math.sin(x * 0.002) * 150;  // Крутые горы
+        y -= Math.sin(x * 0.008) * 40;   // Средние холмы
+        y -= Math.sin(x * 0.025) * 15;   // Тряска на прямой
         return y;
     }
 
@@ -172,26 +159,9 @@
     const wheelFront = Bodies.circle(startX + wheelBase, startY, wheelRadius, { 
         density: 0.05, friction: 1.5, frictionStatic: 1.5, collisionFilter: { group: group } 
     });
-    
     const chassis = Bodies.rectangle(startX, startY - 15, 60, 15, { 
         density: 0.2, collisionFilter: { group: group } 
     }); 
-
-    // Невидимый балансир (смещает вес)
-    const ballast = Bodies.circle(startX, startY - 15, 5, { 
-        density: 1.0, 
-        collisionFilter: { group: group }
-    });
-
-    const ballastConstraint = Constraint.create({
-        bodyA: chassis,
-        bodyB: ballast,
-        pointA: { x: 0, y: 0 },
-        pointB: { x: 0, y: 0 },
-        stiffness: 0.5,
-        damping: 0.1,
-        length: 0
-    });
 
     const suspensionRear = Constraint.create({ 
         bodyA: wheelRear, pointB: { x: -wheelBase, y: 0 }, bodyB: chassis, 
@@ -202,10 +172,7 @@
         stiffness: 0.2, damping: 0.4, length: 0 
     });
 
-    const moto = Composite.create({ 
-        bodies: [wheelRear, wheelFront, chassis, ballast], 
-        constraints: [suspensionRear, suspensionFront, ballastConstraint] 
-    });
+    const moto = Composite.create({ bodies: [wheelRear, wheelFront, chassis], constraints: [suspensionRear, suspensionFront] });
     Composite.add(world, moto);
 
     const bikeImage = new Image();
@@ -295,33 +262,40 @@
     }
 
     function update() {
-        // --- ФИЗИКА ---
-        // Газ (просто едет)
+        // --- СКОРОСТЬ И ТОРМОЗ ---
         if (window.isGas) { 
             Body.setAngularVelocity(wheelRear, 1.5); 
             Body.setAngularVelocity(wheelFront, 1.5); 
         }
-        // Тормоз
         if (window.isBrake) { 
-            Body.setAngularVelocity(wheelRear, wheelRear.angularVelocity * 0.9); 
-            Body.setAngularVelocity(wheelFront, wheelFront.angularVelocity * 0.9); 
+            // ПЛАВНЫЙ ТОРМОЗ (0.95 вместо 0.9)
+            Body.setAngularVelocity(wheelRear, wheelRear.angularVelocity * 0.95); 
+            Body.setAngularVelocity(wheelFront, wheelFront.angularVelocity * 0.95); 
         }
-
-        // --- СМЕЩЕНИЕ ЦЕНТРА ТЯЖЕСТИ (БАЛАНСИР) ---
-        // Плавно двигаем балансир
-        let targetBallastX = chassis.position.x;
+        
+        // --- НАКЛОНЫ (РАБОЧИЕ) ---
+        let isAirborne = Math.abs(chassis.velocity.y) > 1.0; 
         
         if (window.isLeanBack) {
-            targetBallastX -= 25; // Сдвигаем назад (вилли)
-        } else if (window.isLeanForward) {
-            targetBallastX += 25; // Сдвигаем вперед (прижимает нос)
+            if (isAirborne) {
+                Body.setAngularVelocity(chassis, -0.1); 
+            } else {
+                Body.setAngularVelocity(chassis, -0.08); // На земле
+            }
+        } 
+        else if (window.isLeanForward) {
+            if (isAirborne) {
+                Body.setAngularVelocity(chassis, 0.1);
+            } else {
+                Body.setAngularVelocity(chassis, 0.08); // На земле
+            }
+        } else {
+            // Автоматическое выравнивание, если кнопки не нажаты
+            if (!isAirborne) {
+                Body.setAngularVelocity(chassis, chassis.angularVelocity * 0.9);
+            }
         }
 
-        // Плавная интерполяция позиции балансира
-        let newBallastX = ballast.position.x + (targetBallastX - ballast.position.x) * 0.1;
-        Body.setPosition(ballast, { x: newBallastX, y: chassis.position.y });
-
-        // Камера
         let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
         cameraX += (targetCameraX - cameraX) * 0.1; 
         
@@ -345,7 +319,6 @@
             Body.setPosition(wheelRear, { x: spawnX - wheelBase, y: respawnY });
             Body.setPosition(wheelFront, { x: spawnX + wheelBase, y: respawnY });
             Body.setPosition(chassis, { x: spawnX, y: respawnY - 15 });
-            Body.setPosition(ballast, { x: spawnX, y: respawnY - 15 });
             
             Body.setVelocity(chassis, { x: 0, y: 0 }); 
             Body.setVelocity(wheelRear, { x: 0, y: 0 }); 
