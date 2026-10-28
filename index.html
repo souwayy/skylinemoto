@@ -155,15 +155,15 @@
     let startHillY = getTerrainY(startX);
     const startY = startHillY - wheelRadius - 5; 
     
-    // Заднее колесо тяжелое
+    // Заднее колесо с сильным сцеплением (для крутящего момента)
     const wheelRear = Bodies.circle(startX - wheelBase, startY, wheelRadius, { 
-        density: 0.15, friction: 1.5, frictionStatic: 1.5, collisionFilter: { group: group } 
+        density: 0.05, friction: 1.5, frictionStatic: 1.5, collisionFilter: { group: group } 
     });
-    // Переднее легкое
+    // Переднее колесо
     const wheelFront = Bodies.circle(startX + wheelBase, startY, wheelRadius, { 
         density: 0.05, friction: 1.5, frictionStatic: 1.5, collisionFilter: { group: group } 
     });
-    // Рама
+    // Рама (тяжелая, чтобы была инерция)
     const chassis = Bodies.rectangle(startX, startY - 15, 60, 15, { 
         density: 0.2, collisionFilter: { group: group } 
     }); 
@@ -264,20 +264,26 @@
     }
 
     function update() {
-        // --- ГАЗ ---
+        // --- ФИЗИКА КРУТЯЩЕГО МОМЕНТА (ENGINE TORQUE) ---
         if (window.isGas) { 
-            // Крутим колеса
-            Body.setAngularVelocity(wheelRear, 1.8); 
-            Body.setAngularVelocity(wheelFront, 1.8); 
+            // Вместо setAngularVelocity, прикладываем момент к заднему колесу
+            // 0.1 - это сила, которая заставляет колесо крутиться
+            Body.applyForce(wheelRear, wheelRear.position, { x: 0.1, y: 0 });
             
-            // МАГИЯ ВИЛЛИ: прикладываем силу к раме, чтобы задрать нос
-            // Прикладываем силу вверх к задней части рамы
-            Body.applyForce(chassis, { x: chassis.position.x - 25, y: chassis.position.y }, { x: 0, y: -0.008 });
+            // Небольшой момент к переднему (чтобы не тормозил)
+            Body.applyForce(wheelFront, wheelFront.position, { x: 0.05, y: 0 });
         }
         
         if (window.isBrake) { 
-            Body.setAngularVelocity(wheelRear, wheelRear.angularVelocity * 0.9); 
-            Body.setAngularVelocity(wheelFront, wheelFront.angularVelocity * 0.9); 
+            // Тормоз: гасим скорость вращения
+            Body.setAngularVelocity(wheelRear, wheelRear.angularVelocity * 0.8); 
+            Body.setAngularVelocity(wheelFront, wheelFront.angularVelocity * 0.8); 
+        }
+
+        // АВТОМАТИЧЕСКОЕ ВЫРАВНИВАНИЕ (чтобы рама не кувыркалась вечно)
+        // Если не жмем газ, рама мягко стабилизируется
+        if (!window.isGas) {
+            Body.setAngularVelocity(chassis, chassis.angularVelocity * 0.95);
         }
 
         let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
@@ -369,4 +375,4 @@
     });
 </script>
 </body>
-    </html>
+</html>
