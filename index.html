@@ -30,9 +30,10 @@
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
         }
 
+        /* Оставляем только две кнопки справа */
         .btn {
             position: absolute;
-            width: 55px; height: 55px; border-radius: 50%;
+            width: 65px; height: 65px; border-radius: 50%;
             background: rgba(255, 255, 255, 0.05); 
             border: 2px solid rgba(255, 255, 255, 0.5);
             display: flex; align-items: center; justify-content: center;
@@ -42,14 +43,12 @@
         .btn:active { background: rgba(255, 255, 255, 0.3); }
         
         .btn svg {
-            width: 24px; height: 24px; fill: none; stroke: rgba(255, 255, 255, 0.7);
+            width: 30px; height: 30px; fill: none; stroke: rgba(255, 255, 255, 0.7);
             stroke-width: 3; stroke-linecap: round; stroke-linejoin: round;
         }
 
-        #btnLeanBack    { bottom: 90px; left: 20px; }
-        #btnLeanForward { bottom: 20px; left: 60px; }
         #btnGas         { bottom: 90px; right: 20px; }
-        #btnBrake       { bottom: 20px; right: 60px; }
+        #btnBrake       { bottom: 20px; right: 90px; }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
 </head>
@@ -61,13 +60,6 @@
     <div class="top-bar">
         <div class="btn-ui">II</div>
         <div class="score"><span id="distanceText">0</span> m</div>
-    </div>
-
-    <div class="btn" id="btnLeanBack">
-        <svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>
-    </div>
-    <div class="btn" id="btnLeanForward">
-        <svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/></svg>
     </div>
     
     <div class="btn" id="btnGas">
@@ -121,12 +113,11 @@
         return r1 * (1 - u) + r2 * u;
     }
 
-    // --- СЛОЖНЫЕ ХОЛМЫ ---
     function getTerrainY(x) {
         let y = groundY;
         y -= noise(x * 0.001) * 120;  
         y -= noise(x * 0.005) * 30;   
-        y -= noise(x * 0.015) * 80;   // <-- УВЕЛИЧИЛИ МЕЛКИЕ НЕРОВНОСТИ (было 8)
+        y -= noise(x * 0.015) * 8;    
         return y;
     }
 
@@ -156,7 +147,7 @@
         }
     }
 
-    // --- МОТОЦИКЛ ---
+    // --- МОТОЦИКЛ (ФИЗИКА КРУТЯЩЕГО МОМЕНТА) ---
     const group = Body.nextGroup(true); 
     const wheelRadius = 10; 
     const wheelBase = 23; 
@@ -164,23 +155,26 @@
     let startHillY = getTerrainY(startX);
     const startY = startHillY - wheelRadius - 5; 
     
+    // Колеса: высокое сцепление, чтобы был крутящий момент
     const wheelRear = Bodies.circle(startX - wheelBase, startY, wheelRadius, { 
-        density: 0.05, friction: 1.2, frictionStatic: 1.2, collisionFilter: { group: group } 
+        density: 0.05, friction: 1.5, frictionStatic: 1.5, collisionFilter: { group: group } 
     });
     const wheelFront = Bodies.circle(startX + wheelBase, startY, wheelRadius, { 
-        density: 0.05, friction: 1.2, frictionStatic: 1.2, collisionFilter: { group: group } 
+        density: 0.05, friction: 1.5, frictionStatic: 1.5, collisionFilter: { group: group } 
     });
+    
+    // Рама тяжелее, чтобы была инерция
     const chassis = Bodies.rectangle(startX, startY - 15, 60, 15, { 
-        density: 0.2, collisionFilter: { group: group } 
+        density: 0.3, collisionFilter: { group: group } 
     }); 
 
     const suspensionRear = Constraint.create({ 
         bodyA: wheelRear, pointB: { x: -wheelBase, y: 0 }, bodyB: chassis, 
-        stiffness: 0.25, damping: 0.5, length: 0 
+        stiffness: 0.2, damping: 0.4, length: 0 
     });
     const suspensionFront = Constraint.create({ 
         bodyA: wheelFront, pointB: { x: wheelBase, y: 0 }, bodyB: chassis, 
-        stiffness: 0.25, damping: 0.5, length: 0 
+        stiffness: 0.2, damping: 0.4, length: 0 
     });
 
     const moto = Composite.create({ bodies: [wheelRear, wheelFront, chassis], constraints: [suspensionRear, suspensionFront] });
@@ -191,7 +185,8 @@
     let isImageLoaded = false;
     bikeImage.onload = () => { isImageLoaded = true; };
 
-    window.isGas = false; window.isBrake = false; window.isLeanBack = false; window.isLeanForward = false;
+    // --- УПРАВЛЕНИЕ (ТОЛЬКО ГАЗ И ТОРМОЗ) ---
+    window.isGas = false; window.isBrake = false;
 
     function bindBtn(id, variableName) {
         const el = document.getElementById(id);
@@ -202,8 +197,6 @@
     
     bindBtn('btnGas', 'isGas');
     bindBtn('btnBrake', 'isBrake');
-    bindBtn('btnLeanBack', 'isLeanBack');
-    bindBtn('btnLeanForward', 'isLeanForward');
 
     let cameraX = startX - (canvas.width * 0.3);
     let cameraY = 0; 
@@ -271,48 +264,26 @@
     }
 
     function update() {
+        // --- ФИЗИКА КРУТЯЩЕГО МОМЕНТА ---
         if (window.isGas) { 
-            Body.setAngularVelocity(wheelRear, 1.4); 
-            Body.setAngularVelocity(wheelFront, 1.4); 
+            // Прикладываем момент к заднему колесу (заставляет его крутиться)
+            // Сила 0.08 достаточна для начала движения и подъема носа
+            Body.applyForce(wheelRear, wheelRear.position, { x: 0.08, y: 0 });
+            
+            // Небольшой момент к переднему колесу для стабильности
+            Body.applyForce(wheelFront, wheelFront.position, { x: 0.04, y: 0 });
         }
+        
         if (window.isBrake) { 
-            Body.setAngularVelocity(wheelRear, wheelRear.angularVelocity * 0.9); 
-            Body.setAngularVelocity(wheelFront, wheelFront.angularVelocity * 0.9); 
+            // Тормоз: замедляем колеса физически
+            Body.setAngularVelocity(wheelRear, wheelRear.angularVelocity * 0.95); 
+            Body.setAngularVelocity(wheelFront, wheelFront.angularVelocity * 0.95); 
         }
-        
-        let isAirborne = Math.abs(chassis.velocity.y) > 1.0; 
-        
-        // --- ПЕРЕРАБОТАННОЕ ВИЛЛИ (ЧЕРЕЗ КРУТЯЩИЙ МОМЕНТ) ---
-        if (window.isLeanBack) {
-            if (isAirborne) {
-                let currentRot = chassis.angularVelocity;
-                if (currentRot > -0.12) { 
-                    Body.setAngularVelocity(chassis, currentRot - 0.01); 
-                }
-            } else {
-                // Прикладываем силу к раме (сзади вверх, спереди вниз)
-                Body.applyForce(chassis, { x: chassis.position.x - 20, y: chassis.position.y }, { x: 0, y: -0.003 });
-                Body.applyForce(chassis, { x: chassis.position.x + 20, y: chassis.position.y }, { x: 0, y: 0.003 });
-            }
-        } 
-        else if (window.isLeanForward) {
-            if (isAirborne) {
-                let currentRot = chassis.angularVelocity;
-                if (currentRot < 0.12) {
-                    Body.setAngularVelocity(chassis, currentRot + 0.01);
-                }
-            } else {
-                // Прикладываем силу (спереди вниз, сзади вверх)
-                Body.applyForce(chassis, { x: chassis.position.x + 20, y: chassis.position.y }, { x: 0, y: 0.003 });
-                Body.applyForce(chassis, { x: chassis.position.x - 20, y: chassis.position.y }, { x: 0, y: -0.003 });
-            }
-        }
-        
-        // АВТОМАТИЧЕСКОЕ ВЫРАВНИВАНИЕ (если кнопки не нажаты)
-        if (!window.isLeanBack && !window.isLeanForward && !isAirborne) {
-            // Мягко гасим вращение рамы, чтобы она не качалась бесконечно
-            Body.setAngularVelocity(chassis, chassis.angularVelocity * 0.8);
-        }
+
+        // Физика сама поднимет нос при ускорении и опустит при замедлении.
+        // Если хочешь сделать управление сложнее, можешь добавить небольшое 
+        // гашение вращения рамы, чтобы она не крутилась вечно.
+        Body.setAngularVelocity(chassis, chassis.angularVelocity * 0.95);
 
         let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
         cameraX += (targetCameraX - cameraX) * 0.1; 
