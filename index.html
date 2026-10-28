@@ -155,7 +155,7 @@
         }
     }
 
-    // ТВОИ НАСТРОЙКИ
+    // ТВОИ ШИНЫ
     const group = Body.nextGroup(true); 
     const wheelRadius = 10; 
     const wheelBase = 23; 
@@ -271,6 +271,7 @@
     }
 
     function update() {
+        // СКОРОСТЬ
         if (window.isGas) { 
             Body.setAngularVelocity(wheelRear, 1.1); 
             Body.setAngularVelocity(wheelFront, 1.1); 
@@ -280,35 +281,31 @@
             Body.setAngularVelocity(wheelFront, wheelFront.angularVelocity * 0.9); 
         }
         
-        // --- ПЛАВНОЕ ВИЛЛИ И РИСК ---
-        // Определяем, в воздухе ли мы (для сальто)
-        let isAirborne = Math.abs(chassis.velocity.y) > 1.5;
+        // ПРОВЕРКА НА ВОЗДУХ
+        let isAirborne = Math.abs(chassis.velocity.y) > 1.5; 
 
-        // Задаем целевую скорость вращения (0.3 как ты хотел)
-        let targetRotationSpeed = 0;
-        if (window.isLeanBack) targetRotationSpeed = -0.3;
-        if (window.isLeanForward) targetRotationSpeed = 0.3;
+        // --- ПЛАВНЫЙ ПОДЪЕМ (ВИЛЛИ) С РИСКОМ ---
+        let tiltAccel = 0.008; // Скорость нарастания (чем больше, тем резче)
+        let maxTiltSpeed = 0.4; // Максимальная скорость вращения (риск перевернуться)
 
-        // Если в воздухе, разрешаем крутить быстрее для сальто
-        if (isAirborne) {
-            if (window.isLeanBack) targetRotationSpeed = -0.3; 
-            if (window.isLeanForward) targetRotationSpeed = 0.3;
-        }
-
-        // ПЛАВНАЯ ИНТЕРПОЛЯЦИЯ: подводим текущую скорость к целевой
-        if (targetRotationSpeed !== 0) {
+        if (window.isLeanBack) {
             let currentAV = chassis.angularVelocity;
-            // 0.05 - это скорость нарастания. Чем меньше, тем плавнее.
-            let newAV = currentAV + (targetRotationSpeed - currentAV) * 0.05;
-            Body.setAngularVelocity(chassis, newAV);
+            if (currentAV > -maxTiltSpeed) {
+                Body.setAngularVelocity(chassis, currentAV - tiltAccel);
+            }
+        } 
+        else if (window.isLeanForward) {
+            let currentAV = chassis.angularVelocity;
+            if (currentAV < maxTiltSpeed) {
+                Body.setAngularVelocity(chassis, currentAV + tiltAccel);
+            }
         } else {
-            // Если кнопки отпущены, физика (гравитация) сама опустит мотоцикл.
-            // Мы лишь чуть-чуть гасим инерцию, чтобы он не болтался вечно.
             if (!isAirborne) {
                 Body.setAngularVelocity(chassis, chassis.angularVelocity * 0.95);
             }
         }
 
+        // КАМЕРА
         let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
         cameraX += (targetCameraX - cameraX) * 0.1; 
         
@@ -324,6 +321,7 @@
             distanceText.innerText = maxDistance;
         }
 
+        // РЕСПАВН
         if (chassis.position.y > canvas.height + 1000) {
             let spawnX = cameraX + (canvas.width * 0.3) / zoom;
             let respawnHillY = getTerrainY(spawnX);
@@ -344,6 +342,7 @@
             Body.setAngularVelocity(wheelFront, 0);
         }
 
+        // ОТРИСОВКА
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
         const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
