@@ -25,9 +25,23 @@
             border-radius: 10px; color: white; padding: 6px 14px;
             font-size: 18px; font-weight: bold; pointer-events: auto;
         }
+        .score-container {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
         .score {
             font-size: 28px; font-weight: bold; color: white;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        .version {
+            font-size: 12px;
+            color: #FF2E4D;
+            font-family: monospace;
+            background: rgba(0,0,0,0.5);
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-top: 4px;
         }
 
         .btn {
@@ -60,7 +74,10 @@
 <div class="ui-layer">
     <div class="top-bar">
         <div class="btn-ui">II</div>
-        <div class="score"><span id="distanceText">0</span> m</div>
+        <div class="score-container">
+            <div class="score"><span id="distanceText">0</span> m</div>
+            <div class="version">v1.1 (Fix)</div> <!-- ПРОВЕРКА ВЕРСИИ -->
+        </div>
     </div>
     
     <div class="btn" id="btnLeanBack">
@@ -126,7 +143,6 @@
         return y;
     }
 
-    // --- РАБОЧАЯ ЗЕМЛЯ (ШАГ 2, РАДИУС 30) ---
     const terrainBlocks = [];
     let lastGeneratedX = startX - 1500; 
     const chunkWidth = 2; 
@@ -153,7 +169,6 @@
         }
     }
 
-    // --- МОТОЦИКЛ (ТОЧНЫЕ НАСТРОЙКИ) ---
     const group = Body.nextGroup(true); 
     const wheelRadius = 10; 
     const wheelBase = 23; 
@@ -192,6 +207,36 @@
     window.isGas = false; window.isBrake = false; 
     window.isLeanBack = false; window.isLeanForward = false;
 
+    // --- ЗВУК (Привязан к любому касанию экрана) ---
+    let audioCtx, oscillator, gainNode;
+    let isAudioInitialized = false;
+
+    function initAudio() {
+        if (isAudioInitialized) return;
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
+            // Принудительный запуск на мобильных
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume().then(() => {
+                    console.log("Audio resumed");
+                });
+            }
+            oscillator = audioCtx.createOscillator();
+            gainNode = audioCtx.createGain();
+            oscillator.type = 'sawtooth'; 
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.start();
+            gainNode.gain.value = 0; 
+            isAudioInitialized = true;
+        } catch(e) { console.log("Аудио не поддерживается: ", e); }
+    }
+
+    // Включаем звук при первом тапе куда угодно
+    document.body.addEventListener('touchstart', initAudio, { once: true });
+    document.body.addEventListener('click', initAudio, { once: true });
+
     function bindBtn(id, variableName) {
         const el = document.getElementById(id);
         el.addEventListener('touchstart', (e) => { e.preventDefault(); window[variableName] = true; });
@@ -213,16 +258,16 @@
 
     generateTerrain();
 
-    // --- ПЫЛЬ ---
+    // --- ПЫЛЬ (ПОДНЯТА ВЫШЕ) ---
     const particles = [];
     function createDust(x, y) {
         if (particles.length > 50) return; 
         particles.push({
             x: x + (Math.random() - 0.5) * 10,
-            y: y + 5,
+            y: y, // Центр колеса
             vx: -Math.random() * 2 - 1,
-            vy: -Math.random() * 1.5,
-            radius: Math.random() * 4 + 2,
+            vy: -Math.random() * 2 - 0.5, // Чуть сильнее вверх
+            radius: Math.random() * 5 + 2,
             alpha: 0.8
         });
     }
@@ -230,7 +275,7 @@
     function drawParticles() {
         for (let i = particles.length - 1; i >= 0; i--) {
             let p = particles[i];
-            ctx.fillStyle = `rgba(80, 80, 80, ${p.alpha})`; 
+            ctx.fillStyle = `rgba(100, 100, 100, ${p.alpha})`; // Светлее, чтобы было видно
             ctx.beginPath();
             ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
             ctx.fill();
@@ -240,27 +285,6 @@
             if (p.alpha <= 0) particles.splice(i, 1);
         }
     }
-
-    // --- ЗВУК ---
-    let audioCtx, oscillator, gainNode;
-    let isAudioInitialized = false;
-
-    function initAudio() {
-        if (isAudioInitialized) return;
-        try {
-            const AudioContext = window.AudioContext || window.webkitAudioContext;
-            audioCtx = new AudioContext();
-            oscillator = audioCtx.createOscillator();
-            gainNode = audioCtx.createGain();
-            oscillator.type = 'sawtooth'; 
-            oscillator.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-            oscillator.start();
-            gainNode.gain.value = 0; 
-            isAudioInitialized = true;
-        } catch(e) { console.log("Аудио не поддерживается"); }
-    }
-    document.body.addEventListener('touchstart', initAudio, { once: true });
 
     function drawMountainLayer(yOffset, height, color, parallaxOffset) {
         ctx.fillStyle = color;
@@ -348,13 +372,12 @@
             }
         }
 
-        // СКОРОСТЬ 1.1 (как в рабочей версии)
         if (window.isGas) { 
             Body.setAngularVelocity(wheelRear, 1.1); 
             Body.setAngularVelocity(wheelFront, 1.1); 
             
             if (Math.abs(chassis.velocity.x) > 1) {
-                createDust(wheelRear.position.x, wheelRear.position.y + wheelRadius);
+                createDust(wheelRear.position.x, wheelRear.position.y);
             }
         }
         if (window.isBrake) { 
@@ -450,11 +473,31 @@
     Runner.run(runner, engine);
     update();
     
+    // --- БЕЗОПАСНЫЙ ПОВОРОТ ЭКРАНА (БЕЗ БЕСКОНЕЧНОГО РЕСПАВНА) ---
+    let resizeTimeout;
     window.addEventListener('resize', () => { 
-        resizeCanvas(); 
-        groundY = canvas.height - 80; 
-        
-        cameraY = (canvas.height * 0.5) - chassis.position.y;
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            resizeCanvas(); 
+            groundY = canvas.height - 80; 
+            
+            // Пересчитываем позиции всех существующих блоков земли под новую высоту
+            for (let i = 0; i < terrainBlocks.length; i++) {
+                let b = terrainBlocks[i];
+                let newY = getTerrainY(b.x);
+                Body.setPosition(b.body, { x: b.x, y: newY + groundRadius });
+                b.y = newY;
+            }
+            
+            // Просто поднимаем мотоцикл на поверхность, если он провалился
+            let currentGround = getTerrainY(chassis.position.x);
+            if (chassis.position.y > currentGround) {
+                 Body.setPosition(chassis, { x: chassis.position.x, y: currentGround - wheelRadius - 10 });
+                 Body.setVelocity(chassis, { x: 0, y: 0 });
+            }
+            
+            cameraY = (canvas.height * 0.5) - chassis.position.y;
+        }, 200); // Ждем 200мс, пока экран перестроится
     });
 </script>
 </body>
