@@ -105,11 +105,8 @@
 
     const engine = Engine.create();
     const world = engine.world;
-    
-    // --- 1. УВЕЛИЧИВАЕМ ТОЧНОСТЬ ФИЗИКИ (ПРОТИВ ПРОВАЛИВАНИЯ) ---
     engine.positionIterations = 15; 
     engine.velocityIterations = 15;
-    
     engine.gravity.y = 1; 
 
     const startX = 50000;
@@ -126,25 +123,40 @@
         return r1 * (1 - u) + r2 * u;
     }
 
-    // --- 2. УНИКАЛЬНЫЕ ХОЛМЫ И ТРАМПЛИНЫ ---
+    // --- НОВЫЙ ГЕНЕРАТОР С КИКЕРАМИ (ПОДЪЕМАМИ) ---
     function getTerrainY(x) {
         let y = groundY;
         
-        // Плавные горы
-        y -= noise(x * 0.001) * 100;  
+        // Базовые плавные холмы
+        y -= noise(x * 0.001) * 60;  
         
-        // Резкие трамплины (возводим в куб для пиков)
-        // Они будут появляться в случайных местах, никогда не повторяясь
-        let spike = Math.pow(noise(x * 0.004), 3) * 400;
-        y -= spike;
+        // Определяем зоны для трамплинов (используя шум)
+        // Если шум в этой точке > 0.6, значит здесь будет трамплин
+        let isRampZone = noise(x * 0.0006); 
+        
+        if (isRampZone > 0.6) {
+            // Локальная координата внутри зоны трамплина
+            let localX = (x % 2000); 
+            
+            if (localX > 500 && localX < 1200) {
+                // 1. Плавный подъем (чтобы разогнаться)
+                let progress = (localX - 500) / 700;
+                y -= Math.sin(progress * Math.PI / 2) * 150; // Поднимаем землю на 150px
+            } else if (localX >= 1200 && localX < 1300) {
+                // 2. Кикер (Резкий отрыв)
+                y -= 150; 
+                y -= (localX - 1200) * 0.5; // Еще чуть-чуть вверх
+            }
+            // После 1300px земля резко падает вниз (обрыв)
+        }
         
         return y;
     }
 
     const terrainBlocks = [];
     let lastGeneratedX = startX - 1500; 
-    const chunkWidth = 2; 
-    const groundRadius = 30; 
+    const chunkWidth = 1; 
+    const groundRadius = 5; 
 
     function generateTerrain() {
         while (lastGeneratedX < cameraX + (canvas.width / zoom) + 1000) {
@@ -167,7 +179,6 @@
         }
     }
 
-    // ТВОИ ШИНЫ
     const group = Body.nextGroup(true); 
     const wheelRadius = 10; 
     const wheelBase = 23; 
@@ -314,7 +325,6 @@
         
         let isAirborne = Math.abs(chassis.velocity.y) > 1.5; 
 
-        // --- ТВОЕ ПЛАВНОЕ ВИЛЛИ ---
         let tiltAccel = 0.008; 
         let maxTiltSpeed = 0.4; 
 
@@ -335,20 +345,15 @@
             }
         }
 
-        // --- 3. СМЕРТЬ ПРИ КАСАНИИ ГОЛОВЫ ---
-        // Вычисляем, где находится шлем (смещение 35 пикселей вверх от центра рамы с учетом наклона)
+        // СМЕРТЬ ПРИ КАСАНИИ ГОЛОВЫ
         let headX = chassis.position.x + Math.sin(chassis.angle) * 35;
         let headY = chassis.position.y - Math.cos(chassis.angle) * 35;
-        
-        // Получаем высоту земли в этой точке
         let groundUnderHead = getTerrainY(headX);
 
-        // Если голова ниже уровня земли -> Смерть
         if (headY >= groundUnderHead && !isAirborne) {
             respawn();
         }
 
-        // Камера
         let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
         cameraX += (targetCameraX - cameraX) * 0.1; 
         
@@ -364,7 +369,6 @@
             distanceText.innerText = maxDistance;
         }
 
-        // Падение в бездну
         if (chassis.position.y > canvas.height + 1000) {
             respawn();
         }
