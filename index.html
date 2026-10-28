@@ -160,7 +160,7 @@
 
     // --- ТЯЖЕЛЫЕ КОЛЕСА И РАМА ---
     const group = Body.nextGroup(true); 
-    const wheelRadius = 11; 
+    const wheelRadius = 10; 
     const wheelBase = 24; 
     
     let startHillY = getTerrainY(startX);
@@ -298,8 +298,8 @@
     function update() {
         // СКОРОСТЬ 2.5 (медленнее, без ракеты)
         if (window.isGas) { 
-            Body.setAngularVelocity(wheelRear, 1.3); 
-            Body.setAngularVelocity(wheelFront, 1.3); 
+            Body.setAngularVelocity(wheelRear, 0.8); 
+            Body.setAngularVelocity(wheelFront, 0.8); 
         }
         if (window.isBrake) { 
             Body.setAngularVelocity(wheelRear, wheelRear.angularVelocity * 0.9); 
