@@ -155,6 +155,7 @@
         }
     }
 
+    // ТВОИ НАСТРОЙКИ
     const group = Body.nextGroup(true); 
     const wheelRadius = 10; 
     const wheelBase = 23; 
@@ -279,28 +280,33 @@
             Body.setAngularVelocity(wheelFront, wheelFront.angularVelocity * 0.9); 
         }
         
-        let isAirborne = Math.abs(chassis.velocity.y) > 1.5; 
-        
-        if (window.isLeanBack) {
-            if (isAirborne) {
-                // В ВОЗДУХЕ: Крутим сальто на полной мощности
-                Body.setAngularVelocity(chassis, -0.3); 
-            } else {
-                // НА ЗЕМЛЕ: Прикладываем физическую силу (риск перевернуться)
-                Body.applyForce(chassis, { x: chassis.position.x - 20, y: chassis.position.y }, { x: 0, y: -0.006 });
-                Body.applyForce(chassis, { x: chassis.position.x + 20, y: chassis.position.y }, { x: 0, y: 0.006 });
-            }
-        } 
-        else if (window.isLeanForward) {
-            if (isAirborne) {
-                Body.setAngularVelocity(chassis, 0.3); 
-            } else {
-                Body.applyForce(chassis, { x: chassis.position.x - 20, y: chassis.position.y }, { x: 0, y: 0.006 });
-                Body.applyForce(chassis, { x: chassis.position.x + 20, y: chassis.position.y }, { x: 0, y: -0.006 });
-            }
+        // --- ПЛАВНОЕ ВИЛЛИ И РИСК ---
+        // Определяем, в воздухе ли мы (для сальто)
+        let isAirborne = Math.abs(chassis.velocity.y) > 1.5;
+
+        // Задаем целевую скорость вращения (0.3 как ты хотел)
+        let targetRotationSpeed = 0;
+        if (window.isLeanBack) targetRotationSpeed = -0.3;
+        if (window.isLeanForward) targetRotationSpeed = 0.3;
+
+        // Если в воздухе, разрешаем крутить быстрее для сальто
+        if (isAirborne) {
+            if (window.isLeanBack) targetRotationSpeed = -0.3; 
+            if (window.isLeanForward) targetRotationSpeed = 0.3;
+        }
+
+        // ПЛАВНАЯ ИНТЕРПОЛЯЦИЯ: подводим текущую скорость к целевой
+        if (targetRotationSpeed !== 0) {
+            let currentAV = chassis.angularVelocity;
+            // 0.05 - это скорость нарастания. Чем меньше, тем плавнее.
+            let newAV = currentAV + (targetRotationSpeed - currentAV) * 0.05;
+            Body.setAngularVelocity(chassis, newAV);
         } else {
-            // Авто-выравнивание
-            Body.setAngularVelocity(chassis, chassis.angularVelocity * 0.95);
+            // Если кнопки отпущены, физика (гравитация) сама опустит мотоцикл.
+            // Мы лишь чуть-чуть гасим инерцию, чтобы он не болтался вечно.
+            if (!isAirborne) {
+                Body.setAngularVelocity(chassis, chassis.angularVelocity * 0.95);
+            }
         }
 
         let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
