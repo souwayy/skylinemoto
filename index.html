@@ -345,7 +345,7 @@
         }
     }
 
-    // --- НОВАЯ ЗВУКОВАЯ СИСТЕМА (WEB AUDIO API) ---
+    // --- ЗВУКОВАЯ СИСТЕМА (WEB AUDIO API) ---
     let audioCtx;
     let idleBuffer, revBuffer, popBuffer, windBuffer;
     
@@ -355,7 +355,6 @@
     let isAudioInitialized = false;
     let previousGasState = false;
     
-    // Загрузчик аудиофайлов
     async function loadAudio(url) {
         try {
             const response = await fetch(url);
@@ -363,7 +362,7 @@
             const arrayBuffer = await response.arrayBuffer();
             return await audioCtx.decodeAudioData(arrayBuffer);
         } catch (e) {
-            console.log(`Не удалось загрузить ${url}:`, e);
+            console.log(`Не удалось загрузить ${url}`);
             return null;
         }
     }
@@ -376,13 +375,11 @@
             audioCtx = new AudioContext();
             if (audioCtx.state === 'suspended') audioCtx.resume();
 
-            // Загружаем все файлы
             idleBuffer = await loadAudio('engine_idle.mp3');
             revBuffer = await loadAudio('engine_rev.mp3');
             popBuffer = await loadAudio('engine_pop.mp3');
             windBuffer = await loadAudio('wind.mp3');
 
-            // Создаем громкости (GainNodes)
             idleGain = audioCtx.createGain();
             revGain = audioCtx.createGain();
             windGain = audioCtx.createGain();
@@ -395,7 +392,7 @@
             revGain.connect(audioCtx.destination);
             windGain.connect(audioCtx.destination);
 
-            // Настраиваем и запускаем IDLE (Холостой ход)
+            // IDLE
             if (idleBuffer) {
                 idleSource = audioCtx.createBufferSource();
                 idleSource.buffer = idleBuffer;
@@ -404,16 +401,22 @@
                 idleSource.start();
             }
 
-            // Настраиваем и запускаем REV (Рев)
+            // REV (с добавлением фильтра для мягкости)
             if (revBuffer) {
                 revSource = audioCtx.createBufferSource();
                 revSource.buffer = revBuffer;
                 revSource.loop = true;
-                revSource.connect(revGain);
+                
+                const revFilter = audioCtx.createBiquadFilter();
+                revFilter.type = 'lowpass';
+                revFilter.frequency.value = 1000; // Срезаем визг
+                
+                revSource.connect(revFilter);
+                revFilter.connect(revGain);
                 revSource.start();
             }
 
-            // Настраиваем и запускаем WIND (Ветер)
+            // WIND (или синтетика)
             if (windBuffer) {
                 windSource = audioCtx.createBufferSource();
                 windSource.buffer = windBuffer;
@@ -421,7 +424,6 @@
                 windSource.connect(windGain);
                 windSource.start();
             } else {
-                // Если файла ветра нет, создаем синтетический шум
                 console.log("Создаю синтетический ветер");
                 const bufferSize = audioCtx.sampleRate * 2; 
                 const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
@@ -435,7 +437,7 @@
                 
                 const windFilter = audioCtx.createBiquadFilter();
                 windFilter.type = 'lowpass';
-                windFilter.frequency.value = 400;
+                windFilter.frequency.value = 800; // Подняли частоту, чтобы "шипело" как ветер
                 
                 windSource.connect(windFilter);
                 windFilter.connect(windGain);
@@ -443,9 +445,8 @@
             }
 
             isAudioInitialized = true;
-            console.log("Аудио успешно инициализировано");
         } catch (e) {
-            console.log("Ошибка инициализации аудио: ", e);
+            console.log("Ошибка аудио: ", e);
         }
     }
 
@@ -594,7 +595,6 @@
     function update() {
         if (gameState === 'playing') {
             
-            // ТВОЯ ФИЗИКА (НЕ ТРОНУТА)
             if (window.isGas) { 
                 Body.setAngularVelocity(wheelRear, 1.2); 
                 Body.setAngularVelocity(wheelFront, 1.2); 
@@ -610,21 +610,20 @@
             
             let speed = Math.abs(wheelRear.angularVelocity);
             
-            // --- ЛОГИКА ЗВУКА (WEB AUDIO) ---
             if (isAudioInitialized) {
                 let targetIdle = window.isGas ? 0 : 0.3;
                 let targetRev = window.isGas ? 0.4 : 0;
-                let targetWind = Math.min(0.8, 0.1 + speed * 0.4); 
+                // УВЕЛИЧЕНА ГРОМКОСТЬ ВЕТРА
+                let targetWind = Math.min(0.8, 0.3 + speed * 0.4); 
 
-                // Плавно меняем громкость
                 idleGain.gain.setTargetAtTime(targetIdle, audioCtx.currentTime, 0.1);
                 revGain.gain.setTargetAtTime(targetRev, audioCtx.currentTime, 0.1);
                 windGain.gain.setTargetAtTime(targetWind, audioCtx.currentTime, 0.1);
 
-                // Ускоряем рев
                 if (window.isGas && revSource) {
-                    let targetRate = 0.8 + (speed * 1.5); 
-                    revSource.playbackRate.setTargetAtTime(Math.min(2.0, targetRate), audioCtx.currentTime, 0.1);
+                    // УМЕНЬШЕНО УСКОРЕНИЕ (чтобы не звучал как бурундук)
+                    let targetRate = 1.0 + (speed * 0.2); 
+                    revSource.playbackRate.setTargetAtTime(targetRate, audioCtx.currentTime, 0.1);
                     
                     if (previousGasState === false && Math.random() > 0.5) {
                         playPop();
