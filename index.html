@@ -123,16 +123,11 @@
         return r1 * (1 - u) + r2 * u;
     }
 
-    // БОЛЬШИЕ РАНДОМНЫЕ ГОРЫ
     function getTerrainY(x) {
         let y = groundY;
-        // Высокие длинные горы (для разгона и полетов)
-        y -= noise(x * 0.0005) * 300; 
-        // Средние горки
-        y -= noise(x * 0.003) * 100; 
-        // Мелкие кочки
+        y -= noise(x * 0.0005) * 250; 
+        y -= noise(x * 0.003) * 80; 
         y -= noise(x * 0.015) * 20; 
-        
         return y;
     }
 
@@ -297,10 +292,10 @@
     }
 
     function update() {
-        // СКОРОСТЬ УВЕЛИЧЕНА ДО 20
+        // АДЕКВАТНАЯ СКОРОСТЬ (4)
         if (window.isGas) { 
-            Body.setAngularVelocity(wheelRear, 20); 
-            Body.setAngularVelocity(wheelFront, 20); 
+            Body.setAngularVelocity(wheelRear, 4); 
+            Body.setAngularVelocity(wheelFront, 4); 
         }
         if (window.isBrake) { 
             Body.setAngularVelocity(wheelRear, wheelRear.angularVelocity * 0.9); 
@@ -410,4 +405,4 @@
     });
 </script>
 </body>
-</html>
+    </html>
