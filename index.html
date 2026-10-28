@@ -110,42 +110,48 @@
     const startX = 50000;
     let groundY = canvas.height - 80; 
 
-    // --- ГЕНЕРАЦИЯ ШУМА ---
-    function noise(x) {
-        let i = Math.floor(x);
-        let f = x - i;
-        let u = f * f * (3.0 - 2.0 * f);
-        let r1 = Math.sin(i * 12.9898) * 43758.5453;
-        let r2 = Math.sin((i + 1) * 12.9898) * 43758.5453;
-        r1 = r1 - Math.floor(r1);
-        r2 = r2 - Math.floor(r2);
-        return r1 * (1 - u) + r2 * u;
-    }
-
+    // --- ИДЕАЛЬНЫЕ ХОЛМЫ (СМЕСЬ СИНУСОИД) ---
     function getTerrainY(x) {
         let y = groundY;
-        // УВЕЛИЧИЛИ СЛОЖНОСТЬ (чтобы не было ровных участков)
-        y -= noise(x * 0.002) * 120;  
-        y -= noise(x * 0.008) * 50;   
-        y -= noise(x * 0.02) * 15;    
+        // Смешиваем три волны. Они не повторяются и создают естественный рельеф.
+        y -= Math.sin(x * 0.0015) * 70;  // Большие горы
+        y -= Math.sin(x * 0.006) * 25;   // Средние кочки
+        y -= Math.sin(x * 0.02) * 5;     // Микро-неровности
         return y;
     }
 
-    // --- ЗЕМЛЯ ИЗ ПЕРЕКРЫВАЮЩИХСЯ КРУГОВ ---
+    // --- ФИЗИЧЕСКАЯ ЗЕМЛЯ ---
     const terrainBlocks = [];
     let lastGeneratedX = startX - 1500; 
-    const chunkWidth = 2; // Очень плотно
-    const groundRadius = 30; // Большие круги
+    const chunkWidth = 20; 
+    const chunkHeight = 2000; 
 
     function generateTerrain() {
         while (lastGeneratedX < cameraX + (canvas.width / zoom) + 1000) {
-            let hillY = getTerrainY(lastGeneratedX);
-            // Ставим круги чуть ниже видимой линии, чтобы верхушки сглаживались
-            let block = Bodies.circle(lastGeneratedX, hillY + groundRadius - 5, groundRadius, { 
-                isStatic: true, friction: 1, collisionFilter: { category: 0x0002 } 
+            let x1 = lastGeneratedX;
+            let x2 = x1 + chunkWidth;
+            let y1 = getTerrainY(x1);
+            let y2 = getTerrainY(x2);
+
+            let angle = Math.atan2(y2 - y1, x2 - x1);
+            let dist = Math.hypot(x2 - x1, y2 - y1);
+            
+            let midX = (x1 + x2) / 2;
+            let midY = (y1 + y2) / 2;
+            let cx = midX + Math.sin(angle) * (chunkHeight / 2);
+            let cy = midY + Math.cos(angle) * (chunkHeight / 2);
+
+            // Создаем блоки, которые перекрывают друг друга, чтобы не было стен
+            let block = Bodies.rectangle(cx, cy, dist + 5, chunkHeight, { 
+                isStatic: true,
+                angle: angle,
+                friction: 1, 
+                collisionFilter: { category: 0x0002 } 
             });
-            terrainBlocks.push({ body: block, x: lastGeneratedX, y: hillY });
+            
+            terrainBlocks.push({ body: block, x: x1, y: y1 });
             Composite.add(world, block);
+            
             lastGeneratedX += chunkWidth;
         }
     }
@@ -177,13 +183,14 @@
         density: 0.2, collisionFilter: { group: group } 
     }); 
 
+    // --- РЕАЛИСТИЧНАЯ АМОРТИЗАЦИЯ (Высокий damping = гасит тряску) ---
     const suspensionRear = Constraint.create({ 
         bodyA: wheelRear, pointB: { x: -wheelBase, y: 0 }, bodyB: chassis, 
-        stiffness: 0.2, damping: 0.4, length: 0 
+        stiffness: 0.05, damping: 0.9, length: 0 
     });
     const suspensionFront = Constraint.create({ 
         bodyA: wheelFront, pointB: { x: wheelBase, y: 0 }, bodyB: chassis, 
-        stiffness: 0.2, damping: 0.4, length: 0 
+        stiffness: 0.05, damping: 0.9, length: 0 
     });
 
     const moto = Composite.create({ bodies: [wheelRear, wheelFront, chassis], constraints: [suspensionRear, suspensionFront] });
@@ -274,17 +281,16 @@
     }
 
     function update() {
-        // ГАЗ (Увеличили до 1.2 для преодоления крутых подъемов)
         if (window.isGas) { 
-            Body.setAngularVelocity(wheelRear, 1.2); 
-            Body.setAngularVelocity(wheelFront, 1.2); 
+            Body.setAngularVelocity(wheelRear, 1.1); 
+            Body.setAngularVelocity(wheelFront, 1.1); 
         }
         if (window.isBrake) { 
             Body.setAngularVelocity(wheelRear, wheelRear.angularVelocity * 0.9); 
             Body.setAngularVelocity(wheelFront, wheelFront.angularVelocity * 0.9); 
         }
         
-        // ВИЛЛИ (Зависит от скорости)
+        // ПОВОРОТЫ (Плавные)
         let isAirborne = Math.abs(chassis.velocity.y) > 1.0; 
         let speed = Math.abs(chassis.velocity.x);
         
@@ -295,8 +301,7 @@
                     Body.setAngularVelocity(chassis, currentRot - 0.01); 
                 }
             } else {
-                // Чем быстрее едешь, тем сильнее задирает
-                let tiltForce = speed > 5 ? -0.12 : -0.06;
+                let tiltForce = speed > 5 ? -0.1 : -0.05;
                 Body.setAngularVelocity(chassis, tiltForce); 
             }
         } 
