@@ -110,7 +110,6 @@
     const startX = 50000;
     let groundY = canvas.height - 80; 
 
-    // --- ГЕНЕРАЦИЯ ШУМА ---
     function noise(x) {
         let i = Math.floor(x);
         let f = x - i;
@@ -124,10 +123,10 @@
 
     function getTerrainY(x) {
         let y = groundY;
-        // СЛОЖНЫЕ ХОЛМЫ (амплитуда увеличена до 160)
-        y -= noise(x * 0.001) * 160;  
-        y -= noise(x * 0.005) * 40;   
-        y -= noise(x * 0.015) * 10;    
+        // Холмы средней сложности
+        y -= noise(x * 0.001) * 120;  
+        y -= noise(x * 0.005) * 30;   
+        y -= noise(x * 0.015) * 8;    
         return y;
     }
 
@@ -139,7 +138,6 @@
     function generateTerrain() {
         while (lastGeneratedX < cameraX + (canvas.width / zoom) + 1000) {
             let hillY = getTerrainY(lastGeneratedX);
-            // Земля без трения (чтобы не было стенок)
             let block = Bodies.circle(lastGeneratedX, hillY + groundRadius, groundRadius, { 
                 isStatic: true, friction: 0, frictionStatic: 0, collisionFilter: { category: 0x0002 } 
             });
@@ -166,23 +164,25 @@
     let startHillY = getTerrainY(startX);
     const startY = startHillY - wheelRadius - 5; 
     
+    // УМЕНЬШЕННОЕ СЦЕПЛЕНИЕ (0.7)
     const wheelRear = Bodies.circle(startX - wheelBase, startY, wheelRadius, { 
-        density: 0.05, friction: 1.0, frictionStatic: 1.0, collisionFilter: { group: group } 
+        density: 0.05, friction: 0.7, frictionStatic: 0.7, collisionFilter: { group: group } 
     });
     const wheelFront = Bodies.circle(startX + wheelBase, startY, wheelRadius, { 
-        density: 0.05, friction: 1.0, frictionStatic: 1.0, collisionFilter: { group: group } 
+        density: 0.05, friction: 0.7, frictionStatic: 0.7, collisionFilter: { group: group } 
     });
     const chassis = Bodies.rectangle(startX, startY - 15, 60, 15, { 
         density: 0.2, collisionFilter: { group: group } 
     }); 
 
+    // МЯГКАЯ АМОРТИЗАЦИЯ (для реалистичного управления)
     const suspensionRear = Constraint.create({ 
         bodyA: wheelRear, pointB: { x: -wheelBase, y: 0 }, bodyB: chassis, 
-        stiffness: 0.2, damping: 0.4, length: 0 
+        stiffness: 0.08, damping: 0.2, length: 0 
     });
     const suspensionFront = Constraint.create({ 
         bodyA: wheelFront, pointB: { x: wheelBase, y: 0 }, bodyB: chassis, 
-        stiffness: 0.2, damping: 0.4, length: 0 
+        stiffness: 0.08, damping: 0.2, length: 0 
     });
 
     const moto = Composite.create({ bodies: [wheelRear, wheelFront, chassis], constraints: [suspensionRear, suspensionFront] });
@@ -284,10 +284,11 @@
         
         let isAirborne = Math.abs(chassis.velocity.y) > 1.0; 
         
+        // ПОВОРОТЫ (сбалансированные)
         if (window.isLeanBack) {
             if (isAirborne) {
                 let currentRot = chassis.angularVelocity;
-                if (currentRot > -0.12) { 
+                if (currentRot > -0.6) { 
                     Body.setAngularVelocity(chassis, currentRot - 0.01); 
                 }
             } else {
@@ -297,7 +298,7 @@
         else if (window.isLeanForward) {
             if (isAirborne) {
                 let currentRot = chassis.angularVelocity;
-                if (currentRot < 0.12) {
+                if (currentRot < 0.6) {
                     Body.setAngularVelocity(chassis, currentRot + 0.01);
                 }
             } else {
@@ -305,11 +306,9 @@
             }
         }
 
-        // КАМЕРА ПО X
         let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
         cameraX += (targetCameraX - cameraX) * 0.1; 
         
-        // КАМЕРА ПО Y (Следит за центром мотоцикла с задержкой)
         let targetCameraY = (canvas.height * 0.5) - chassis.position.y;
         cameraY += (targetCameraY - cameraY) * 0.1;
         
@@ -378,9 +377,21 @@
     const runner = Runner.create();
     Runner.run(runner, engine);
     update();
+    
     window.addEventListener('resize', () => { 
         resizeCanvas(); 
         groundY = canvas.height - 80; 
+        
+        cameraY = (canvas.height * 0.5) - chassis.position.y;
+        
+        if (terrainBlocks.length > 0) {
+            for (let i = 0; i < terrainBlocks.length; i++) {
+                let b = terrainBlocks[i];
+                let newY = getTerrainY(b.x);
+                Body.setPosition(b.body, { x: b.x, y: newY + groundRadius });
+                b.y = newY;
+            }
+        }
     });
 </script>
 </body>
