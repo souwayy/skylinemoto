@@ -121,11 +121,12 @@
         return r1 * (1 - u) + r2 * u;
     }
 
+    // ИЗМЕНЕНИЕ 1: СЛОЖНЫЕ ХОЛМЫ
     function getTerrainY(x) {
         let y = groundY;
-        y -= noise(x * 0.001) * 120;  
-        y -= noise(x * 0.005) * 30;   
-        y -= noise(x * 0.015) * 8;    
+        y -= noise(x * 0.001) * 200;  // Было 120, стало 200 (высокие горы)
+        y -= noise(x * 0.005) * 60;   // Было 30, стало 60 (крутые подъемы)
+        y -= noise(x * 0.015) * 15;   // Было 8, стало 15 (неровности)
         return y;
     }
 
@@ -155,7 +156,7 @@
         }
     }
 
-    // ТВОИ НАСТРОЙКИ КОЛЕС
+    // МОТОЦИКЛ
     const group = Body.nextGroup(true); 
     const wheelRadius = 10; 
     const wheelBase = 23; 
@@ -163,11 +164,12 @@
     let startHillY = getTerrainY(startX);
     const startY = startHillY - wheelRadius - 5; 
     
+    // ИЗМЕНЕНИЕ 2: УБРАЛИ СЦЕПЛЕНИЕ (friction: 0.5)
     const wheelRear = Bodies.circle(startX - wheelBase, startY, wheelRadius, { 
-        density: 0.05, friction: 1.5, frictionStatic: 1.5, collisionFilter: { group: group } 
+        density: 0.05, friction: 0.5, frictionStatic: 0.5, collisionFilter: { group: group } 
     });
     const wheelFront = Bodies.circle(startX + wheelBase, startY, wheelRadius, { 
-        density: 0.05, friction: 1.5, frictionStatic: 1.5, collisionFilter: { group: group } 
+        density: 0.05, friction: 0.5, frictionStatic: 0.5, collisionFilter: { group: group } 
     });
     const chassis = Bodies.rectangle(startX, startY - 15, 60, 15, { 
         density: 0.2, collisionFilter: { group: group } 
@@ -271,7 +273,7 @@
     }
 
     function update() {
-        // СКОРОСТЬ
+        // ТВОЯ СКОРОСТЬ
         if (window.isGas) { 
             Body.setAngularVelocity(wheelRear, 1.5); 
             Body.setAngularVelocity(wheelFront, 1.5); 
@@ -281,22 +283,15 @@
             Body.setAngularVelocity(wheelFront, wheelFront.angularVelocity * 0.9); 
         }
         
-        // --- ИДЕАЛЬНОЕ ВИЛЛИ (С ОГРАНИЧИТЕЛЕМ УГЛА) ---
+        // ТВОИ НАКЛОНЫ 0.3
         if (window.isLeanBack) {
-            // Если угол рамы меньше 70 градусов (в радианах это примерно 1.2), крутим
-            if (chassis.angle > -1.2) {
-                Body.setAngularVelocity(chassis, -0.3); 
-            } else {
-                // Если достигли предела, фиксируем (не даем крутить сальто)
-                Body.setAngularVelocity(chassis, 0); 
-            }
+            Body.setAngularVelocity(chassis, -0.3); 
         } 
         else if (window.isLeanForward) {
-            if (chassis.angle < 1.2) {
-                Body.setAngularVelocity(chassis, 0.3); 
-            } else {
-                Body.setAngularVelocity(chassis, 0);
-            }
+            Body.setAngularVelocity(chassis, 0.3); 
+        } else {
+            // Легкое авто-выравнивание, чтобы не висел в воздухе
+            Body.setAngularVelocity(chassis, chassis.angularVelocity * 0.95);
         }
 
         let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
