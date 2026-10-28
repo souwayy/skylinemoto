@@ -134,7 +134,6 @@
     </div>
     
     <div class="controls" id="controls">
-        <!-- Твои любимые кнопки наклонов -->
         <div class="btn" id="btnLeanBack">
             <svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>
         </div>
@@ -142,12 +141,10 @@
             <svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/></svg>
         </div>
         
-        <!-- Газ (Стрелка вперед) -->
         <div class="btn" id="btnGas">
             <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </div>
 
-        <!-- Тормоз (Квадрат стоп) -->
         <div class="btn" id="btnBrake">
             <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
         </div>
@@ -358,6 +355,11 @@
     revAudio.loop = true;
     windAudio.loop = true;
     
+    // Фикс: если браузер сбрасывает loop при ускорении, перезапускаем принудительно
+    idleAudio.addEventListener('ended', () => { idleAudio.currentTime = 0; idleAudio.play(); });
+    revAudio.addEventListener('ended', () => { revAudio.currentTime = 0; revAudio.play(); });
+    windAudio.addEventListener('ended', () => { windAudio.currentTime = 0; windAudio.play(); });
+    
     let isAudioInitialized = false;
     let previousGasState = false;
     let useSyntheticWind = true;
@@ -544,26 +546,22 @@
     }
 
     let lastDisplayedDistance = -1;
-    let targetWheelSpeed = 0;
 
     function update() {
         if (gameState === 'playing') {
             
-            // --- ПЛАВНАЯ ФИЗИКА ---
-            if (window.isGas) targetWheelSpeed = 1.2;
-            if (window.isBrake) targetWheelSpeed = 0; 
-            if (!window.isGas && !window.isBrake) targetWheelSpeed = 0;
-
-            let currentRear = wheelRear.angularVelocity;
-            let newRear = currentRear + (targetWheelSpeed - currentRear) * 0.05; 
-            Body.setAngularVelocity(wheelRear, newRear);
-
-            let currentFront = wheelFront.angularVelocity;
-            let newFront = currentFront + (targetWheelSpeed - currentFront) * 0.05;
-            Body.setAngularVelocity(wheelFront, newFront);
-
-            if (Math.abs(chassis.velocity.x) > 1 && window.isGas) {
-                createDust(wheelRear.position.x, wheelRear.position.y);
+            // --- ТВОЯ ФИЗИКА (НЕ ТРОНУТА) ---
+            if (window.isGas) { 
+                Body.setAngularVelocity(wheelRear, 1.2); 
+                Body.setAngularVelocity(wheelFront, 1.2); 
+                
+                if (Math.abs(chassis.velocity.x) > 1) {
+                    createDust(wheelRear.position.x, wheelRear.position.y);
+                }
+            }
+            if (window.isBrake) { 
+                Body.setAngularVelocity(wheelRear, wheelRear.angularVelocity * 0.95); 
+                Body.setAngularVelocity(wheelFront, wheelFront.angularVelocity * 0.95); 
             }
             
             let speed = Math.abs(wheelRear.angularVelocity);
@@ -572,7 +570,7 @@
             if (isAudioInitialized) {
                 let targetIdle = window.isGas ? 0 : 0.3;
                 let targetRev = window.isGas ? 0.4 : 0;
-                let targetWind = Math.min(0.5, 0.02 + speed * 0.2);
+                let targetWind = Math.min(0.8, 0.1 + speed * 0.4); // Громкость ветра усилена
 
                 idleAudio.volume += (targetIdle - idleAudio.volume) * 0.1;
                 revAudio.volume += (targetRev - revAudio.volume) * 0.1;
@@ -591,14 +589,14 @@
                     previousGasState = false;
                 }
 
+                // Если MP3-ветер не работает — включаем синтетический
                 if (useSyntheticWind && windGain) {
-                    windGain.gain.setTargetAtTime(targetWind * 0.5, audioCtx.currentTime, 0.1);
+                    windGain.gain.setTargetAtTime(targetWind, audioCtx.currentTime, 0.1); // Усилено
                 }
             }
 
             let isAirborne = Math.abs(chassis.velocity.y) > 1.5; 
 
-            // Наклоны (не трогал)
             let tiltAccel = 0.008; 
             let maxTiltSpeed = 0.4; 
 
