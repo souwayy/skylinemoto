@@ -105,6 +105,11 @@
 
     const engine = Engine.create();
     const world = engine.world;
+    
+    // --- 1. УВЕЛИЧИВАЕМ ТОЧНОСТЬ ФИЗИКИ (ПРОТИВ ПРОВАЛИВАНИЯ) ---
+    engine.positionIterations = 15; 
+    engine.velocityIterations = 15;
+    
     engine.gravity.y = 1; 
 
     const startX = 50000;
@@ -121,11 +126,18 @@
         return r1 * (1 - u) + r2 * u;
     }
 
+    // --- 2. УНИКАЛЬНЫЕ ХОЛМЫ И ТРАМПЛИНЫ ---
     function getTerrainY(x) {
         let y = groundY;
-        y -= noise(x * 0.001) * 120;  
-        y -= noise(x * 0.005) * 30;   
-        y -= noise(x * 0.015) * 8;    
+        
+        // Плавные горы
+        y -= noise(x * 0.001) * 100;  
+        
+        // Резкие трамплины (возводим в куб для пиков)
+        // Они будут появляться в случайных местах, никогда не повторяясь
+        let spike = Math.pow(noise(x * 0.004), 3) * 400;
+        y -= spike;
+        
         return y;
     }
 
@@ -270,8 +282,27 @@
         ctx.restore();
     }
 
+    function respawn() {
+        let spawnX = cameraX + (canvas.width * 0.3) / zoom;
+        let respawnHillY = getTerrainY(spawnX);
+        let respawnY = respawnHillY - wheelRadius - 5;
+        
+        Body.setPosition(wheelRear, { x: spawnX - wheelBase, y: respawnY });
+        Body.setPosition(wheelFront, { x: spawnX + wheelBase, y: respawnY });
+        Body.setPosition(chassis, { x: spawnX, y: respawnY - 15 });
+        
+        Body.setVelocity(chassis, { x: 0, y: 0 }); 
+        Body.setVelocity(wheelRear, { x: 0, y: 0 }); 
+        Body.setVelocity(wheelFront, { x: 0, y: 0 });
+        Body.setAngle(chassis, 0);
+        Body.setAngle(wheelRear, 0);
+        Body.setAngle(wheelFront, 0);
+        Body.setAngularVelocity(chassis, 0);
+        Body.setAngularVelocity(wheelRear, 0);
+        Body.setAngularVelocity(wheelFront, 0);
+    }
+
     function update() {
-        // СКОРОСТЬ
         if (window.isGas) { 
             Body.setAngularVelocity(wheelRear, 1.1); 
             Body.setAngularVelocity(wheelFront, 1.1); 
@@ -281,12 +312,11 @@
             Body.setAngularVelocity(wheelFront, wheelFront.angularVelocity * 0.9); 
         }
         
-        // ПРОВЕРКА НА ВОЗДУХ
         let isAirborne = Math.abs(chassis.velocity.y) > 1.5; 
 
-        // --- ПЛАВНЫЙ ПОДЪЕМ (ВИЛЛИ) С РИСКОМ ---
-        let tiltAccel = 0.008; // Скорость нарастания (чем больше, тем резче)
-        let maxTiltSpeed = 0.4; // Максимальная скорость вращения (риск перевернуться)
+        // --- ТВОЕ ПЛАВНОЕ ВИЛЛИ ---
+        let tiltAccel = 0.008; 
+        let maxTiltSpeed = 0.4; 
 
         if (window.isLeanBack) {
             let currentAV = chassis.angularVelocity;
@@ -305,7 +335,20 @@
             }
         }
 
-        // КАМЕРА
+        // --- 3. СМЕРТЬ ПРИ КАСАНИИ ГОЛОВЫ ---
+        // Вычисляем, где находится шлем (смещение 35 пикселей вверх от центра рамы с учетом наклона)
+        let headX = chassis.position.x + Math.sin(chassis.angle) * 35;
+        let headY = chassis.position.y - Math.cos(chassis.angle) * 35;
+        
+        // Получаем высоту земли в этой точке
+        let groundUnderHead = getTerrainY(headX);
+
+        // Если голова ниже уровня земли -> Смерть
+        if (headY >= groundUnderHead && !isAirborne) {
+            respawn();
+        }
+
+        // Камера
         let targetCameraX = chassis.position.x - ((canvas.width * 0.3) / zoom);
         cameraX += (targetCameraX - cameraX) * 0.1; 
         
@@ -321,28 +364,11 @@
             distanceText.innerText = maxDistance;
         }
 
-        // РЕСПАВН
+        // Падение в бездну
         if (chassis.position.y > canvas.height + 1000) {
-            let spawnX = cameraX + (canvas.width * 0.3) / zoom;
-            let respawnHillY = getTerrainY(spawnX);
-            let respawnY = respawnHillY - wheelRadius - 5;
-            
-            Body.setPosition(wheelRear, { x: spawnX - wheelBase, y: respawnY });
-            Body.setPosition(wheelFront, { x: spawnX + wheelBase, y: respawnY });
-            Body.setPosition(chassis, { x: spawnX, y: respawnY - 15 });
-            
-            Body.setVelocity(chassis, { x: 0, y: 0 }); 
-            Body.setVelocity(wheelRear, { x: 0, y: 0 }); 
-            Body.setVelocity(wheelFront, { x: 0, y: 0 });
-            Body.setAngle(chassis, 0);
-            Body.setAngle(wheelRear, 0);
-            Body.setAngle(wheelFront, 0);
-            Body.setAngularVelocity(chassis, 0);
-            Body.setAngularVelocity(wheelRear, 0);
-            Body.setAngularVelocity(wheelFront, 0);
+            respawn();
         }
 
-        // ОТРИСОВКА
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
         const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
