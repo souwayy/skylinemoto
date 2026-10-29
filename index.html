@@ -191,6 +191,7 @@
     const startX = 50000;
     let groundY = canvas.height - 80; 
     let terrainOffset = 0; 
+    let bikeSpeed = 0; // Новая переменная для независимой скорости
 
     function noise(x) {
         let i = Math.floor(x);
@@ -561,6 +562,7 @@
 
     function resetGame() {
         terrainOffset = Math.random() * 10000;
+        bikeSpeed = 0; // Сбрасываем нашу скорость при рестарте
         
         for (let i = 0; i < terrainBlocks.length; i++) {
             Composite.remove(world, terrainBlocks[i].body);
@@ -689,34 +691,28 @@
     function update() {
         if (gameState === 'playing') {
             
-            let currentSpeedX = chassis.velocity.x;
-            let maxSpeed = 6; // Уменьшили максимальную скорость
-            
-            // Параметры разгона и торможения
-            let accelPower = 0.08; // Плавный разгон
-            let brakePower = 0.08;  // Плавный тормоз
-            let coastPower = 0.01; // Медленное замедление (накат)
+            let maxSpeed = 8; 
+            let accelPower = 0.15; 
+            let brakePower = 0.15;  
+            let coastPower = 0.02; 
 
             if (window.isGas) { 
-                // Плавно прибавляем скорость, но не выше максимальной
-                currentSpeedX = Math.min(maxSpeed, currentSpeedX + accelPower);
+                bikeSpeed = Math.min(maxSpeed, bikeSpeed + accelPower);
                 
                 if (Math.abs(chassis.velocity.x) > 1) {
                     createDust(wheelRear.position.x, wheelRear.position.y);
                 }
             } else if (window.isBrake) { 
-                // Плавно отнимаем скорость, но не ниже нуля
-                currentSpeedX = Math.max(0, currentSpeedX - brakePower);
+                bikeSpeed = Math.max(0, bikeSpeed - brakePower);
             } else {
-                // Накат: очень медленно отнимаем скорость
-                currentSpeedX = Math.max(0, currentSpeedX - coastPower); 
+                bikeSpeed = Math.max(0, bikeSpeed - coastPower); 
             }
 
-            // Применяем плавную скорость к раме
-            Body.setVelocity(chassis, { x: currentSpeedX, y: chassis.velocity.y });
+            // Применяем нашу независимую скорость к раме
+            Body.setVelocity(chassis, { x: bikeSpeed, y: chassis.velocity.y });
 
-            // Крутим колеса для визуала (при тормозе они блокируются)
-            let wheelSpin = window.isBrake ? 0 : currentSpeedX * 0.1;
+            // Крутим колеса для визуала
+            let wheelSpin = window.isBrake ? 0 : bikeSpeed * 0.1;
             Body.setAngularVelocity(wheelRear, wheelSpin); 
             Body.setAngularVelocity(wheelFront, wheelSpin); 
             
@@ -908,4 +904,4 @@
     });
 </script>
 </body>
-    </html>
+        </html>
