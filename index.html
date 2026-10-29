@@ -689,37 +689,20 @@
     function update() {
         if (gameState === 'playing') {
             
-            // НОВАЯ ЛОГИКА ФИЗИКИ (через Body.set)
             if (window.isGas) { 
-                // Газ: высокое трение для сцепления
-                Body.set(wheelRear, 'friction', 1.5);
-                Body.set(wheelRear, 'frictionStatic', 1.5);
-                Body.set(wheelFront, 'friction', 1.5);
-                Body.set(wheelFront, 'frictionStatic', 1.5);
                 Body.setAngularVelocity(wheelRear, 1.2); 
                 Body.setAngularVelocity(wheelFront, 1.2); 
-                chassis.frictionAir = 0.01;
                 
                 if (Math.abs(chassis.velocity.x) > 1) {
                     createDust(wheelRear.position.x, wheelRear.position.y);
                 }
-            } else if (window.isBrake) {
-                // Тормоз: колеса блокируются (юзя), трение падает
-                Body.set(wheelRear, 'friction', 0.05);
-                Body.set(wheelRear, 'frictionStatic', 0.05);
-                Body.set(wheelFront, 'friction', 0.05);
-                Body.set(wheelFront, 'frictionStatic', 0.05);
+            } else if (window.isBrake) { 
+                // Блокируем колеса для торможения
                 Body.setAngularVelocity(wheelRear, 0); 
                 Body.setAngularVelocity(wheelFront, 0); 
-                // Сопротивление воздуха гасит раму
-                chassis.frictionAir = 0.05;
             } else {
-                // Накат: колеса катятся свободно, трение среднее
-                Body.set(wheelRear, 'friction', 0.3);
-                Body.set(wheelRear, 'frictionStatic', 0.3);
-                Body.set(wheelFront, 'friction', 0.3);
-                Body.set(wheelFront, 'frictionStatic', 0.3);
-                chassis.frictionAir = 0.01;
+                // НАКАТ: Мы вообще ничего не делаем с колесами. 
+                // Физика Matter.js сама даст им катиться по инерции.
             }
             
             let speed = Math.abs(wheelRear.angularVelocity);
