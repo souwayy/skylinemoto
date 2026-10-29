@@ -550,8 +550,8 @@
 
             // Управление мотором
             if (window.isGas) {
-                jointRear.setMotorSpeed(-15); // Отрицательная скорость - вперед (зависит от оси)
-                jointFront.setMotorSpeed(-15);
+                jointRear.setMotorSpeed(15); // Отрицательная скорость - вперед (зависит от оси)
+                jointFront.setMotorSpeed(15);
                 jointRear.setMaxMotorTorque(25);
                 jointFront.setMaxMotorTorque(25);
             } else if (window.isBrake) {
