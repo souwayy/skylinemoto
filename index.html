@@ -354,7 +354,11 @@
     let idleSource, windSource, revSource;
     let idleGain, revGain, windGain;
     let revFilter; 
-    let revLfo, revLfoGain;
+    
+    // Узлы для модуляции (дыхания) мотора
+    let revTremoloGain; 
+    let revLfoTone, revLfoToneGain; // Для высоты тона
+    let revLfoVol, revLfoVolGain;   // Для громкости
     
     let isAudioInitialized = false;
     let previousGasState = false;
@@ -370,12 +374,15 @@
         }
     }
 
-    // НОВАЯ ФУНКЦИЯ: Математический кроссфейд для идеального зацикливания
-    function createSeamlessBuffer(buffer, crossfadeTime = 0.5) {
+    // Глубокий кроссфейд на 2 секунды
+    function createSeamlessBuffer(buffer, crossfadeTime = 2.0) {
         const sampleRate = buffer.sampleRate;
         const crossfadeSamples = Math.floor(crossfadeTime * sampleRate);
         const originalLength = buffer.length;
         const newLength = originalLength - crossfadeSamples;
+
+        // Если файл слишком короткий, возвращаем как есть
+        if (newLength <= 0) return buffer;
 
         const newBuffer = audioCtx.createBuffer(
             buffer.numberOfChannels,
@@ -387,12 +394,10 @@
             const originalData = buffer.getChannelData(channel);
             const newData = newBuffer.getChannelData(channel);
 
-            // Копируем основную часть
             for (let i = 0; i < newLength - crossfadeSamples; i++) {
                 newData[i] = originalData[i];
             }
 
-            // Смешиваем конец с началом (Equal Power Crossfade)
             for (let i = 0; i < crossfadeSamples; i++) {
                 const endSample = originalData[newLength - crossfadeSamples + i];
                 const startSample = originalData[i];
@@ -420,21 +425,30 @@
             windBuffer = await loadAudio('wind.mp3');
             let rawRevBuffer = await loadAudio('engine_rev.mp3');
 
-            // Применяем бесшовный кроссфейд
             if (rawRevBuffer) {
-                revBuffer = createSeamlessBuffer(rawRevBuffer, 0.5);
+                // Применяем кроссфейд 2 секунды
+                revBuffer = createSeamlessBuffer(rawRevBuffer, 2.0);
             }
 
             idleGain = audioCtx.createGain();
             revGain = audioCtx.createGain();
             windGain = audioCtx.createGain();
             
+            // Узел для пульсации громкости
+            revTremoloGain = audioCtx.createGain();
+            revTremoloGain.gain.value = 0.9; 
+            
             idleGain.gain.value = 0;
             revGain.gain.value = 0;
             windGain.gain.value = 0;
             
             idleGain.connect(audioCtx.destination);
+            
+            // Цепочка рева: Source -> Filter -> Tremolo -> RevGain -> Dest
+            revFilter.connect(revTremoloGain);
+            revTremoloGain.connect(revGain);
             revGain.connect(audioCtx.destination);
+            
             windGain.connect(audioCtx.destination);
 
             revFilter = audioCtx.createBiquadFilter();
@@ -450,21 +464,30 @@
             }
 
             if (revBuffer) {
-                revLfo = audioCtx.createOscillator();
-                revLfo.type = 'sine';
-                revLfo.frequency.value = 3.5; 
-                revLfoGain = audioCtx.createGain();
-                revLfoGain.gain.value = 0.01; // Чуть уменьшили, чтобы не плавало
-                revLfo.connect(revLfoGain);
-                
                 revSource = audioCtx.createBufferSource();
                 revSource.buffer = revBuffer;
                 revSource.loop = true;
                 revSource.connect(revFilter);
-                revFilter.connect(revGain);
                 
-                revLfoGain.connect(revSource.playbackRate);
-                revLfo.start();
+                // LFO для тона (Vibrato - очень медленный)
+                revLfoTone = audioCtx.createOscillator();
+                revLfoTone.type = 'sine';
+                revLfoTone.frequency.value = 0.3; 
+                revLfoToneGain = audioCtx.createGain();
+                revLfoToneGain.gain.value = 0.01; 
+                revLfoTone.connect(revLfoToneGain);
+                revLfoToneGain.connect(revSource.playbackRate);
+                revLfoTone.start();
+
+                // LFO для громкости (Tremolo - очень медленный)
+                revLfoVol = audioCtx.createOscillator();
+                revLfoVol.type = 'sine';
+                revLfoVol.frequency.value = 0.2; 
+                revLfoVolGain = audioCtx.createGain();
+                revLfoVolGain.gain.value = 0.1; // Амплитуда пульсации
+                revLfoVol.connect(revLfoVolGain);
+                revLfoVolGain.connect(revTremoloGain.gain); // Модулируем громкость
+                revLfoVol.start();
             }
 
             if (windBuffer) {
@@ -498,14 +521,14 @@
             console.log("Ошибка аудио: ", e);
         }
     }
-    
+
     function startRevSound() {
         if (!isAudioInitialized || !revBuffer) return;
         
         if (revSource) {
             try {
                 revSource.stop();
-                revLfoGain.disconnect(revSource.playbackRate);
+                revLfoToneGain.disconnect(revSource.playbackRate);
             } catch(e){}
         }
         
@@ -513,7 +536,7 @@
         revSource.buffer = revBuffer;
         revSource.loop = true;
         
-        revLfoGain.connect(revSource.playbackRate);
+        revLfoToneGain.connect(revSource.playbackRate);
         revSource.connect(revFilter);
         
         revSource.start(0);
@@ -689,7 +712,6 @@
             
             if (ENABLE_AUDIO && isAudioInitialized) {
                 let targetIdle = window.isGas ? 0.0 : 0.4; 
-                // ВЕРНУЛИ ГРОМКОСТЬ НА 0.8
                 let targetRev = window.isGas ? 0.8 : 0;    
                 let targetWind = Math.min(0.3, 0.05 + speed * 0.15); 
 
@@ -701,6 +723,7 @@
                     let targetRate = 1.0 + (speed * 0.3); 
                     let finalRate = Math.min(1.3, targetRate);
                     
+                    // Управляем базовой скоростью. Медленный LFO добавит "дыхание".
                     revSource.playbackRate.setTargetAtTime(finalRate, audioCtx.currentTime, 0.1);
                     
                     let targetFreq = Math.max(1000, 2500 - (speed * 1000));
@@ -868,4 +891,4 @@
     });
 </script>
 </body>
-    </html>
+</html>
