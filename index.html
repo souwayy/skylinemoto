@@ -161,7 +161,7 @@
 </div>
 
 <script>
-    // ВКЛЮЧИТЕ ЗВУК, ПОМЕНЯВ FALSE НА TRUE
+    // ВКЛЮЧИТЕ ЗВУК, ПОМЕНЯВ FALSE НА TRUE (128-я строка)
     const ENABLE_AUDIO = true; 
 
     document.addEventListener('touchmove', function(e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
@@ -350,11 +350,12 @@
 
     // --- ЗВУКОВАЯ СИСТЕМА ---
     let audioCtx;
-    let idleBuffer, popBuffer, windBuffer;
+    let idleBuffer, popBuffer, windBuffer, revBuffer; // Добавили revBuffer
     
-    let idleSource, revSource, windSource;
+    let idleSource, windSource;
+    let revSource1, revSource2; // Два источника рева для скрытия шва
     let idleGain, revGain, windGain;
-    let revFilter; // НОВОЕ: фильтр для рева
+    let revFilter; 
     
     let isAudioInitialized = false;
     let previousGasState = false;
@@ -381,6 +382,7 @@
             idleBuffer = await loadAudio('engine_idle.mp3');
             popBuffer = await loadAudio('engine_pop.mp3');
             windBuffer = await loadAudio('wind.mp3');
+            revBuffer = await loadAudio('engine_rev.mp3'); // Загружаем рев
 
             idleGain = audioCtx.createGain();
             revGain = audioCtx.createGain();
@@ -394,10 +396,10 @@
             revGain.connect(audioCtx.destination);
             windGain.connect(audioCtx.destination);
 
-            // НОВОЕ: Создаем фильтр низких частот для рева
+            // Фильтр для рева (теперь не такой глухой)
             revFilter = audioCtx.createBiquadFilter();
             revFilter.type = 'lowpass';
-            revFilter.frequency.value = 3000; // Начальная частота (пропускает большинство частот)
+            revFilter.frequency.value = 4000; 
 
             if (idleBuffer) {
                 idleSource = audioCtx.createBufferSource();
@@ -405,15 +407,23 @@
                 idleSource.loop = true;
                 idleSource.connect(idleGain);
                 idleSource.start();
+            }
 
-                revSource = audioCtx.createBufferSource();
-                revSource.buffer = idleBuffer;
-                revSource.loop = true;
-                
-                // НОВОЕ: Подключаем рев через фильтр
-                revSource.connect(revFilter);
+            // Запускаем ДВА источника рева со сдвигом в 0.5 секунды
+            if (revBuffer) {
+                revSource1 = audioCtx.createBufferSource();
+                revSource1.buffer = revBuffer;
+                revSource1.loop = true;
+                revSource1.connect(revFilter);
+                revSource1.start(0); // Стартует сразу
+
+                revSource2 = audioCtx.createBufferSource();
+                revSource2.buffer = revBuffer;
+                revSource2.loop = true;
+                revSource2.connect(revFilter);
+                revSource2.start(0.5); // Стартует через полсекунды, перекрывая шов первого
+
                 revFilter.connect(revGain);
-                revSource.start();
             }
 
             if (windBuffer) {
@@ -505,8 +515,9 @@
         if (ENABLE_AUDIO && isAudioInitialized) {
             idleGain.gain.value = 0.4;
             revGain.gain.value = 0;
-            if (revSource) revSource.playbackRate.value = 1;
-            if (revFilter) revFilter.frequency.value = 3000;
+            if (revSource1) revSource1.playbackRate.value = 1;
+            if (revSource2) revSource2.playbackRate.value = 1;
+            if (revFilter) revFilter.frequency.value = 4000;
             windGain.gain.value = 0;
         }
 
@@ -611,20 +622,23 @@
             
             if (ENABLE_AUDIO && isAudioInitialized) {
                 let targetIdle = window.isGas ? 0.05 : 0.4; 
-                let targetRev = window.isGas ? 0.9 : 0;    
+                let targetRev = window.isGas ? 0.8 : 0;    
                 let targetWind = Math.min(0.3, 0.05 + speed * 0.15); 
 
                 idleGain.gain.setTargetAtTime(targetIdle, audioCtx.currentTime, 0.1);
                 revGain.gain.setTargetAtTime(targetRev, audioCtx.currentTime, 0.1);
                 windGain.gain.setTargetAtTime(targetWind, audioCtx.currentTime, 0.1);
 
-                if (window.isGas && revSource) {
-                    // НОВОЕ: Ограничиваем playbackRate до 1.35 вместо 2.0, чтобы убрать писк
-                    let targetRate = 1.0 + (speed * 0.8); 
-                    revSource.playbackRate.setTargetAtTime(Math.min(1.35, targetRate), audioCtx.currentTime, 0.1);
+                if (window.isGas && revSource1 && revSource2) {
+                    // Ускоряем рев, но не сильно (максимум 1.4), чтобы не было писка
+                    let targetRate = 1.0 + (speed * 0.4); 
+                    let finalRate = Math.min(1.4, targetRate);
                     
-                    // НОВОЕ: Динамически срезаем высокие частоты в зависимости от скорости
-                    let targetFreq = Math.max(800, 3000 - (speed * 1200));
+                    revSource1.playbackRate.setTargetAtTime(finalRate, audioCtx.currentTime, 0.1);
+                    revSource2.playbackRate.setTargetAtTime(finalRate, audioCtx.currentTime, 0.1);
+                    
+                    // Фильтр теперь менее жесткий, чтобы не было "трактора"
+                    let targetFreq = Math.max(1500, 5000 - (speed * 1000));
                     revFilter.frequency.setTargetAtTime(targetFreq, audioCtx.currentTime, 0.1);
                     
                     if (previousGasState === false && Math.random() > 0.5) {
