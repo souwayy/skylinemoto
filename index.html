@@ -689,18 +689,26 @@
     function update() {
         if (gameState === 'playing') {
             
+            // НОВАЯ ЛОГИКА ФИЗИКИ
             if (window.isGas) { 
+                // При газе даем максимальное сцепление для разгона
+                wheelRear.friction = 1.5;
+                wheelFront.friction = 1.5;
                 Body.setAngularVelocity(wheelRear, 1.2); 
                 Body.setAngularVelocity(wheelFront, 1.2); 
                 
                 if (Math.abs(chassis.velocity.x) > 1) {
                     createDust(wheelRear.position.x, wheelRear.position.y);
                 }
-            }
-            if (window.isBrake) { 
-                // ИЗМЕНЕНИЕ: 0.985 вместо 0.95 для плавного наката
-                Body.setAngularVelocity(wheelRear, wheelRear.angularVelocity * 0.985); 
-                Body.setAngularVelocity(wheelFront, wheelFront.angularVelocity * 0.985); 
+            } else if (window.isBrake) {
+                // При тормозе снижаем сцепление (колеса начинают юзить) и гасим скорость рамы
+                wheelRear.friction = 0.1;
+                wheelFront.friction = 0.1;
+                Body.setVelocity(chassis, { x: chassis.velocity.x * 0.95, y: chassis.velocity.y });
+            } else {
+                // При накате снижаем сцепление, чтобы байк катился по инерции
+                wheelRear.friction = 0.05;
+                wheelFront.friction = 0.05;
             }
             
             let speed = Math.abs(wheelRear.angularVelocity);
@@ -891,4 +899,4 @@
     });
 </script>
 </body>
-    </html>
+</html>
