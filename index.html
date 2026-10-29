@@ -354,6 +354,7 @@
     
     let idleSource, revSource, windSource;
     let idleGain, revGain, windGain;
+    let revFilter; // НОВОЕ: фильтр для рева
     
     let isAudioInitialized = false;
     let previousGasState = false;
@@ -393,6 +394,11 @@
             revGain.connect(audioCtx.destination);
             windGain.connect(audioCtx.destination);
 
+            // НОВОЕ: Создаем фильтр низких частот для рева
+            revFilter = audioCtx.createBiquadFilter();
+            revFilter.type = 'lowpass';
+            revFilter.frequency.value = 3000; // Начальная частота (пропускает большинство частот)
+
             if (idleBuffer) {
                 idleSource = audioCtx.createBufferSource();
                 idleSource.buffer = idleBuffer;
@@ -403,7 +409,10 @@
                 revSource = audioCtx.createBufferSource();
                 revSource.buffer = idleBuffer;
                 revSource.loop = true;
-                revSource.connect(revGain);
+                
+                // НОВОЕ: Подключаем рев через фильтр
+                revSource.connect(revFilter);
+                revFilter.connect(revGain);
                 revSource.start();
             }
 
@@ -497,6 +506,7 @@
             idleGain.gain.value = 0.4;
             revGain.gain.value = 0;
             if (revSource) revSource.playbackRate.value = 1;
+            if (revFilter) revFilter.frequency.value = 3000;
             windGain.gain.value = 0;
         }
 
@@ -609,8 +619,13 @@
                 windGain.gain.setTargetAtTime(targetWind, audioCtx.currentTime, 0.1);
 
                 if (window.isGas && revSource) {
+                    // НОВОЕ: Ограничиваем playbackRate до 1.35 вместо 2.0, чтобы убрать писк
                     let targetRate = 1.0 + (speed * 0.8); 
-                    revSource.playbackRate.setTargetAtTime(Math.min(2.0, targetRate), audioCtx.currentTime, 0.1);
+                    revSource.playbackRate.setTargetAtTime(Math.min(1.35, targetRate), audioCtx.currentTime, 0.1);
+                    
+                    // НОВОЕ: Динамически срезаем высокие частоты в зависимости от скорости
+                    let targetFreq = Math.max(800, 3000 - (speed * 1200));
+                    revFilter.frequency.setTargetAtTime(targetFreq, audioCtx.currentTime, 0.1);
                     
                     if (previousGasState === false && Math.random() > 0.5) {
                         playPop();
@@ -766,4 +781,4 @@
     });
 </script>
 </body>
-</html>
+    </html>
