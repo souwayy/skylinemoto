@@ -550,15 +550,15 @@
 
             // Управление мотором
             if (window.isGas) {
-                jointRear.setMotorSpeed(15); // Отрицательная скорость - вперед (зависит от оси)
-                jointFront.setMotorSpeed(15);
-                jointRear.setMaxMotorTorque(25);
-                jointFront.setMaxMotorTorque(25);
+                jointRear.setMotorSpeed(30); // Отрицательная скорость - вперед (зависит от оси)
+                jointFront.setMotorSpeed(30);
+                jointRear.setMaxMotorTorque(60);
+                jointFront.setMaxMotorTorque(60);
             } else if (window.isBrake) {
                 jointRear.setMotorSpeed(0);
                 jointFront.setMotorSpeed(0);
-                jointRear.setMaxMotorTorque(50); // Сильное торможение
-                jointFront.setMaxMotorTorque(50);
+                jointRear.setMaxMotorTorque(100); // Сильное торможение
+                jointFront.setMaxMotorTorque(100);
             } else {
                 // НАКАТ: Отключаем мотор, колеса катятся свободно
                 jointRear.setMaxMotorTorque(0);
