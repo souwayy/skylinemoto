@@ -689,26 +689,37 @@
     function update() {
         if (gameState === 'playing') {
             
-            // НОВАЯ ЛОГИКА ФИЗИКИ
+            // НОВАЯ ЛОГИКА ФИЗИКИ (через Body.set)
             if (window.isGas) { 
-                // При газе даем максимальное сцепление для разгона
-                wheelRear.friction = 1.5;
-                wheelFront.friction = 1.5;
+                // Газ: высокое трение для сцепления
+                Body.set(wheelRear, 'friction', 1.5);
+                Body.set(wheelRear, 'frictionStatic', 1.5);
+                Body.set(wheelFront, 'friction', 1.5);
+                Body.set(wheelFront, 'frictionStatic', 1.5);
                 Body.setAngularVelocity(wheelRear, 1.2); 
                 Body.setAngularVelocity(wheelFront, 1.2); 
+                chassis.frictionAir = 0.01;
                 
                 if (Math.abs(chassis.velocity.x) > 1) {
                     createDust(wheelRear.position.x, wheelRear.position.y);
                 }
             } else if (window.isBrake) {
-                // При тормозе снижаем сцепление (колеса начинают юзить) и гасим скорость рамы
-                wheelRear.friction = 0.1;
-                wheelFront.friction = 0.1;
-                Body.setVelocity(chassis, { x: chassis.velocity.x * 0.95, y: chassis.velocity.y });
+                // Тормоз: колеса блокируются (юзя), трение падает
+                Body.set(wheelRear, 'friction', 0.05);
+                Body.set(wheelRear, 'frictionStatic', 0.05);
+                Body.set(wheelFront, 'friction', 0.05);
+                Body.set(wheelFront, 'frictionStatic', 0.05);
+                Body.setAngularVelocity(wheelRear, 0); 
+                Body.setAngularVelocity(wheelFront, 0); 
+                // Сопротивление воздуха гасит раму
+                chassis.frictionAir = 0.05;
             } else {
-                // При накате снижаем сцепление, чтобы байк катился по инерции
-                wheelRear.friction = 0.05;
-                wheelFront.friction = 0.05;
+                // Накат: колеса катятся свободно, трение среднее
+                Body.set(wheelRear, 'friction', 0.3);
+                Body.set(wheelRear, 'frictionStatic', 0.3);
+                Body.set(wheelFront, 'friction', 0.3);
+                Body.set(wheelFront, 'frictionStatic', 0.3);
+                chassis.frictionAir = 0.01;
             }
             
             let speed = Math.abs(wheelRear.angularVelocity);
@@ -899,4 +910,4 @@
     });
 </script>
 </body>
-</html>
+    </html>
