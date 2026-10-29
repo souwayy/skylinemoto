@@ -242,10 +242,10 @@
     const wheelBase = 23; 
     
     const wheelRear = Bodies.circle(0, 0, wheelRadius, { 
-        density: 0.05, friction: 1.5, frictionStatic: 1.5, collisionFilter: { group: group } 
+        density: 0.05, friction: 1.0, frictionStatic: 1.0, collisionFilter: { group: group } 
     });
     const wheelFront = Bodies.circle(0, 0, wheelRadius, { 
-        density: 0.05, friction: 1.5, frictionStatic: 1.5, collisionFilter: { group: group } 
+        density: 0.05, friction: 1.0, frictionStatic: 1.0, collisionFilter: { group: group } 
     });
     const chassis = Bodies.rectangle(0, 0, 60, 15, { 
         density: 0.2, collisionFilter: { group: group } 
@@ -689,21 +689,31 @@
     function update() {
         if (gameState === 'playing') {
             
+            let currentSpeedX = chassis.velocity.x;
+            let targetSpeed = 0;
+            let maxSpeed = 12; // Максимальная скорость
+
             if (window.isGas) { 
-                Body.setAngularVelocity(wheelRear, 1.2); 
-                Body.setAngularVelocity(wheelFront, 1.2); 
-                
+                targetSpeed = maxSpeed;
                 if (Math.abs(chassis.velocity.x) > 1) {
                     createDust(wheelRear.position.x, wheelRear.position.y);
                 }
             } else if (window.isBrake) { 
-                // Блокируем колеса для торможения
-                Body.setAngularVelocity(wheelRear, 0); 
-                Body.setAngularVelocity(wheelFront, 0); 
+                targetSpeed = 0;
             } else {
-                // НАКАТ: Мы вообще ничего не делаем с колесами. 
-                // Физика Matter.js сама даст им катиться по инерции.
+                // НАКАТ: Плавно снижаем скорость рамы
+                targetSpeed = currentSpeedX * 0.99; 
             }
+
+            // Применяем скорость к раме напрямую (аркадная физика)
+            Body.setVelocity(chassis, { x: targetSpeed, y: chassis.velocity.y });
+
+            // Крутим колеса для визуала
+            let wheelSpin = targetSpeed * 0.1;
+            if (window.isBrake) wheelSpin = 0; // Блокируем колеса при тормозе
+            
+            Body.setAngularVelocity(wheelRear, wheelSpin); 
+            Body.setAngularVelocity(wheelFront, wheelSpin); 
             
             let speed = Math.abs(wheelRear.angularVelocity);
             
