@@ -205,12 +205,12 @@
 
     function getTerrainY(x) {
         let y = groundY;
-        y -= noise((x + terrainOffset) * 0.001) * 120;  
-        y -= noise((x + terrainOffset) * 0.005) * 30;   
-        y -= noise((x + terrainOffset) * 0.015) * 8;    
+        // Базовый шум для естественности
+        y -= noise((x + terrainOffset) * 0.001) * 60;  
         
-        let rampNoise = noise((x + terrainOffset) * 0.0025 + 100); 
-        y -= Math.pow(rampNoise, 3) * 300; 
+        // Синусоида с уклоном ~30 градусов для трамплинов
+        let ramp = Math.sin((x + terrainOffset) * 0.005) * 120;
+        y -= ramp;
         
         return y;
     }
@@ -245,6 +245,7 @@
     const wheelRadius = 10; 
     const wheelBase = 23; 
     
+    // Трение 1.0, чтобы колеса не буксовали и не тормозили друг друга
     const wheelRear = Bodies.circle(0, 0, wheelRadius, { 
         density: 0.05, friction: 1.0, frictionStatic: 1.0, collisionFilter: { group: group } 
     });
@@ -694,41 +695,40 @@
         if (gameState === 'playing') {
             
             if (window.isGas) { 
-                Body.setAngularVelocity(wheelRear, 1.2); 
-                Body.setAngularVelocity(wheelFront, 1.2); 
+                Body.setAngularVelocity(wheelRear, 1.5); 
+                Body.setAngularVelocity(wheelFront, 1.5); 
                 
                 if (Math.abs(chassis.velocity.x) > 1) {
                     createDust(wheelRear.position.x, wheelRear.position.y);
                 }
             } else if (window.isBrake) {
-                // Торможение: гасим колеса и сохраняем инерцию рамы
+                // Тормоз только на колеса, рама замедлится за счет трения
                 Body.setAngularVelocity(wheelRear, wheelRear.angularVelocity * 0.98); 
                 Body.setAngularVelocity(wheelFront, wheelFront.angularVelocity * 0.98); 
-                Body.setVelocity(chassis, { x: chassis.velocity.x * 0.98, y: chassis.velocity.y });
 
                 if (Math.abs(chassis.velocity.x) > 1) {
                     createDust(wheelRear.position.x, wheelRear.position.y);
                 }
             } else {
-                // Накат: почти не трогаем колеса и сохраняем инерцию
-                Body.setAngularVelocity(wheelRear, wheelRear.angularVelocity * 0.998); 
-                Body.setAngularVelocity(wheelFront, wheelFront.angularVelocity * 0.998); 
-                Body.setVelocity(chassis, { x: chassis.velocity.x * 0.999, y: chassis.velocity.y });
+                // Накат
+                Body.setAngularVelocity(wheelRear, wheelRear.angularVelocity * 0.995); 
+                Body.setAngularVelocity(wheelFront, wheelFront.angularVelocity * 0.995); 
             }
             
             let speed = Math.abs(wheelRear.angularVelocity);
             
             if (ENABLE_AUDIO && isAudioInitialized) {
-                let targetIdle = window.isGas ? 0.0 : 0.4; 
-                let targetRev = window.isGas ? 0.8 : 0;    
-                let targetWind = Math.min(0.3, 0.05 + speed * 0.15); 
-
+                // Ручное управление звуком через линейную интерполяцию
                 if (window.isGas) {
                     idleGain.gain.cancelScheduledValues(audioCtx.currentTime);
-                    idleGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.05);
+                    idleGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.1);
                 } else {
-                    idleGain.gain.setTargetAtTime(targetIdle, audioCtx.currentTime, 0.1);
+                    idleGain.gain.cancelScheduledValues(audioCtx.currentTime);
+                    idleGain.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + 0.1);
                 }
+
+                let targetRev = window.isGas ? 0.8 : 0;    
+                let targetWind = Math.min(0.3, 0.05 + speed * 0.15); 
 
                 revGain.gain.setTargetAtTime(targetRev, audioCtx.currentTime, 0.1);
                 windGain.gain.setTargetAtTime(targetWind, audioCtx.currentTime, 0.1);
@@ -758,16 +758,10 @@
             let tiltAccel = 0.008; 
             let maxTiltSpeed = 0.4; 
             
-            let angleDeg = chassis.angle * (180 / Math.PI);
-            
             if (window.isLeanBack) {
-                if (angleDeg > -75) {
-                    let currentAV = chassis.angularVelocity;
-                    if (currentAV > -maxTiltSpeed) {
-                        Body.setAngularVelocity(chassis, currentAV - tiltAccel);
-                    }
-                } else {
-                    Body.setAngularVelocity(chassis, chassis.angularVelocity - 0.001);
+                let currentAV = chassis.angularVelocity;
+                if (currentAV > -maxTiltSpeed) {
+                    Body.setAngularVelocity(chassis, currentAV - tiltAccel);
                 }
             } 
             else if (window.isLeanForward) {
@@ -781,12 +775,10 @@
                 }
             }
 
-            // Вычисляем точку пилота (головы)
             let headX = chassis.position.x + Math.sin(chassis.angle) * 35;
             let headY = chassis.position.y - Math.cos(chassis.angle) * 35;
             let groundUnderHead = getTerrainY(headX);
 
-            // СМЕРТЬ: Если голова коснулась земли (без учета isAirborne) или упал в пропасть
             if (headY >= groundUnderHead || chassis.position.y > canvas.height + 500) {
                 gameState = 'gameover';
                 document.getElementById('gameOverScreen').style.display = 'flex';
