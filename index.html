@@ -705,11 +705,18 @@
             let speed = Math.abs(wheelRear.angularVelocity);
             
             if (ENABLE_AUDIO && isAudioInitialized) {
-                let targetIdle = window.isGas ? 0.0 : 0.4; 
+                // ИСПРАВЛЕНИЕ: Жесткое и быстрое затухание холостого хода при нажатии на газ
+                if (window.isGas) {
+                    idleGain.gain.cancelScheduledValues(audioCtx.currentTime);
+                    idleGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.05);
+                } else {
+                    idleGain.gain.cancelScheduledValues(audioCtx.currentTime);
+                    idleGain.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + 0.1);
+                }
+
                 let targetRev = window.isGas ? 0.8 : 0;    
                 let targetWind = Math.min(0.3, 0.05 + speed * 0.15); 
 
-                idleGain.gain.setTargetAtTime(targetIdle, audioCtx.currentTime, 0.05);
                 revGain.gain.setTargetAtTime(targetRev, audioCtx.currentTime, 0.1);
                 windGain.gain.setTargetAtTime(targetWind, audioCtx.currentTime, 0.1);
 
