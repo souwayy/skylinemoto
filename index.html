@@ -698,14 +698,14 @@
                 }
             }
             if (window.isBrake) { 
-                Body.setAngularVelocity(wheelRear, wheelRear.angularVelocity * 0.95); 
-                Body.setAngularVelocity(wheelFront, wheelFront.angularVelocity * 0.95); 
+                // ИЗМЕНЕНИЕ: 0.985 вместо 0.95 для плавного наката
+                Body.setAngularVelocity(wheelRear, wheelRear.angularVelocity * 0.985); 
+                Body.setAngularVelocity(wheelFront, wheelFront.angularVelocity * 0.985); 
             }
             
             let speed = Math.abs(wheelRear.angularVelocity);
             
             if (ENABLE_AUDIO && isAudioInitialized) {
-                // ИСПРАВЛЕНИЕ: Жесткое и быстрое затухание холостого хода при нажатии на газ
                 if (window.isGas) {
                     idleGain.gain.cancelScheduledValues(audioCtx.currentTime);
                     idleGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.05);
