@@ -351,10 +351,10 @@
     let audioCtx;
     let idleBuffer, popBuffer, windBuffer, revBuffer;
     
-    let idleSource, windSource;
-    let revSource1, revSource2; // Два источника для кроссфейд-лупа
+    let idleSource, windSource, revSource;
     let idleGain, revGain, windGain;
     let revFilter; 
+    let revLfo, revLfoGain; // Генератор для "дыхания" мотора
     
     let isAudioInitialized = false;
     let previousGasState = false;
@@ -408,21 +408,24 @@
             }
 
             if (revBuffer) {
-                // Первый источник играет с нуля
-                revSource1 = audioCtx.createBufferSource();
-                revSource1.buffer = revBuffer;
-                revSource1.loop = true;
-                revSource1.connect(revFilter);
-                revSource1.start(0);
-
-                // Второй источник играет с середины файла (перекрывает шов первого)
-                revSource2 = audioCtx.createBufferSource();
-                revSource2.buffer = revBuffer;
-                revSource2.loop = true;
-                revSource2.connect(revFilter);
-                revSource2.start(audioCtx.currentTime + (revBuffer.duration / 2));
-
+                // Создаем LFO (низкочастотный генератор) для эффекта "дыхания" мотора
+                revLfo = audioCtx.createOscillator();
+                revLfo.type = 'sine';
+                revLfo.frequency.value = 3.5; // Скорость колебания
+                revLfoGain = audioCtx.createGain();
+                revLfoGain.gain.value = 0.015; // Глубина колебания (1.5% от скорости)
+                revLfo.connect(revLfoGain);
+                
+                // Создаем основной источник рева
+                revSource = audioCtx.createBufferSource();
+                revSource.buffer = revBuffer;
+                revSource.loop = true;
+                revSource.connect(revFilter);
                 revFilter.connect(revGain);
+                
+                // Подключаем LFO к источнику
+                revLfoGain.connect(revSource.playbackRate);
+                revLfo.start();
             }
 
             if (windBuffer) {
@@ -455,6 +458,28 @@
         } catch (e) {
             console.log("Ошибка аудио: ", e);
         }
+    }
+    
+    function startRevSound() {
+        if (!isAudioInitialized || !revBuffer) return;
+        
+        if (revSource) {
+            try {
+                revSource.stop();
+                revLfoGain.disconnect(revSource.playbackRate);
+            } catch(e){}
+        }
+        
+        revSource = audioCtx.createBufferSource();
+        revSource.buffer = revBuffer;
+        revSource.loop = true;
+        
+        revLfoGain.connect(revSource.playbackRate);
+        revSource.connect(revFilter);
+        
+        // Запускаем со случайного места, чтобы сбить паттерн повторения
+        const randomOffset = Math.random() * (revBuffer.duration - 1);
+        revSource.start(0, randomOffset);
     }
 
     function playPop() {
@@ -521,9 +546,10 @@
             windGain.gain.cancelScheduledValues(audioCtx.currentTime);
             windGain.gain.setValueAtTime(0, audioCtx.currentTime);
 
-            if (revSource1) revSource1.playbackRate.value = 1;
-            if (revSource2) revSource2.playbackRate.value = 1;
             if (revFilter) revFilter.frequency.value = 2500;
+            
+            // Перезапускаем рев со случайного места
+            startRevSound();
         }
 
         document.getElementById('distanceText').innerText = "0";
@@ -619,7 +645,6 @@
                 }
             }
             if (window.isBrake) { 
-                // Торможение стало еще плавнее (0.995)
                 Body.setAngularVelocity(wheelRear, wheelRear.angularVelocity * 0.995); 
                 Body.setAngularVelocity(wheelFront, wheelFront.angularVelocity * 0.995); 
             }
@@ -627,21 +652,20 @@
             let speed = Math.abs(wheelRear.angularVelocity);
             
             if (ENABLE_AUDIO && isAudioInitialized) {
-                // Холостой ход полностью глушится при нажатии на газ
                 let targetIdle = window.isGas ? 0.0 : 0.4; 
-                let targetRev = window.isGas ? 0.4 : 0; // Делим на 2, так как играют два источника
+                let targetRev = window.isGas ? 0.4 : 0; 
                 let targetWind = Math.min(0.3, 0.05 + speed * 0.15); 
 
                 idleGain.gain.setTargetAtTime(targetIdle, audioCtx.currentTime, 0.1);
                 revGain.gain.setTargetAtTime(targetRev, audioCtx.currentTime, 0.1);
                 windGain.gain.setTargetAtTime(targetWind, audioCtx.currentTime, 0.1);
 
-                if (window.isGas && revSource1 && revSource2) {
+                if (window.isGas && revSource) {
                     let targetRate = 1.0 + (speed * 0.3); 
                     let finalRate = Math.min(1.3, targetRate);
                     
-                    revSource1.playbackRate.setTargetAtTime(finalRate, audioCtx.currentTime, 0.1);
-                    revSource2.playbackRate.setTargetAtTime(finalRate, audioCtx.currentTime, 0.1);
+                    // Основная скорость задается здесь, LFO добавляет к ней свои микроколебания
+                    revSource.playbackRate.setTargetAtTime(finalRate, audioCtx.currentTime, 0.1);
                     
                     let targetFreq = Math.max(1000, 2500 - (speed * 1000));
                     revFilter.frequency.setTargetAtTime(targetFreq, audioCtx.currentTime, 0.1);
@@ -687,7 +711,6 @@
                 gameState = 'gameover';
                 document.getElementById('gameOverScreen').style.display = 'flex';
                 
-                // Принудительное глушение звука при проигрыше
                 if (ENABLE_AUDIO && isAudioInitialized) {
                     idleGain.gain.cancelScheduledValues(audioCtx.currentTime);
                     idleGain.gain.setValueAtTime(0, audioCtx.currentTime);
