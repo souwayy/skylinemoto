@@ -205,15 +205,14 @@
 
     function getTerrainY(x) {
         let y = groundY;
-        // Базовый рельеф (плавные холмы)
+        // Базовые холмы
         y -= noise((x + terrainOffset) * 0.001) * 120;  
         y -= noise((x + terrainOffset) * 0.005) * 30;   
         y -= noise((x + terrainOffset) * 0.015) * 8;    
         
-        // ДОБАВЛЕНО: Редкие, но высокие трамплины
-        // Возводим в квадрат, чтобы основание было плавным, а вершина острой
-        let rampNoise = noise((x + terrainOffset) * 0.0004 + 500); 
-        y -= Math.pow(rampNoise, 2) * 250; 
+        // ИЗМЕНЕНО: Более крутые и частые трамплины
+        let rampNoise = noise((x + terrainOffset) * 0.0025 + 100); 
+        y -= Math.pow(rampNoise, 3) * 300; 
         
         return y;
     }
@@ -248,11 +247,12 @@
     const wheelRadius = 10; 
     const wheelBase = 23; 
     
+    // Сниженное трение для отрыва от земли
     const wheelRear = Bodies.circle(0, 0, wheelRadius, { 
-        density: 0.05, friction: 0.8, frictionStatic: 0.8, collisionFilter: { group: group } 
+        density: 0.05, friction: 0.4, frictionStatic: 0.4, collisionFilter: { group: group } 
     });
     const wheelFront = Bodies.circle(0, 0, wheelRadius, { 
-        density: 0.05, friction: 0.8, frictionStatic: 0.8, collisionFilter: { group: group } 
+        density: 0.05, friction: 0.4, frictionStatic: 0.4, collisionFilter: { group: group } 
     });
     const chassis = Bodies.rectangle(0, 0, 60, 15, { 
         density: 0.2, collisionFilter: { group: group } 
@@ -697,19 +697,21 @@
         if (gameState === 'playing') {
             
             if (window.isGas) { 
+                // ИЗМЕНЕНО: Крутим только заднее колесо. Переднее пусть катится само.
                 Body.setAngularVelocity(wheelRear, 1.2); 
-                Body.setAngularVelocity(wheelFront, 1.2); 
+                
+                if (Math.abs(chassis.velocity.x) > 1) {
+                    createDust(wheelRear.position.x, wheelRear.position.y);
+                }
+            } else if (window.isBrake) {
+                // ИЗМЕНЕНО: Вместо жесткого торможения колес, применяем силу к раме
+                Body.applyForce(chassis, chassis.position, { x: -chassis.velocity.x * 0.03, y: 0 });
                 
                 if (Math.abs(chassis.velocity.x) > 1) {
                     createDust(wheelRear.position.x, wheelRear.position.y);
                 }
             }
-            if (window.isBrake) { 
-                // ИЗМЕНЕНО: Более плавное торможение рамы и колес
-                Body.setAngularVelocity(wheelRear, wheelRear.angularVelocity * 0.98); 
-                Body.setAngularVelocity(wheelFront, wheelFront.angularVelocity * 0.98); 
-                Body.setVelocity(chassis, { x: chassis.velocity.x * 0.98, y: chassis.velocity.y });
-            }
+            // В режиме наката (газ отпущен) мы вообще не трогаем колеса, физика все сделает сама.
             
             let speed = Math.abs(wheelRear.angularVelocity);
             
@@ -752,11 +754,17 @@
 
             let tiltAccel = 0.008; 
             let maxTiltSpeed = 0.4; 
-
+            
+            let angleDeg = chassis.angle * (180 / Math.PI);
+            
             if (window.isLeanBack) {
-                let currentAV = chassis.angularVelocity;
-                if (currentAV > -maxTiltSpeed) {
-                    Body.setAngularVelocity(chassis, currentAV - tiltAccel);
+                if (angleDeg > -75) {
+                    let currentAV = chassis.angularVelocity;
+                    if (currentAV > -maxTiltSpeed) {
+                        Body.setAngularVelocity(chassis, currentAV - tiltAccel);
+                    }
+                } else {
+                    Body.setAngularVelocity(chassis, chassis.angularVelocity - 0.001);
                 }
             } 
             else if (window.isLeanForward) {
@@ -773,6 +781,11 @@
             let headX = chassis.position.x + Math.sin(chassis.angle) * 35;
             let headY = chassis.position.y - Math.cos(chassis.angle) * 35;
             let groundUnderHead = getTerrainY(headX);
+
+            if (Math.abs(angleDeg) > 85) {
+                gameState = 'gameover';
+                document.getElementById('gameOverScreen').style.display = 'flex';
+            }
 
             if ((headY >= groundUnderHead && !isAirborne) || chassis.position.y > canvas.height + 500) {
                 gameState = 'gameover';
