@@ -690,28 +690,33 @@
         if (gameState === 'playing') {
             
             let currentSpeedX = chassis.velocity.x;
-            let targetSpeed = 0;
-            let maxSpeed = 12; // Максимальная скорость
+            let maxSpeed = 6; // Уменьшили максимальную скорость
+            
+            // Параметры разгона и торможения
+            let accelPower = 0.08; // Плавный разгон
+            let brakePower = 0.08;  // Плавный тормоз
+            let coastPower = 0.01; // Медленное замедление (накат)
 
             if (window.isGas) { 
-                targetSpeed = maxSpeed;
+                // Плавно прибавляем скорость, но не выше максимальной
+                currentSpeedX = Math.min(maxSpeed, currentSpeedX + accelPower);
+                
                 if (Math.abs(chassis.velocity.x) > 1) {
                     createDust(wheelRear.position.x, wheelRear.position.y);
                 }
             } else if (window.isBrake) { 
-                targetSpeed = 0;
+                // Плавно отнимаем скорость, но не ниже нуля
+                currentSpeedX = Math.max(0, currentSpeedX - brakePower);
             } else {
-                // НАКАТ: Плавно снижаем скорость рамы
-                targetSpeed = currentSpeedX * 0.99; 
+                // Накат: очень медленно отнимаем скорость
+                currentSpeedX = Math.max(0, currentSpeedX - coastPower); 
             }
 
-            // Применяем скорость к раме напрямую (аркадная физика)
-            Body.setVelocity(chassis, { x: targetSpeed, y: chassis.velocity.y });
+            // Применяем плавную скорость к раме
+            Body.setVelocity(chassis, { x: currentSpeedX, y: chassis.velocity.y });
 
-            // Крутим колеса для визуала
-            let wheelSpin = targetSpeed * 0.1;
-            if (window.isBrake) wheelSpin = 0; // Блокируем колеса при тормозе
-            
+            // Крутим колеса для визуала (при тормозе они блокируются)
+            let wheelSpin = window.isBrake ? 0 : currentSpeedX * 0.1;
             Body.setAngularVelocity(wheelRear, wheelSpin); 
             Body.setAngularVelocity(wheelFront, wheelSpin); 
             
