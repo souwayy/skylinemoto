@@ -540,20 +540,20 @@
 
     // Наклоны (с ограничением скорости вращения)
 let tiltPower = 20;      // Сила наклона (подбери от 10 до 40)
-let maxTiltSpeed = 2.5;  // Максимальная скорость вращения (подбери от 1.5 до 4)
+let maxTiltSpeed = 2.2;  // Максимальная скорость вращения (подбери от 1.5 до 4)
 
 if (window.isLeanBack) {
-    // Задираем нос (положительный момент)
+    // Задираем нос (Вилли) - положительный момент
     if (chassis.getAngularVelocity() < maxTiltSpeed) {
         chassis.applyTorque(tiltPower, true);
     }
 } 
 else if (window.isLeanForward) {
-    // Опускаем нос (отрицательный момент)
+    // Опускаем нос (Стоппи) - отрицательный момент
     if (chassis.getAngularVelocity() > -maxTiltSpeed) {
         chassis.applyTorque(-tiltPower, true);
     }
-}
+    }
 
             // Звук
             if (ENABLE_AUDIO && isAudioInitialized) {
