@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (Perfect Version)</title>
+    <title>Skyline Moto (Perfect)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -346,12 +346,23 @@
         return r1 * (1 - u) + r2 * u;
     }
 
-    // --- ИДЕАЛЬНО ПЛАВНАЯ ЗЕМЛЯ (БЕЗ ЯМ И РЕЗКИХ ПИКОВ) ---
+    // --- ЗЕМЛЯ С ТРАМПЛИНАМИ И ЯМАМИ ---
     function getTerrainY(x) {
         let y = groundY;
-        y -= noise((x + terrainOffset) * 0.001) * 120;  
+        y -= noise((x + terrainOffset) * 0.001) * 100;  
         y -= noise((x + terrainOffset) * 0.005) * 30;   
-        y -= noise((x + terrainOffset) * 0.015) * 8;    
+        
+        let feature = noise((x + terrainOffset) * 0.0008); 
+        
+        if (feature > 0.6) {
+            let p = (feature - 0.6) / 0.4; 
+            let ramp = Math.sin(p * Math.PI) * 150; 
+            y -= ramp;
+        } else if (feature < 0.4) {
+            let p = (0.4 - feature) / 0.4; 
+            let pit = Math.sin(p * Math.PI) * 100;  
+            y += pit;
+        }
         return y;
     }
 
@@ -393,7 +404,6 @@
     let chassis, wheelRear, wheelFront;
     let jointRear, jointFront;
 
-    // --- ИДЕАЛЬНЫЙ БАЙК (БЕЗ ЛИШНИХ БЛОКОВ) ---
     function createBike(x, y) {
         if (chassis) {
             world.destroyBody(chassis);
@@ -410,7 +420,7 @@
         wheelFront = world.createBody({ position: pl.Vec2((x + wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic' });
         wheelFront.createFixture(pl.Circle(wheelRadius), { density: 1.0, friction: 1.0 });
 
-        // Привязка колес, которая работала идеально
+        // ИДЕАЛЬНАЯ ПРИВЯЗКА КОЛЕС
         jointRear = world.createJoint(pl.WheelJoint({
             motorSpeed: 0, maxMotorTorque: currentBike.motor.torque, enableMotor: true,
             frequencyHz: currentBike.suspension.freq, dampingRatio: currentBike.suspension.damp, collideConnected: false
@@ -762,19 +772,42 @@
             else if (window.isLeanForward) { if (chassis.getAngularVelocity() < maxTiltSpeed) chassis.applyTorque(tiltPower, true); }
 
             if (ENABLE_AUDIO && isAudioInitialized) {
-                if (window.isGas) { idleGain.gain.cancelScheduledValues(audioCtx.currentTime); idleGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.05); } 
-                else { idleGain.gain.cancelScheduledValues(audioCtx.currentTime); idleGain.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + 0.1); }
-                let targetRev = window.isGas ? 0.8 : 0; let targetWind = Math.min(0.3, 0.05 + speed * 0.15); 
-                revGain.gain.setTargetAtTime(targetRev, audioCtx.currentTime, 0.1); windGain.gain.setTargetAtTime(targetWind, audioCtx.currentTime, 0.1);
+                // ИСПРАВЛЕНИЕ ЗВУКА: Холостой ход жестко выключается при газе
+                if (window.isGas) {
+                    idleGain.gain.cancelScheduledValues(audioCtx.currentTime);
+                    idleGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.05);
+                } else {
+                    idleGain.gain.cancelScheduledValues(audioCtx.currentTime);
+                    idleGain.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + 0.1);
+                }
+
+                let targetRev = window.isGas ? 0.8 : 0;    
+                let targetWind = Math.min(0.3, 0.05 + speed * 0.15); 
+
+                revGain.gain.setTargetAtTime(targetRev, audioCtx.currentTime, 0.1);
+                windGain.gain.setTargetAtTime(targetWind, audioCtx.currentTime, 0.1);
+
                 if (window.isGas && revSource) {
-                    let targetRate = 1.0 + (speed * 0.3); let finalRate = Math.min(1.3, targetRate);
+                    let targetRate = 1.0 + (speed * 0.3); 
+                    let finalRate = Math.min(1.3, targetRate);
+                    
                     revSource.playbackRate.setTargetAtTime(finalRate, audioCtx.currentTime, 0.1);
-                    revFilter.frequency.setTargetAtTime(Math.max(1000, 2500 - (speed * 1000)), audioCtx.currentTime, 0.1);
+                    
+                    let targetFreq = Math.max(1000, 2500 - (speed * 1000));
+                    revFilter.frequency.setTargetAtTime(targetFreq, audioCtx.currentTime, 0.1);
+                    
                     previousGasState = true;
-                } else { if (previousGasState === true) { if (Math.random() > 0.5) playPop(); previousGasState = false; } }
+                } else {
+                    if (previousGasState === true) {
+                        if (Math.random() > 0.5) { 
+                            playPop();
+                        }
+                        previousGasState = false;
+                    }
+                }
             }
 
-            // --- МАТЕМАТИКА СМЕРТИ И КУВЫРКА (КАК БЫЛО) ---
+            // МАТЕМАТИКА СМЕРТИ
             let headX = chassis.getPosition().x + Math.sin(chassis.getAngle()) * (35 / SCALE);
             let headY = chassis.getPosition().y - Math.cos(chassis.getAngle()) * (35 / SCALE);
             let groundUnderHead = getTerrainY(headX * SCALE) / SCALE;
@@ -837,4 +870,4 @@
     update();
 </script>
 </body>
-                </html>
+    </html>
