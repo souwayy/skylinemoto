@@ -445,11 +445,11 @@
         chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic' });
         
         // --- РАМА (прямоугольник) УМЕНЬШЕНА до 42x12 и поднята на -15 ---
-        let bodyFixture = chassis.createFixture(pl.Box(42 / SCALE / 2, 12 / SCALE / 2, pl.Vec2(0, -15 / SCALE)), { density: currentBike.density, friction: 0.3 });
+        let bodyFixture = chassis.createFixture(pl.Box(55 / SCALE / 2, 12 / SCALE / 2, pl.Vec2(0, -15 / SCALE)), { density: currentBike.density, friction: 0.3 });
         bodyFixture.setUserData('body');
 
         // --- ГОЛОВА (желтый круг) смещена влево к шлему (-10) и поднята (-55) ---
-        let headFixture = chassis.createFixture(pl.Circle(8 / SCALE, pl.Vec2(-10 / SCALE, -55 / SCALE)), { density: 0.1 });
+        let headFixture = chassis.createFixture(pl.Circle(8 / SCALE, pl.Vec2(-10 / SCALE, -70 / SCALE)), { density: 0.1 });
         headFixture.setUserData('head');
 
         // Нос и хвост подняты на -20, чтобы не цеплять землю
