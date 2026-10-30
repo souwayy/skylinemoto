@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (KTR 300 EXC)</title>
+    <title>Skyline Moto</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -152,7 +152,7 @@
 
     <div class="overlay" id="startScreen">
         <h1>Skyline Moto</h1>
-        <p>KTR 300 EXC<br>Нажми, чтобы начать</p>
+        <p>Нажми, чтобы начать</p>
     </div>
 
     <div class="overlay" id="gameOverScreen">
@@ -537,9 +537,23 @@
                 jointFront.setMaxMotorTorque(0);
             }
 
-            // Наклоны
-            if (window.isLeanBack) chassis.applyTorque(-60, true);
-            else if (window.isLeanForward) chassis.applyTorque(60, true);
+
+    // Наклоны (с ограничением скорости вращения)
+let tiltPower = 20;      // Сила наклона (подбери от 10 до 40)
+let maxTiltSpeed = 2.5;  // Максимальная скорость вращения (подбери от 1.5 до 4)
+
+if (window.isLeanBack) {
+    // Задираем нос (положительный момент)
+    if (chassis.getAngularVelocity() < maxTiltSpeed) {
+        chassis.applyTorque(tiltPower, true);
+    }
+} 
+else if (window.isLeanForward) {
+    // Опускаем нос (отрицательный момент)
+    if (chassis.getAngularVelocity() > -maxTiltSpeed) {
+        chassis.applyTorque(-tiltPower, true);
+    }
+}
 
             // Звук
             if (ENABLE_AUDIO && isAudioInitialized) {
