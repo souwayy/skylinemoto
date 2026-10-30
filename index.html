@@ -642,8 +642,9 @@
         }
     }
 
-    document.getElementById('startScreen').addEventListener('touchstart', async (e) => {
-        e.preventDefault(); await initAudio(); 
+    document.getElementById('startScreen').addEventListener('touchstart', (e) => {
+        e.preventDefault(); 
+        initAudio(); // Убрали await, игра запускается мгновенно
         document.getElementById('startScreen').style.display = 'none';
         document.getElementById('controls').classList.add('active');
         resetGame(); gameState = 'playing';
@@ -697,4 +698,175 @@
         ctx.translate(wheel.getPosition().x * SCALE, wheel.getPosition().y * SCALE);
         ctx.rotate(wheel.getAngle());
         ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(0, 0, wheelRadius * SCALE, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle =
+        ctx.strokeStyle = '#333'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, wheelRadius * SCALE - 2, 0, Math.PI * 2); ctx.stroke();
+        ctx.restore();
+    }
+
+    let lastDisplayedDistance = -1;
+    let lastTime = performance.now();
+
+    function update() {
+        requestAnimationFrame(update);
+        let currentTime = performance.now();
+        let dt = (currentTime - lastTime) / 1000;
+        lastTime = currentTime;
+        if (dt > 0.1) dt = 0.1; 
+
+        if (gameState === 'playing' || gameState === 'gameover') {
+            world.step(1/60, dt, 3);
+            updateParticles();
+        }
+
+        if (gameState === 'playing' && chassis) {
+            let speed = Math.abs(wheelRear.getAngularVelocity());
+            let isAirborne = Math.abs(chassis.getLinearVelocity().y) > 1.5;
+            let angle = chassis.getAngle();
+            
+            if (isAirborne) {
+                currentAirTime += dt;
+                if (currentAirTime > maxAirTime) maxAirTime = currentAirTime;
+
+                let deltaAngle = angle - lastAngle;
+                if (deltaAngle > Math.PI) deltaAngle -= 2 * Math.PI;
+                if (deltaAngle < -Math.PI) deltaAngle += 2 * Math.PI;
+                
+                accumulatedRotation += deltaAngle;
+                lastAngle = angle;
+
+                if (Math.abs(accumulatedRotation) >= Math.PI * 2) {
+                    if (accumulatedRotation > 0) backflipCount++; 
+                    else frontflipCount++; 
+                    accumulatedRotation -= Math.sign(accumulatedRotation) * Math.PI * 2;
+                }
+            } else {
+                currentAirTime = 0;
+                accumulatedRotation = 0;
+                lastAngle = angle; 
+
+                if (angle < -0.3 && Math.abs(chassis.getLinearVelocity().x) > 1) {
+                    currentWheelieTime += dt;
+                    if (currentWheelieTime > maxWheelieTime) maxWheelieTime = currentWheelieTime;
+                } else {
+                    currentWheelieTime = 0;
+                }
+
+                if (angle > 0.3 && Math.abs(chassis.getLinearVelocity().x) > 1) {
+                    currentStoppieTime += dt;
+                    if (currentStoppieTime > maxStoppieTime) maxStoppieTime = currentStoppieTime;
+                } else {
+                    currentStoppieTime = 0;
+                }
+            }
+
+            // Газ работает всегда, физика сама решит, поедет байк или застрянет носом
+            if (window.isGas) {
+                jointRear.setMotorSpeed(currentBike.motor.speed); jointFront.setMotorSpeed(currentBike.motor.speed);
+                jointRear.setMaxMotorTorque(currentBike.motor.torque); jointFront.setMaxMotorTorque(currentBike.motor.torque);
+            } else if (window.isBrake) {
+                jointRear.setMotorSpeed(0); jointFront.setMotorSpeed(0);
+                jointRear.setMaxMotorTorque(currentBike.motor.brake); jointFront.setMaxMotorTorque(currentBike.motor.brake);
+            } else {
+                jointRear.setMaxMotorTorque(0); jointFront.setMaxMotorTorque(0);
+            }
+
+            if (!isAirborne && speed > 5) {
+                let dustX = (chassis.getPosition().x * SCALE) - (wheelBase * SCALE * 0.8);
+                let dustY = (chassis.getPosition().y * SCALE) + 10;
+                spawnDust(dustX, dustY, chassis.getLinearVelocity().x * SCALE);
+                if (window.isBrake) spawnDust(dustX, dustY, chassis.getLinearVelocity().x * SCALE);
+            }
+
+            let tiltPower = 20; let maxTiltSpeed = 2.5;  
+            if (window.isLeanBack) { if (chassis.getAngularVelocity() > -maxTiltSpeed) chassis.applyTorque(-tiltPower, true); } 
+            else if (window.isLeanForward) { if (chassis.getAngularVelocity() < maxTiltSpeed) chassis.applyTorque(tiltPower, true); }
+
+            if (ENABLE_AUDIO && isAudioInitialized) {
+                if (window.isGas) {
+                    idleGain.gain.cancelScheduledValues(audioCtx.currentTime);
+                    idleGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.05);
+                } else {
+                    idleGain.gain.cancelScheduledValues(audioCtx.currentTime);
+                    idleGain.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + 0.1);
+                }
+
+                let targetRev = window.isGas ? 0.8 : 0;    
+                let targetWind = Math.min(0.3, 0.05 + speed * 0.15); 
+
+                revGain.gain.setTargetAtTime(targetRev, audioCtx.currentTime, 0.1);
+                windGain.gain.setTargetAtTime(targetWind, audioCtx.currentTime, 0.1);
+
+                if (window.isGas && revSource) {
+                    let targetRate = 1.0 + (speed * 0.3); 
+                    let finalRate = Math.min(1.3, targetRate);
+                    
+                    revSource.playbackRate.setTargetAtTime(finalRate, audioCtx.currentTime, 0.1);
+                    
+                    let targetFreq = Math.max(1000, 2500 - (speed * 1000));
+                    revFilter.frequency.setTargetAtTime(targetFreq, audioCtx.currentTime, 0.1);
+                    
+                    previousGasState = true;
+                } else {
+                    if (previousGasState === true) {
+                        if (Math.random() > 0.5) { 
+                            playPop();
+                        }
+                        previousGasState = false;
+                    }
+                }
+            }
+
+            // МАТЕМАТИКА СМЕРТИ (от головы)
+            let headX = chassis.getPosition().x + Math.sin(chassis.getAngle()) * (35 / SCALE);
+            let headY = chassis.getPosition().y - Math.cos(chassis.getAngle()) * (35 / SCALE);
+            let groundUnderHead = getTerrainY(headX * SCALE) / SCALE;
+
+            if (headY >= groundUnderHead || chassis.getPosition().y > canvas.height / SCALE + 10) {
+                triggerGameOver();
+            }
+
+            let targetCameraX = (chassis.getPosition().x * SCALE) - ((canvas.width * 0.3) / zoom);
+            cameraX += (targetCameraX - cameraX) * 0.1; 
+            let targetCameraY = (canvas.height * 0.5) - (chassis.getPosition().y * SCALE);
+            cameraY += (targetCameraY - cameraY) * 0.1;
+            
+            generateTerrain(); cleanupTerrain();
+
+            let currentDistance = Math.max(0, Math.floor(((chassis.getPosition().x * SCALE) - startX) / 10));
+            if (currentDistance !== lastDisplayedDistance) { document.getElementById('distanceText').innerText = currentDistance; lastDisplayedDistance = currentDistance; }
+            if (currentDistance > maxDistance) { maxDistance = currentDistance; localStorage.setItem('bestDistance', maxDistance); document.getElementById('bestDistanceText').innerText = maxDistance; }
+        }
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        gradient.addColorStop(0, '#1a0b2e'); gradient.addColorStop(0.4, '#5a2b58'); gradient.addColorStop(0.7, '#d96b4e'); gradient.addColorStop(1, '#f5c26b');
+        ctx.fillStyle = gradient; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        let sunX = canvas.width * 0.75; let sunY = canvas.height * 0.35;
+        let sunGlow = ctx.createRadialGradient(sunX, sunY, 10, sunX, sunY, 150);
+        sunGlow.addColorStop(0, 'rgba(255, 243, 212, 0.8)'); sunGlow.addColorStop(0.5, 'rgba(255, 243, 212, 0.2)'); sunGlow.addColorStop(1, 'rgba(255, 243, 212, 0)');
+        ctx.fillStyle = sunGlow; ctx.beginPath(); ctx.arc(sunX, sunY, 150, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#fff3d4'; ctx.beginPath(); ctx.arc(sunX, sunY, 45, 0, Math.PI * 2); ctx.fill();
+
+        ctx.save(); ctx.scale(zoom, zoom); ctx.translate(0, cameraY); ctx.translate(-cameraX, 0);
+        drawMountainLayer(120, 60, '#3a2354', cameraX * 0.2); drawMountainLayer(60, 100, '#1e1129', cameraX * 0.5);
+        
+        drawTerrain();
+
+        if (gameState !== 'gameover' && chassis) {
+            ctx.save();
+            ctx.translate(chassis.getPosition().x * SCALE, chassis.getPosition().y * SCALE);
+            ctx.rotate(chassis.getAngle());
+            if (isImageLoaded) ctx.drawImage(bikeImage, -45, -45, 90, 54); 
+            ctx.restore();
+            drawWheel(wheelRear); drawWheel(wheelFront);
+        }
+
+        drawParticles(); 
+        ctx.restore(); 
+    }
+
+    update();
+</script>
+</body>
+</html>
