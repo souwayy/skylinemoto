@@ -278,7 +278,7 @@
 <script>
     const ENABLE_AUDIO = true; 
     const SCALE = 30; 
-    const DEBUG_PHYSICS = true; // Включен режим отладки
+    const DEBUG_PHYSICS = true; // Включен режим отладки, чтобы видеть, как села рама и голова
 
     const BIKE_CATALOG = {
         ktr_300: {
@@ -436,21 +436,21 @@
             world.destroyBody(wheelFront);
         }
 
-        // ИЗМЕНЕНО: Позиция рамы поднята на 25 пикселей выше колес
-        chassis = world.createBody({ position: pl.Vec2(x / SCALE, (y - 25) / SCALE), type: 'dynamic' });
+        chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic' });
         
-        // --- РАБОЧАЯ РАМА 60x15 ---
-        let bodyFixture = chassis.createFixture(pl.Box(60 / SCALE / 2, 15 / SCALE / 2), { density: currentBike.density, friction: 0.3 });
+        // --- РАБОЧАЯ РАМА 60x15 (смещение -18) ---
+        let bodyFixture = chassis.createFixture(pl.Box(60 / SCALE / 2, 15 / SCALE / 2, pl.Vec2(0, -18 / SCALE)), { density: currentBike.density, friction: 0.3 });
         bodyFixture.setUserData('body');
 
         // --- ДОБАВЛЕННЫЕ ТОЧКИ ---
-        let headFixture = chassis.createFixture(pl.Circle(8 / SCALE, pl.Vec2(0, -22 / SCALE)), { density: 0.1 });
+        // Смещение головы (-55) поднимает желтый круг к шлему на картинке
+        let headFixture = chassis.createFixture(pl.Circle(8 / SCALE, pl.Vec2(0, -55 / SCALE)), { density: 0.1 });
         headFixture.setUserData('head');
 
-        let noseFixture = chassis.createFixture(pl.Circle(8 / SCALE, pl.Vec2(30 / SCALE, 0)), { density: 0.1 });
+        let noseFixture = chassis.createFixture(pl.Circle(8 / SCALE, pl.Vec2(30 / SCALE, -18 / SCALE)), { density: 0.1 });
         noseFixture.setUserData('nose');
 
-        let tailFixture = chassis.createFixture(pl.Circle(8 / SCALE, pl.Vec2(-30 / SCALE, 0)), { density: 0.1 });
+        let tailFixture = chassis.createFixture(pl.Circle(8 / SCALE, pl.Vec2(-30 / SCALE, -18 / SCALE)), { density: 0.1 });
         tailFixture.setUserData('tail');
 
         wheelRear = world.createBody({ position: pl.Vec2((x - wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic' });
@@ -861,7 +861,8 @@
             ctx.rotate(chassis.getAngle());
             
             if (isImageLoaded) {
-                ctx.drawImage(bikeImage, -45, -45, 90, 54); 
+                // Картинка опущена обратно вниз (-20)
+                ctx.drawImage(bikeImage, -45, -20, 90, 54); 
             }
             
             if (DEBUG_PHYSICS) {
