@@ -278,7 +278,7 @@
 <script>
     const ENABLE_AUDIO = true; 
     const SCALE = 30; 
-    const DEBUG_PHYSICS = true; // Включено, чтобы ты проверил совпадение
+    const DEBUG_PHYSICS = true; // Включено для проверки
 
     const BIKE_CATALOG = {
         ktr_300: {
@@ -327,7 +327,7 @@
 
     // --- ФИЗИЧЕСКИЕ СТОЛКНОВЕНИЯ ---
     world.on('begin-contact', (contact) => {
-        if (gameState !== 'playing' || isCrashed) return;
+        if (gameState !== 'playing') return;
         
         const fixA = contact.getFixtureA();
         const fixB = contact.getFixtureB();
@@ -339,10 +339,16 @@
 
         const bikePart = dataA === 'terrain' ? dataB : dataA;
 
+        // Смерть от головы срабатывает всегда
         if (bikePart === 'head') {
             triggerGameOver();
+            return;
         }
-        else if (bikePart === 'nose' || bikePart === 'tail') {
+
+        // Если уже упал/застрял, игнорируем остальные части
+        if (isCrashed) return;
+
+        if (bikePart === 'nose' || bikePart === 'tail') {
             isCrashed = true;
             jointRear.setMotorSpeed(0); jointFront.setMotorSpeed(0);
             jointRear.setMaxMotorTorque(0); jointFront.setMaxMotorTorque(0);
@@ -438,19 +444,19 @@
 
         chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic' });
         
-        // --- РАМА (прямоугольник) поднята на -18 к раме на картинке ---
-        let bodyFixture = chassis.createFixture(pl.Box(60 / SCALE / 2, 15 / SCALE / 2, pl.Vec2(0, -18 / SCALE)), { density: currentBike.density, friction: 0.3 });
+        // --- РАМА (прямоугольник) УМЕНЬШЕНА до 42x12 и поднята на -15 ---
+        let bodyFixture = chassis.createFixture(pl.Box(42 / SCALE / 2, 12 / SCALE / 2, pl.Vec2(0, -15 / SCALE)), { density: currentBike.density, friction: 0.3 });
         bodyFixture.setUserData('body');
 
-        // --- ГОЛОВА (желтый круг) поднята на -45 к шлему на картинке ---
-        let headFixture = chassis.createFixture(pl.Circle(8 / SCALE, pl.Vec2(0, -45 / SCALE)), { density: 0.1 });
+        // --- ГОЛОВА (желтый круг) смещена влево к шлему (-10) и поднята (-55) ---
+        let headFixture = chassis.createFixture(pl.Circle(8 / SCALE, pl.Vec2(-10 / SCALE, -55 / SCALE)), { density: 0.1 });
         headFixture.setUserData('head');
 
-        // Нос и хвост на уровне рамы
-        let noseFixture = chassis.createFixture(pl.Circle(8 / SCALE, pl.Vec2(30 / SCALE, -18 / SCALE)), { density: 0.1 });
+        // Нос и хвост подняты на -20, чтобы не цеплять землю
+        let noseFixture = chassis.createFixture(pl.Circle(8 / SCALE, pl.Vec2(25 / SCALE, -20 / SCALE)), { density: 0.1 });
         noseFixture.setUserData('nose');
 
-        let tailFixture = chassis.createFixture(pl.Circle(8 / SCALE, pl.Vec2(-30 / SCALE, -18 / SCALE)), { density: 0.1 });
+        let tailFixture = chassis.createFixture(pl.Circle(8 / SCALE, pl.Vec2(-25 / SCALE, -20 / SCALE)), { density: 0.1 });
         tailFixture.setUserData('tail');
 
         wheelRear = world.createBody({ position: pl.Vec2((x - wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic' });
@@ -860,7 +866,6 @@
             ctx.rotate(chassis.getAngle());
             
             if (isImageLoaded) {
-                // Картинка возвращена на исходное место (-45)
                 ctx.drawImage(bikeImage, -45, -45, 90, 54); 
             }
             
@@ -903,4 +908,4 @@
     update();
 </script>
 </body>
-</html>
+    </html>
