@@ -278,7 +278,7 @@
 <script>
     const ENABLE_AUDIO = true; 
     const SCALE = 30; 
-    const DEBUG_PHYSICS = true; // Включено для проверки
+    const DEBUG_PHYSICS = true; 
 
     const BIKE_CATALOG = {
         ktr_300: {
@@ -339,13 +339,11 @@
 
         const bikePart = dataA === 'terrain' ? dataB : dataA;
 
-        // Смерть от головы срабатывает всегда
         if (bikePart === 'head') {
             triggerGameOver();
             return;
         }
 
-        // Если уже упал/застрял, игнорируем остальные части
         if (isCrashed) return;
 
         if (bikePart === 'nose' || bikePart === 'tail') {
@@ -444,19 +442,26 @@
 
         chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic' });
         
-        // --- РАМА (прямоугольник) УМЕНЬШЕНА до 42x12 и поднята на -15 ---
+        // --- РАМА (прямоугольник 55x12) ---
         let bodyFixture = chassis.createFixture(pl.Box(55 / SCALE / 2, 12 / SCALE / 2, pl.Vec2(0, -15 / SCALE)), { density: currentBike.density, friction: 0.3 });
         bodyFixture.setUserData('body');
 
-        // --- ГОЛОВА (желтый круг) смещена влево к шлему (-10) и поднята (-55) ---
-        let headFixture = chassis.createFixture(pl.Circle(8 / SCALE, pl.Vec2(-10 / SCALE, -70 / SCALE)), { density: 0.1 });
+        // --- ГОЛОВА (желтый круг) принудительно смещена ---
+        let headShape = pl.Circle(8 / SCALE);
+        headShape.m_p.set(-10 / SCALE, -70 / SCALE); 
+        let headFixture = chassis.createFixture(headShape, { density: 0.1 });
         headFixture.setUserData('head');
 
-        // Нос и хвост подняты на -20, чтобы не цеплять землю
-        let noseFixture = chassis.createFixture(pl.Circle(8 / SCALE, pl.Vec2(25 / SCALE, -20 / SCALE)), { density: 0.1 });
+        // --- НОС (голубой круг) ---
+        let noseShape = pl.Circle(8 / SCALE);
+        noseShape.m_p.set(25 / SCALE, -20 / SCALE);
+        let noseFixture = chassis.createFixture(noseShape, { density: 0.1 });
         noseFixture.setUserData('nose');
 
-        let tailFixture = chassis.createFixture(pl.Circle(8 / SCALE, pl.Vec2(-25 / SCALE, -20 / SCALE)), { density: 0.1 });
+        // --- ХВОСТ (розовый круг) ---
+        let tailShape = pl.Circle(8 / SCALE);
+        tailShape.m_p.set(-25 / SCALE, -20 / SCALE);
+        let tailFixture = chassis.createFixture(tailShape, { density: 0.1 });
         tailFixture.setUserData('tail');
 
         wheelRear = world.createBody({ position: pl.Vec2((x - wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic' });
