@@ -162,8 +162,7 @@
 
 <script>
     const ENABLE_AUDIO = true; 
-    const SCALE = 30; // 30 пикселей = 1 метр
-    const BIKE_NAME = "KTR 300 EXC";
+    const SCALE = 30; 
 
     document.addEventListener('touchmove', function(e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
 
@@ -246,7 +245,7 @@
         }
     }
 
-    // --- БАЙК KTR 300 EXC ---
+    // --- БАЙК ---
     const wheelRadius = 10 / SCALE; 
     const wheelBase = 23 / SCALE; 
     
@@ -260,24 +259,20 @@
             world.destroyBody(wheelFront);
         }
 
-        // Рама (Плотность 1.2)
         chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic' });
         chassis.createFixture(pl.Box(60 / SCALE / 2, 15 / SCALE / 2), { density: 1.2, friction: 0.3 });
 
-        // Заднее колесо
         wheelRear = world.createBody({ position: pl.Vec2((x - wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic' });
         wheelRear.createFixture(pl.Circle(wheelRadius), { density: 1.0, friction: 1.0 });
 
-        // Переднее колесо
         wheelFront = world.createBody({ position: pl.Vec2((x + wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic' });
         wheelFront.createFixture(pl.Circle(wheelRadius), { density: 1.0, friction: 1.0 });
 
-        // Подвеска (frequencyHz: 4.5, dampingRatio: 0.7)
         jointRear = world.createJoint(pl.WheelJoint({
             motorSpeed: 0,
-            maxMotorTorque: 60, // Сила разгона для 300-кубового
+            maxMotorTorque: 60,
             enableMotor: true,
-            frequencyHz: 4.5,   // Мягкая подвеска
+            frequencyHz: 4.5,
             dampingRatio: 0.7,
             collideConnected: false
         }, chassis, wheelRear, wheelRear.getPosition(), pl.Vec2(0, 1)));
@@ -520,42 +515,38 @@
         if (gameState === 'playing' && chassis) {
             let speed = Math.abs(wheelRear.getAngularVelocity());
 
-            // ХАРАКТЕРИСТИКИ KTR 300 EXC
             if (window.isGas) {
-                jointRear.setMotorSpeed(50); // Максималка
+                jointRear.setMotorSpeed(50); 
                 jointFront.setMotorSpeed(50);
-                jointRear.setMaxMotorTorque(60); // Разгон
+                jointRear.setMaxMotorTorque(60); 
                 jointFront.setMaxMotorTorque(60);
             } else if (window.isBrake) {
                 jointRear.setMotorSpeed(0);
                 jointFront.setMotorSpeed(0);
-                jointRear.setMaxMotorTorque(100); // Тормоз
+                jointRear.setMaxMotorTorque(100); 
                 jointFront.setMaxMotorTorque(100);
             } else {
-                // НАКАТ
                 jointRear.setMaxMotorTorque(0);
                 jointFront.setMaxMotorTorque(0);
             }
 
+            // Наклоны (исправленные для Box2D)
+            let tiltPower = 20;      
+            let maxTiltSpeed = 2.5;  
 
-    // Наклоны (с ограничением скорости вращения)
-let tiltPower = 20;      // Сила наклона (подбери от 10 до 40)
-let maxTiltSpeed = 2.2;  // Максимальная скорость вращения (подбери от 1.5 до 4)
+            if (window.isLeanBack) {
+                // Задираем нос (Вилли) - отрицательный момент
+                if (chassis.getAngularVelocity() > -maxTiltSpeed) {
+                    chassis.applyTorque(-tiltPower, true);
+                }
+            } 
+            else if (window.isLeanForward) {
+                // Опускаем нос (Стоппи) - положительный момент
+                if (chassis.getAngularVelocity() < maxTiltSpeed) {
+                    chassis.applyTorque(tiltPower, true);
+                }
+            }
 
-if (window.isLeanBack) {
-    // Задираем нос (Вилли) - положительный момент
-    if (chassis.getAngularVelocity() < maxTiltSpeed) {
-        chassis.applyTorque(tiltPower, true);
-    }
-} 
-else if (window.isLeanForward) {
-    // Опускаем нос (Стоппи) - отрицательный момент
-    if (chassis.getAngularVelocity() > -maxTiltSpeed) {
-        chassis.applyTorque(-tiltPower, true);
-    }
-    }
-
-            // Звук
             if (ENABLE_AUDIO && isAudioInitialized) {
                 if (window.isGas) {
                     idleGain.gain.cancelScheduledValues(audioCtx.currentTime);
@@ -586,7 +577,6 @@ else if (window.isLeanForward) {
                 }
             }
 
-            // Смерть
             let angleDeg = chassis.getAngle() * (180 / Math.PI);
             let headX = chassis.getPosition().x + Math.sin(chassis.getAngle()) * (35 / SCALE);
             let headY = chassis.getPosition().y - Math.cos(chassis.getAngle()) * (35 / SCALE);
@@ -602,7 +592,6 @@ else if (window.isLeanForward) {
                 }
             }
 
-            // Камера
             let targetCameraX = (chassis.getPosition().x * SCALE) - ((canvas.width * 0.3) / zoom);
             cameraX += (targetCameraX - cameraX) * 0.1; 
             let targetCameraY = (canvas.height * 0.5) - (chassis.getPosition().y * SCALE);
@@ -623,7 +612,6 @@ else if (window.isLeanForward) {
             }
         }
 
-        // РЕНДЕР
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
         const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
