@@ -592,13 +592,12 @@
                 }
             }
 
-            let angleDeg = chassis.getAngle() * (180 / Math.PI);
             let headX = chassis.getPosition().x + Math.sin(chassis.getAngle()) * (35 / SCALE);
-            let headY = chassis.getPosition().y - Math.cos(chassis.getAngle()) * (35 / SCALE);
-            let groundUnderHead = getTerrainY(headX * SCALE) / SCALE;
+let headY = chassis.getPosition().y - Math.cos(chassis.getAngle()) * (35 / SCALE);
+let groundUnderHead = getTerrainY(headX * SCALE) / SCALE;
 
-            if (Math.abs(angleDeg) > 85 || headY >= groundUnderHead || chassis.getPosition().y > canvas.height / SCALE + 10) {
-                gameState = 'gameover';
+if (headY >= groundUnderHead || chassis.getPosition().y > canvas.height / SCALE + 10) {
+    gameState = 'gameover';
                 document.getElementById('gameOverScreen').style.display = 'flex';
                 if (ENABLE_AUDIO && isAudioInitialized) {
                     idleGain.gain.setValueAtTime(0, audioCtx.currentTime);
