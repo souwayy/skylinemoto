@@ -436,7 +436,8 @@
             world.destroyBody(wheelFront);
         }
 
-        chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic' });
+        // ИЗМЕНЕНО: Позиция рамы поднята на 25 пикселей выше колес
+        chassis = world.createBody({ position: pl.Vec2(x / SCALE, (y - 25) / SCALE), type: 'dynamic' });
         
         // --- РАБОЧАЯ РАМА 60x15 ---
         let bodyFixture = chassis.createFixture(pl.Box(60 / SCALE / 2, 15 / SCALE / 2), { density: currentBike.density, friction: 0.3 });
