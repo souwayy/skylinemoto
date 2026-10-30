@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto</title>
+    <title>Skyline Moto (Auto Hitbox)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -278,6 +278,7 @@
 <script>
     const ENABLE_AUDIO = true; 
     const SCALE = 30; 
+    const DEBUG_PHYSICS = true; // Включен режим отладки
 
     const BIKE_CATALOG = {
         ktr_300: {
@@ -306,6 +307,9 @@
     let maxStoppieTime = 0; 
     let currentStoppieTime = 0;
 
+    // Данные для авто-хитбокса
+    let hitboxData = null;
+
     document.addEventListener('touchmove', function(e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
 
     const canvas = document.getElementById('gameCanvas');
@@ -321,6 +325,29 @@
 
     const pl = planck;
     const world = new pl.World({ gravity: pl.Vec2(0, 10) });
+
+    // --- ФИЗИЧЕСКИЕ СТОЛКНОВЕНИЯ ---
+    world.on('begin-contact', (contact) => {
+        if (gameState !== 'playing') return;
+        
+        const fixA = contact.getFixtureA();
+        const fixB = contact.getFixtureB();
+        const dataA = fixA.getUserData();
+        const dataB = fixB.getUserData();
+
+        const isTerrain = (dataA === 'terrain' || dataB === 'terrain');
+        if (!isTerrain) return;
+
+        const bikePart = dataA === 'terrain' ? dataB : dataA;
+
+        if (bikePart === 'head') {
+            triggerGameOver();
+        }
+        else if (bikePart === 'nose' || bikePart === 'tail' || bikePart === 'body') {
+            jointRear.setMotorSpeed(0); jointFront.setMotorSpeed(0);
+            jointRear.setMaxMotorTorque(0); jointFront.setMaxMotorTorque(0);
+        }
+    });
 
     const startX = 50000;
     let groundY = canvas.height - 80; 
@@ -379,7 +406,8 @@
             
             const chain = world.createBody();
             const chainShape = pl.Chain(vertices, false);
-            chain.createFixture(chainShape, { friction: 1.0, restitution: 0.0 });
+            let terrainFixture = chain.createFixture(chainShape, { friction: 1.0, restitution: 0.0 });
+            terrainFixture.setUserData('terrain');
             
             terrainBodies.push({ body: chain, startX: lastGeneratedX, endX: lastGeneratedX + (chunkSize * chunkWidth) });
             lastGeneratedX += chunkSize * chunkWidth;
@@ -409,7 +437,29 @@
         }
 
         chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic' });
-        chassis.createFixture(pl.Box(60 / SCALE / 2, 15 / SCALE / 2), { density: currentBike.density, friction: 0.3 });
+        
+        // Если хитбокс не просканирован (картинка не загрузилась), используем заглушку
+        if (hitboxData) {
+            // 1. Днище (основа, чтобы не проваливаться)
+            let bodyFixture = chassis.createFixture(pl.Box(hitboxData.bodyW, hitboxData.bodyH, pl.Vec2(hitboxData.bodyX, hitboxData.bodyY)), { density: currentBike.density, friction: 0.3 });
+            bodyFixture.setUserData('body');
+
+            // 2. Голова (для смерти)
+            let headFixture = chassis.createFixture(pl.Circle(hitboxData.headR, pl.Vec2(hitboxData.headX, hitboxData.headY)), { density: 0.1 });
+            headFixture.setUserData('head');
+
+            // 3. Нос (для кувырка)
+            let noseFixture = chassis.createFixture(pl.Circle(hitboxData.noseR, pl.Vec2(hitboxData.noseX, hitboxData.noseY)), { density: 0.1 });
+            noseFixture.setUserData('nose');
+
+            // 4. Хвост (чтобы не проваливался задом)
+            let tailFixture = chassis.createFixture(pl.Circle(hitboxData.tailR, pl.Vec2(hitboxData.tailX, hitboxData.tailY)), { density: 0.1 });
+            tailFixture.setUserData('tail');
+        } else {
+            // Заглушка, если картинки нет
+            chassis.createFixture(pl.Box(50 / SCALE, 10 / SCALE), { density: currentBike.density, friction: 0.3 }).setUserData('body');
+            chassis.createFixture(pl.Circle(10 / SCALE, pl.Vec2(0, -20 / SCALE)), { density: 0.1 }).setUserData('head');
+        }
 
         wheelRear = world.createBody({ position: pl.Vec2((x - wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic' });
         wheelRear.createFixture(pl.Circle(wheelRadius), { density: 1.0, friction: 1.0 });
@@ -431,7 +481,62 @@
     const bikeImage = new Image();
     bikeImage.src = 'moto.png'; 
     let isImageLoaded = false;
-    bikeImage.onload = () => { isImageLoaded = true; };
+    
+    // --- АВТОМАТИЧЕСКИЙ ХИТБОКС ---
+    bikeImage.onload = () => { 
+        isImageLoaded = true; 
+        
+        const scanCanvas = document.createElement('canvas');
+        const scanCtx = scanCanvas.getContext('2d', { willReadFrequently: true });
+        scanCanvas.width = bikeImage.width;
+        scanCanvas.height = bikeImage.height;
+        scanCtx.drawImage(bikeImage, 0, 0);
+        
+        try {
+            const imgData = scanCtx.getImageData(0, 0, scanCanvas.width, scanCanvas.height).data;
+            let minX = scanCanvas.width, maxX = 0, minY = scanCanvas.height, maxY = 0;
+            
+            // Ищем крайние непрозрачные пиксели
+            for (let y = 0; y < scanCanvas.height; y++) {
+                for (let x = 0; x < scanCanvas.width; x++) {
+                    let alpha = imgData[(y * scanCanvas.width + x) * 4 + 3];
+                    if (alpha > 128) {
+                        if (x < minX) minX = x;
+                        if (x > maxX) maxX = x;
+                        if (y < minY) minY = y;
+                        if (y > maxY) maxY = y;
+                    }
+                }
+            }
+
+            // Вычисляем координаты относительно центра картинки
+            let cx = scanCanvas.width / 2;
+            let cy = scanCanvas.height / 2;
+
+            // Переводим в физические координаты (делим на SCALE)
+            // Голова (верхняя точка)
+            hitboxData = {
+                headX: (0) / SCALE, 
+                headY: (minY - cy) / SCALE, 
+                headR: 8 / SCALE,
+                
+                noseX: (maxX - cx) / SCALE, 
+                noseY: (0) / SCALE, 
+                noseR: 10 / SCALE,
+                
+                tailX: (minX - cx) / SCALE, 
+                tailY: (0) / SCALE, 
+                tailR: 10 / SCALE,
+                
+                bodyX: (0) / SCALE, 
+                bodyY: (maxY - cy - 10) / SCALE, // Чуть выше самого низа (чтобы колеса не задевали)
+                bodyW: 40 / SCALE, 
+                bodyH: 10 / SCALE
+            };
+        } catch(e) {
+            console.log("Ошибка чтения картинки (CORS или нет файла)", e);
+        }
+    };
 
     window.isGas = false; window.isBrake = false; 
     window.isLeanBack = false; window.isLeanForward = false;
@@ -580,7 +685,8 @@
         terrainBodies = []; lastGeneratedX = startX - 1500; cameraX = startX - (canvas.width * 0.3);
         
         let startHillY = getTerrainY(startX);
-        let startY = startHillY - 25;
+        let startY = startHillY - 60; 
+        
         createBike(startX, startY);
         generateTerrain();
 
@@ -778,23 +884,7 @@
                 } else { if (previousGasState === true) { if (Math.random() > 0.5) playPop(); previousGasState = false; } }
             }
 
-            // --- ТА САМАЯ МАТЕМАТИКА ---
-            let headPoint = chassis.getWorldPoint(pl.Vec2(0, -40 / SCALE));
-            let nosePoint = chassis.getWorldPoint(pl.Vec2(40 / SCALE, 0));
-            let tailPoint = chassis.getWorldPoint(pl.Vec2(-40 / SCALE, 0));
-
-            let headHit = (headPoint.y * SCALE) >= getTerrainY(headPoint.x * SCALE);
-            let noseHit = (nosePoint.y * SCALE) >= getTerrainY(nosePoint.x * SCALE);
-            let tailHit = (tailPoint.y * SCALE) >= getTerrainY(tailPoint.x * SCALE);
-
-            // Если уткнулся носом или хвостом — глохнет мотор
-            if (noseHit || tailHit) {
-                jointRear.setMotorSpeed(0); jointFront.setMotorSpeed(0);
-                jointRear.setMaxMotorTorque(0); jointFront.setMaxMotorTorque(0);
-            }
-
-            // Если коснулся головой или упал в пропасть
-            if (headHit || chassis.getPosition().y > canvas.height / SCALE + 10) {
+            if (chassis.getPosition().y > canvas.height / SCALE + 10) {
                 triggerGameOver();
             }
 
@@ -829,7 +919,38 @@
             ctx.save();
             ctx.translate(chassis.getPosition().x * SCALE, chassis.getPosition().y * SCALE);
             ctx.rotate(chassis.getAngle());
-            if (isImageLoaded) ctx.drawImage(bikeImage, -45, -45, 90, 54); 
+            if (isImageLoaded) ctx.drawImage(bikeImage, -bikeImage.width/2, -bikeImage.height/2, bikeImage.width, bikeImage.height); 
+            
+            // --- ОТЛАДКА (Блоки строятся автоматически по картинке) ---
+            if (DEBUG_PHYSICS) {
+                const drawFix = (fixture, color) => {
+                    const shape = fixture.getShape();
+                    if (shape.getType() === 'polygon') {
+                        const vertices = shape.m_vertices;
+                        ctx.beginPath();
+                        ctx.moveTo(vertices[0].x * SCALE, vertices[0].y * SCALE);
+                        for (let i = 1; i < vertices.length; i++) {
+                            ctx.lineTo(vertices[i].x * SCALE, vertices[i].y * SCALE);
+                        }
+                        ctx.closePath();
+                        ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
+                    } else if (shape.getType() === 'circle') {
+                        ctx.beginPath();
+                        ctx.arc(shape.m_p.x * SCALE, shape.m_p.y * SCALE, shape.m_radius * SCALE, 0, Math.PI * 2);
+                        ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
+                    }
+                };
+                let fix = chassis.getFixtureList();
+                while (fix) {
+                    if (fix.getUserData() === 'body') drawFix(fix, 'red');
+                    if (fix.getUserData() === 'head') drawFix(fix, 'yellow');
+                    if (fix.getUserData() === 'nose') drawFix(fix, 'cyan');
+                    if (fix.getUserData() === 'tail') drawFix(fix, 'magenta');
+                    fix = fix.getNext();
+                }
+            }
+            // --- КОНЕЦ ОТЛАДКИ ---
+            
             ctx.restore();
             drawWheel(wheelRear); drawWheel(wheelFront);
         }
@@ -841,4 +962,4 @@
     update();
 </script>
 </body>
-</html>
+    </html>
