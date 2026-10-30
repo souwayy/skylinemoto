@@ -106,63 +106,63 @@
             100% { opacity: 0.5; }
         }
         
-        /* --- НОВЫЙ ЭКРАН СМЕРТИ (В стиле референса) --- */
+        /* --- ЭКРАН СМЕРТИ (Влезает без прокрутки) --- */
         #gameOverScreen { 
             display: none; 
-            background: #0f1410; /* Темный, почти черный фон без прозрачности */
-            justify-content: flex-start; 
-            align-items: stretch;
-            padding: 40px 20px;
+            background: #0f1410;
+            flex-direction: column;
+            justify-content: center; 
+            align-items: center;
+            padding: 10px 20px;
             box-sizing: border-box;
         }
         
         .score-header {
             text-align: center;
-            font-size: 24px;
+            font-size: 18px; 
             font-weight: bold;
             letter-spacing: 2px;
             color: #fff;
-            margin-bottom: 30px;
+            margin-bottom: 10px;
             text-transform: uppercase;
         }
 
         .score-list {
             width: 100%;
             max-width: 600px;
-            margin: 0 auto;
         }
 
         .score-row {
             display: flex;
             justify-content: space-between;
-            padding: 15px 0;
-            font-size: 18px;
+            padding: 6px 0; 
+            font-size: 15px; 
             color: #e0e0e0;
             border-bottom: 1px solid rgba(255,255,255,0.15);
         }
 
         .score-row.high-score {
-            font-size: 24px;
+            font-size: 18px;
             font-weight: bold;
             color: #fff;
             border-bottom: none;
-            margin-top: 10px;
+            margin-top: 5px;
         }
 
         .score-row.reward-row {
-            font-size: 22px;
+            font-size: 18px;
             font-weight: bold;
-            color: #a6ff00; /* Ярко-зеленый цвет для награды */
+            color: #a6ff00; 
             border-bottom: none;
             align-items: center;
         }
 
         .coin-icon {
-            height: 24px;
+            height: 18px;
             width: auto;
             display: inline-block;
             vertical-align: middle;
-            margin-left: 8px;
+            margin-left: 6px;
             border-radius: 50%;
         }
 
@@ -174,18 +174,11 @@
         }
         .icon-btn:active { transform: scale(0.9); }
 
-        .home-btn {
-            top: 30px;
-            right: 30px;
-        }
-        
-        .restart-btn {
-            bottom: 30px;
-            right: 30px;
-        }
+        .home-btn { top: 15px; right: 20px; }
+        .restart-btn { bottom: 15px; right: 20px; }
 
         .icon-btn svg {
-            width: 50px; height: 50px; fill: #fff;
+            width: 40px; height: 40px; fill: #fff;
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/planck-js@0.3/dist/planck.min.js"></script>
@@ -199,7 +192,7 @@
         <div class="stats-left">
             <div class="stat-text">Best: <span id="bestDistanceText">0</span>m</div>
             <div class="stat-text" style="color: #a6ff00;">
-                <img src="coin.png" id="coinIconTop" class="coin-icon" style="height: 16px; margin-right: 4px;" onerror="this.style.display='none'">
+                <img src="coin.png" id="coinIconTop" class="coin-icon" onerror="this.style.display='none'">
                 Coins: <span id="coinBalanceText">0</span>
             </div>
         </div>
@@ -230,9 +223,7 @@
         <p>Нажми, чтобы начать</p>
     </div>
 
-    <!-- Новый экран Game Over -->
     <div class="overlay" id="gameOverScreen">
-        <!-- Кнопка "Домой" -->
         <div class="icon-btn home-btn" id="btnHome">
             <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
         </div>
@@ -246,11 +237,11 @@
             </div>
             <div class="score-row">
                 <span>Riding on the front wheel</span>
-                <span id="go-stoppie">0m</span>
+                <span id="go-stoppie">0s</span>
             </div>
             <div class="score-row">
                 <span>Riding on the rear wheel</span>
-                <span id="go-wheelie">0m</span>
+                <span id="go-wheelie">0s</span>
             </div>
             <div class="score-row">
                 <span>Frontflips</span>
@@ -279,7 +270,6 @@
             </div>
         </div>
 
-        <!-- Кнопка "Рестарт" -->
         <div class="icon-btn restart-btn" id="btnRestart">
             <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
         </div>
@@ -311,10 +301,10 @@
     let accumulatedRotation = 0; 
     let lastAngle = 0;
 
-    let maxWheelieTime = 0; // Заднее колесо
+    let maxWheelieTime = 0; 
     let currentWheelieTime = 0;
     
-    let maxStoppieTime = 0; // Переднее колесо
+    let maxStoppieTime = 0; 
     let currentStoppieTime = 0;
 
     document.addEventListener('touchmove', function(e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
@@ -448,16 +438,21 @@
     window.isLeanBack = false; window.isLeanForward = false;
 
     const particles = [];
+    // --- НОВАЯ ПЫЛЬ (Мелкие точки) ---
     function spawnDust(x, y, speedX) {
-        if (particles.length > 50) return;
-        particles.push({
-            x: x, y: y,
-            vx: -speedX * 0.5 - Math.random() * 2,
-            vy: -Math.random() * 2 - 1,
-            radius: Math.random() * 5 + 3,
-            alpha: 0.6,
-            decay: 0.02 + Math.random() * 0.02
-        });
+        if (particles.length > 150) return; 
+        
+        for (let i = 0; i < 2; i++) {
+            particles.push({
+                x: x + (Math.random() - 0.5) * 15, 
+                y: y + (Math.random() - 0.5) * 5,
+                vx: -speedX * 0.8 - Math.random() * 8, 
+                vy: -Math.random() * 4 - 1, 
+                radius: Math.random() * 2 + 1, 
+                alpha: 1.0, 
+                decay: 0.03 + Math.random() * 0.03 
+            });
+        }
     }
 
     function updateParticles() {
@@ -465,19 +460,24 @@
             let p = particles[i];
             p.x += p.vx;
             p.y += p.vy;
-            p.vy += 0.1; 
+            
+            p.vy += 0.2; // Гравитация
+            p.vx *= 0.96; // Сопротивление воздуха
+            
             p.alpha -= p.decay;
             if (p.alpha <= 0) particles.splice(i, 1);
         }
     }
 
     function drawParticles() {
+        ctx.fillStyle = '#999'; 
         for (let p of particles) {
-            ctx.fillStyle = `rgba(150, 150, 150, ${p.alpha})`;
+            ctx.globalAlpha = p.alpha; 
             ctx.beginPath();
             ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
             ctx.fill();
         }
+        ctx.globalAlpha = 1.0; 
     }
 
     setInterval(() => {
@@ -606,7 +606,6 @@
         document.getElementById('distanceText').innerText = "0";
     }
 
-    // Запуск игры
     document.getElementById('startScreen').addEventListener('touchstart', async (e) => {
         e.preventDefault(); await initAudio(); 
         document.getElementById('startScreen').style.display = 'none';
@@ -614,7 +613,6 @@
         resetGame(); gameState = 'playing';
     });
 
-    // Кнопки на экране Game Over
     document.getElementById('btnRestart').addEventListener('touchstart', (e) => {
         e.preventDefault();
         document.getElementById('gameOverScreen').style.display = 'none';
@@ -627,6 +625,12 @@
         document.getElementById('startScreen').style.display = 'flex';
         document.getElementById('controls').classList.remove('active');
         gameState = 'start';
+        
+        if (ENABLE_AUDIO && isAudioInitialized) {
+            idleGain.gain.setValueAtTime(0, audioCtx.currentTime);
+            revGain.gain.setValueAtTime(0, audioCtx.currentTime);
+            windGain.gain.setValueAtTime(0, audioCtx.currentTime);
+        }
     });
 
     function drawMountainLayer(yOffset, height, color, parallaxOffset) {
@@ -693,8 +697,8 @@
                 lastAngle = angle;
 
                 if (Math.abs(accumulatedRotation) >= Math.PI * 2) {
-                    if (accumulatedRotation > 0) backflipCount++; // Крутимся назад
-                    else frontflipCount++; // Крутимся вперед
+                    if (accumulatedRotation > 0) backflipCount++; 
+                    else frontflipCount++; 
                     accumulatedRotation -= Math.sign(accumulatedRotation) * Math.PI * 2;
                 }
             } else {
@@ -702,7 +706,6 @@
                 accumulatedRotation = 0;
                 lastAngle = angle; 
 
-                // Вилли (Заднее колесо)
                 if (angle < -0.3 && Math.abs(chassis.getLinearVelocity().x) > 1) {
                     currentWheelieTime += dt;
                     if (currentWheelieTime > maxWheelieTime) maxWheelieTime = currentWheelieTime;
@@ -710,7 +713,6 @@
                     currentWheelieTime = 0;
                 }
 
-                // Стоппи (Переднее колесо)
                 if (angle > 0.3 && Math.abs(chassis.getLinearVelocity().x) > 1) {
                     currentStoppieTime += dt;
                     if (currentStoppieTime > maxStoppieTime) maxStoppieTime = currentStoppieTime;
@@ -753,7 +755,6 @@
                 } else { if (previousGasState === true) { if (Math.random() > 0.5) playPop(); previousGasState = false; } }
             }
 
-            // Проверка аварии (по краям картинки)
             let headPoint = chassis.getWorldPoint(pl.Vec2(0, -45 / SCALE));
             let nosePoint = chassis.getWorldPoint(pl.Vec2(45 / SCALE, 0));
             let tailPoint = chassis.getWorldPoint(pl.Vec2(-45 / SCALE, 0));
@@ -762,25 +763,20 @@
             let noseHit = (nosePoint.y * SCALE) >= getTerrainY(nosePoint.x * SCALE);
             let tailHit = (tailPoint.y * SCALE) >= getTerrainY(tailPoint.x * SCALE);
 
-            // Если уткнулся носом или хвостом - глохнет мотор (начинает падать)
             if (noseHit || tailHit) {
                 jointRear.setMotorSpeed(0); jointFront.setMotorSpeed(0);
                 jointRear.setMaxMotorTorque(0); jointFront.setMaxMotorTorque(0);
             }
 
-            // Если коснулся головой - моментальная смерть
             if (headHit || chassis.getPosition().y > canvas.height / SCALE + 10) {
                 gameState = 'gameover';
                 
                 let dist = Math.floor(((chassis.getPosition().x * SCALE) - startX) / 10);
-                
-                // Начисление монет (10 за флип, 1 за 100 метров)
                 let earnedCoins = Math.floor(dist / 100) + ((frontflipCount + backflipCount) * 10);
                 
                 totalCoins += earnedCoins;
                 localStorage.setItem('totalCoins', totalCoins);
                 
-                // Заполняем UI
                 document.getElementById('go-distance').innerText = dist + "m";
                 document.getElementById('go-stoppie').innerText = maxStoppieTime.toFixed(1) + "s";
                 document.getElementById('go-wheelie').innerText = maxWheelieTime.toFixed(1) + "s";
@@ -796,7 +792,6 @@
                 if (ENABLE_AUDIO && isAudioInitialized) { idleGain.gain.setValueAtTime(0, audioCtx.currentTime); revGain.gain.setValueAtTime(0, audioCtx.currentTime); windGain.gain.setValueAtTime(0, audioCtx.currentTime); }
             }
 
-            // Камера
             let targetCameraX = (chassis.getPosition().x * SCALE) - ((canvas.width * 0.3) / zoom);
             cameraX += (targetCameraX - cameraX) * 0.1; 
             let targetCameraY = (canvas.height * 0.5) - (chassis.getPosition().y * SCALE);
@@ -809,7 +804,6 @@
             if (currentDistance > maxDistance) { maxDistance = currentDistance; localStorage.setItem('bestDistance', maxDistance); document.getElementById('bestDistanceText').innerText = maxDistance; }
         }
 
-        // РЕНДЕР
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
         gradient.addColorStop(0, '#1a0b2e'); gradient.addColorStop(0.4, '#5a2b58'); gradient.addColorStop(0.7, '#d96b4e'); gradient.addColorStop(1, '#f5c26b');
@@ -841,4 +835,4 @@
     update();
 </script>
 </body>
-            </html>
+    </html>
