@@ -31,6 +31,8 @@
             font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.7);
             text-transform: uppercase;
             letter-spacing: 1px;
+            display: flex;
+            align-items: center;
         }
         
         .stats-right {
@@ -84,7 +86,7 @@
         .overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            background: rgba(0,0,0,0.4);
+            background: rgba(0,0,0,0.6);
             pointer-events: auto;
             transition: opacity 0.3s;
             z-index: 20;
@@ -106,13 +108,62 @@
         
         #gameOverScreen { 
             display: none; 
-            background: #000; 
-            justify-content: flex-end; 
-            padding-bottom: 100px;
+            background: rgba(0,0,0,0.85); 
+            justify-content: center; 
+            align-items: center;
         }
-        #gameOverScreen p {
-            color: rgba(255,255,255,0.8);
-            font-size: 20px;
+        .gameover-box {
+            background: #111;
+            padding: 30px;
+            border-radius: 15px;
+            border: 1px solid #333;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(217, 107, 78, 0.2);
+            width: 80%;
+            max-width: 400px;
+        }
+        .gameover-title {
+            color: #d96b4e;
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+        }
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 18px;
+            color: #ccc;
+        }
+        .stat-value {
+            color: white;
+            font-weight: bold;
+        }
+        .coins-earned {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #333;
+            font-size: 22px;
+            color: #f5c26b;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+        }
+        .restart-text {
+            margin-top: 20px;
+            font-size: 16px;
+            color: rgba(255,255,255,0.5);
+            animation: pulse 1.5s infinite;
+        }
+        .coin-icon {
+            height: 20px;
+            width: auto;
+            display: none; /* Убери это, когда закинешь coin.png */
+            vertical-align: middle;
+            margin-right: 5px;
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/planck-js@0.3/dist/planck.min.js"></script>
@@ -125,6 +176,10 @@
     <div class="top-bar">
         <div class="stats-left">
             <div class="stat-text">Best: <span id="bestDistanceText">0</span>m</div>
+            <div class="stat-text" style="color: #f5c26b;">
+                <img src="coin.png" id="coinIcon" class="coin-icon" onerror="this.style.display='none'">
+                Coins: <span id="coinBalanceText">0</span>
+            </div>
         </div>
         
         <div class="stats-right">
@@ -156,13 +211,46 @@
     </div>
 
     <div class="overlay" id="gameOverScreen">
-        <p>Tap to continue</p>
+        <div class="gameover-box">
+            <div class="gameover-title">Вы разбились</div>
+            <div class="stat-row"><span>Дистанция:</span> <span class="stat-value" id="go-distance">0 м</span></div>
+            <div class="stat-row"><span>Время в полете:</span> <span class="stat-value" id="go-airtime">0.0 с</span></div>
+            <div class="stat-row"><span>На заднем колесе:</span> <span class="stat-value" id="go-wheelie">0.0 с</span></div>
+            <div class="stat-row"><span>Сальто:</span> <span class="stat-value" id="go-flips">0</span></div>
+            <div class="coins-earned">
+                + <span id="go-coins">0</span> 
+                <img src="coin.png" class="coin-icon" style="height: 24px; display: inline-block;" onerror="this.style.display='none'">
+            </div>
+            <div class="restart-text">Нажми, чтобы продолжить</div>
+        </div>
     </div>
 </div>
 
 <script>
     const ENABLE_AUDIO = true; 
     const SCALE = 30; 
+
+    const BIKE_CATALOG = {
+        ktr_300: {
+            name: "KTR 300 EXC",
+            density: 1.2,
+            suspension: { freq: 4.5, damp: 0.7 },
+            motor: { speed: 50, torque: 60, brake: 100 }
+        }
+    };
+    let currentBike = BIKE_CATALOG.ktr_300;
+
+    let totalCoins = parseInt(localStorage.getItem('totalCoins')) || 0;
+    document.getElementById('coinBalanceText').innerText = totalCoins;
+    
+    let maxAirTime = 0;
+    let currentAirTime = 0;
+    let flipCount = 0;
+    let accumulatedRotation = 0; 
+    let lastAngle = 0;
+
+    let maxWheelieTime = 0;
+    let currentWheelieTime = 0;
 
     document.addEventListener('touchmove', function(e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
 
@@ -174,8 +262,9 @@
         canvas.height = window.innerHeight;
     }
     resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 200));
 
-    // --- МИР PLANET (BOX2D) ---
     const pl = planck;
     const world = new pl.World({ gravity: pl.Vec2(0, 10) });
 
@@ -190,7 +279,6 @@
     let cameraY = 0; 
     const zoom = 1.1; 
     
-    // --- ГЕНЕРАЦИЯ ЗЕМЛИ ---
     function noise(x) {
         let i = Math.floor(x);
         let f = x - i;
@@ -204,26 +292,20 @@
 
     function getTerrainY(x) {
         let y = groundY;
-        
-        // 1. Базовый ландшафт (плавные волны)
         y -= noise((x + terrainOffset) * 0.001) * 100;  
         y -= noise((x + terrainOffset) * 0.005) * 30;   
         
-        // 2. Ямы и трамплины (пологие, без стен)
         let feature = noise((x + terrainOffset) * 0.0008); 
         
-        if (feature > 0.65) {
-            // ТРАМПЛИН
-            let p = (feature - 0.65) / 0.35; 
-            let ramp = Math.sin(p * Math.PI) * 120; 
+        if (feature > 0.6) {
+            let p = (feature - 0.6) / 0.4; 
+            let ramp = Math.sin(p * Math.PI) * 160; 
             y -= ramp;
-        } else if (feature < 0.35) {
-            // ЯМА
-            let p = (0.35 - feature) / 0.35; 
-            let pit = Math.sin(p * Math.PI) * 150;  
+        } else if (feature < 0.4) {
+            let p = (0.4 - feature) / 0.4; 
+            let pit = Math.sin(p * Math.PI) * 180;  
             y += pit;
         }
-        
         return y;
     }
 
@@ -243,10 +325,7 @@
             
             const chain = world.createBody();
             const chainShape = pl.Chain(vertices, false);
-            chain.createFixture(chainShape, {
-                friction: 1.0,
-                restitution: 0.0
-            });
+            chain.createFixture(chainShape, { friction: 1.0, restitution: 0.0 });
             
             terrainBodies.push({ body: chain, startX: lastGeneratedX, endX: lastGeneratedX + (chunkSize * chunkWidth) });
             lastGeneratedX += chunkSize * chunkWidth;
@@ -262,7 +341,6 @@
         }
     }
 
-    // --- БАЙК ---
     const wheelRadius = 10 / SCALE; 
     const wheelBase = 23 / SCALE; 
     
@@ -277,7 +355,7 @@
         }
 
         chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic' });
-        chassis.createFixture(pl.Box(60 / SCALE / 2, 15 / SCALE / 2), { density: 1.2, friction: 0.3 });
+        chassis.createFixture(pl.Box(60 / SCALE / 2, 15 / SCALE / 2), { density: currentBike.density, friction: 0.3 });
 
         wheelRear = world.createBody({ position: pl.Vec2((x - wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic' });
         wheelRear.createFixture(pl.Circle(wheelRadius), { density: 1.0, friction: 1.0 });
@@ -286,21 +364,13 @@
         wheelFront.createFixture(pl.Circle(wheelRadius), { density: 1.0, friction: 1.0 });
 
         jointRear = world.createJoint(pl.WheelJoint({
-            motorSpeed: 0,
-            maxMotorTorque: 60,
-            enableMotor: true,
-            frequencyHz: 4.5,
-            dampingRatio: 0.7,
-            collideConnected: false
+            motorSpeed: 0, maxMotorTorque: currentBike.motor.torque, enableMotor: true,
+            frequencyHz: currentBike.suspension.freq, dampingRatio: currentBike.suspension.damp, collideConnected: false
         }, chassis, wheelRear, wheelRear.getPosition(), pl.Vec2(0, 1)));
 
         jointFront = world.createJoint(pl.WheelJoint({
-            motorSpeed: 0,
-            maxMotorTorque: 60,
-            enableMotor: true,
-            frequencyHz: 4.5,
-            dampingRatio: 0.7,
-            collideConnected: false
+            motorSpeed: 0, maxMotorTorque: currentBike.motor.torque, enableMotor: true,
+            frequencyHz: currentBike.suspension.freq, dampingRatio: currentBike.suspension.damp, collideConnected: false
         }, chassis, wheelFront, wheelFront.getPosition(), pl.Vec2(0, 1)));
     }
 
@@ -312,21 +382,49 @@
     window.isGas = false; window.isBrake = false; 
     window.isLeanBack = false; window.isLeanForward = false;
 
+    const particles = [];
+    function spawnDust(x, y, speedX) {
+        if (particles.length > 50) return;
+        particles.push({
+            x: x, y: y,
+            vx: -speedX * 0.5 - Math.random() * 2,
+            vy: -Math.random() * 2 - 1,
+            radius: Math.random() * 5 + 3,
+            alpha: 0.6,
+            decay: 0.02 + Math.random() * 0.02
+        });
+    }
+
+    function updateParticles() {
+        for (let i = particles.length - 1; i >= 0; i--) {
+            let p = particles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.1; 
+            p.alpha -= p.decay;
+            if (p.alpha <= 0) particles.splice(i, 1);
+        }
+    }
+
+    function drawParticles() {
+        for (let p of particles) {
+            ctx.fillStyle = `rgba(150, 150, 150, ${p.alpha})`;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
     setInterval(() => {
         const now = new Date();
         const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
         document.getElementById('clockText').innerText = timeStr;
     }, 1000);
 
-    // --- ЗВУК ---
-    let audioCtx;
-    let idleBuffer, popBuffer, windBuffer, revBuffer;
+    let audioCtx, idleBuffer, popBuffer, windBuffer, revBuffer;
     let idleSource, windSource, revSource;
-    let idleGain, revGain, windGain;
-    let revFilter, revTremoloGain;
-    let revLfoTone, revLfoToneGain, revLfoVol, revLfoVolGain;   
-    let isAudioInitialized = false;
-    let previousGasState = false;
+    let idleGain, revGain, windGain, revFilter, revTremoloGain, revLfoTone, revLfoToneGain, revLfoVol, revLfoVolGain;
+    let isAudioInitialized = false, previousGasState = false;
     
     async function loadAudio(url) {
         try {
@@ -362,7 +460,6 @@
             const AudioContext = window.AudioContext || window.webkitAudioContext;
             audioCtx = new AudioContext();
             if (audioCtx.state === 'suspended') audioCtx.resume();
-
             idleBuffer = await loadAudio('engine_idle.mp3');
             popBuffer = await loadAudio('engine_pop.mp3');
             windBuffer = await loadAudio('wind.mp3');
@@ -371,34 +468,21 @@
 
             idleGain = audioCtx.createGain(); revGain = audioCtx.createGain(); windGain = audioCtx.createGain(); revTremoloGain = audioCtx.createGain();
             idleGain.gain.value = 0; revGain.gain.value = 0; windGain.gain.value = 0; revTremoloGain.gain.value = 0.9; 
-            
             revFilter = audioCtx.createBiquadFilter(); revFilter.type = 'lowpass'; revFilter.frequency.value = 2500; 
-
-            idleGain.connect(audioCtx.destination);
-            revFilter.connect(revTremoloGain); revTremoloGain.connect(revGain); revGain.connect(audioCtx.destination);
-            windGain.connect(audioCtx.destination);
+            idleGain.connect(audioCtx.destination); revFilter.connect(revTremoloGain); revTremoloGain.connect(revGain); revGain.connect(audioCtx.destination); windGain.connect(audioCtx.destination);
 
             revLfoTone = audioCtx.createOscillator(); revLfoTone.type = 'sine'; revLfoTone.frequency.value = 0.3; 
             revLfoToneGain = audioCtx.createGain(); revLfoToneGain.gain.value = 0.01; 
             revLfoTone.connect(revLfoToneGain); revLfoTone.start();
-
             revLfoVol = audioCtx.createOscillator(); revLfoVol.type = 'sine'; revLfoVol.frequency.value = 0.2; 
             revLfoVolGain = audioCtx.createGain(); revLfoVolGain.gain.value = 0.1; 
             revLfoVol.connect(revLfoVolGain); revLfoVolGain.connect(revTremoloGain.gain); revLfoVol.start();
 
-            if (idleBuffer) {
-                idleSource = audioCtx.createBufferSource(); idleSource.buffer = idleBuffer; idleSource.loop = true; idleSource.connect(idleGain); idleSource.start();
-            }
-            if (revBuffer) {
-                revSource = audioCtx.createBufferSource(); revSource.buffer = revBuffer; revSource.loop = true; revSource.connect(revFilter);
-                revLfoToneGain.connect(revSource.playbackRate); revSource.start(0); 
-            }
-            if (windBuffer) {
-                windSource = audioCtx.createBufferSource(); windSource.buffer = windBuffer; windSource.loop = true; windSource.connect(windGain); windSource.start();
-            } else {
-                const bufferSize = audioCtx.sampleRate * 2; 
-                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-                const data = buffer.getChannelData(0);
+            if (idleBuffer) { idleSource = audioCtx.createBufferSource(); idleSource.buffer = idleBuffer; idleSource.loop = true; idleSource.connect(idleGain); idleSource.start(); }
+            if (revBuffer) { revSource = audioCtx.createBufferSource(); revSource.buffer = revBuffer; revSource.loop = true; revSource.connect(revFilter); revLfoToneGain.connect(revSource.playbackRate); revSource.start(0); }
+            if (windBuffer) { windSource = audioCtx.createBufferSource(); windSource.buffer = windBuffer; windSource.loop = true; windSource.connect(windGain); windSource.start(); }
+            else {
+                const bufferSize = audioCtx.sampleRate * 2; const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate); const data = buffer.getChannelData(0);
                 for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1; 
                 windSource = audioCtx.createBufferSource(); windSource.buffer = buffer; windSource.loop = true;
                 const windFilter = audioCtx.createBiquadFilter(); windFilter.type = 'lowpass'; windFilter.frequency.value = 600; 
@@ -428,29 +512,27 @@
         el.addEventListener('touchend', (e) => { e.preventDefault(); window[variableName] = false; });
         el.addEventListener('touchcancel', (e) => { e.preventDefault(); window[variableName] = false; });
     }
-    
     bindBtn('btnGas', 'isGas'); bindBtn('btnBrake', 'isBrake'); bindBtn('btnLeanBack', 'isLeanBack'); bindBtn('btnLeanForward', 'isLeanForward');
 
     function resetGame() {
         terrainOffset = Math.random() * 10000;
-        
         for (let i = 0; i < terrainBodies.length; i++) world.destroyBody(terrainBodies[i].body);
-        terrainBodies = [];
-        lastGeneratedX = startX - 1500;
-        cameraX = startX - (canvas.width * 0.3);
+        terrainBodies = []; lastGeneratedX = startX - 1500; cameraX = startX - (canvas.width * 0.3);
         
         let startHillY = getTerrainY(startX);
         let startY = startHillY - 15;
-        
         createBike(startX, startY);
         generateTerrain();
 
         window.isGas = false; window.isBrake = false; window.isLeanBack = false; window.isLeanForward = false;
         
+        maxAirTime = 0; currentAirTime = 0; flipCount = 0; 
+        accumulatedRotation = 0; lastAngle = 0;
+        maxWheelieTime = 0; currentWheelieTime = 0;
+        particles.length = 0;
+
         if (ENABLE_AUDIO && isAudioInitialized) {
-            idleGain.gain.setValueAtTime(0.4, audioCtx.currentTime);
-            revGain.gain.setValueAtTime(0, audioCtx.currentTime);
-            windGain.gain.setValueAtTime(0, audioCtx.currentTime);
+            idleGain.gain.setValueAtTime(0.4, audioCtx.currentTime); revGain.gain.setValueAtTime(0, audioCtx.currentTime); windGain.gain.setValueAtTime(0, audioCtx.currentTime);
             if (revFilter) revFilter.frequency.value = 2500;
             startRevSound();
         }
@@ -458,26 +540,22 @@
     }
 
     document.getElementById('startScreen').addEventListener('touchstart', async (e) => {
-        e.preventDefault();
-        await initAudio(); 
+        e.preventDefault(); await initAudio(); 
         document.getElementById('startScreen').style.display = 'none';
         document.getElementById('controls').classList.add('active');
-        resetGame();
-        gameState = 'playing';
+        resetGame(); gameState = 'playing';
     });
 
     document.getElementById('gameOverScreen').addEventListener('touchstart', (e) => {
         e.preventDefault();
         document.getElementById('gameOverScreen').style.display = 'none';
-        resetGame(); 
-        gameState = 'playing';
+        resetGame(); gameState = 'playing';
     });
 
     function drawMountainLayer(yOffset, height, color, parallaxOffset) {
         ctx.fillStyle = color;
         ctx.beginPath();
-        let startDrawX = Math.floor(cameraX) - 100;
-        let endDrawX = Math.floor(cameraX) + (canvas.width / zoom) + 100;
+        let startDrawX = Math.floor(cameraX) - 100; let endDrawX = Math.floor(cameraX) + (canvas.width / zoom) + 100;
         ctx.moveTo(startDrawX, canvas.height * 2);
         for (let x = startDrawX; x <= endDrawX; x += 10) {
             let worldX = x + parallaxOffset;
@@ -488,32 +566,21 @@
     }
 
     function drawTerrain() {
-        ctx.fillStyle = '#000'; 
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 4; 
-        
-        ctx.beginPath();
-        ctx.moveTo(cameraX - 100, canvas.height + 2000);
-        
+        ctx.fillStyle = '#000'; ctx.strokeStyle = '#000'; ctx.lineWidth = 4; 
+        ctx.beginPath(); ctx.moveTo(cameraX - 100, canvas.height + 2000);
         for (let chunk of terrainBodies) {
             let vertices = chunk.body.getFixtureList().getShape().m_vertices;
-            for (let i = 0; i < vertices.length; i++) {
-                ctx.lineTo(vertices[i].x * SCALE, vertices[i].y * SCALE);
-            }
+            for (let i = 0; i < vertices.length; i++) ctx.lineTo(vertices[i].x * SCALE, vertices[i].y * SCALE);
         }
-        
-        ctx.lineTo(lastGeneratedX, canvas.height + 2000);
-        ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.lineTo(lastGeneratedX, canvas.height + 2000); ctx.closePath(); ctx.fill(); ctx.stroke();
     }
 
     function drawWheel(wheel) {
         ctx.save();
         ctx.translate(wheel.getPosition().x * SCALE, wheel.getPosition().y * SCALE);
         ctx.rotate(wheel.getAngle());
-        ctx.fillStyle = '#000'; 
-        ctx.beginPath(); ctx.arc(0, 0, wheelRadius * SCALE, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = '#333'; ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(0, 0, wheelRadius * SCALE - 2, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(0, 0, wheelRadius * SCALE, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#333'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, wheelRadius * SCALE - 2, 0, Math.PI * 2); ctx.stroke();
         ctx.restore();
     }
 
@@ -522,88 +589,109 @@
 
     function update() {
         requestAnimationFrame(update);
-        
         let currentTime = performance.now();
         let dt = (currentTime - lastTime) / 1000;
         lastTime = currentTime;
-        
+        if (dt > 0.1) dt = 0.1; 
+
         world.step(1/60, dt, 3);
+        updateParticles();
 
         if (gameState === 'playing' && chassis) {
             let speed = Math.abs(wheelRear.getAngularVelocity());
+            let isAirborne = Math.abs(chassis.getLinearVelocity().y) > 1.5;
+            
+            if (isAirborne) {
+                currentAirTime += dt;
+                if (currentAirTime > maxAirTime) maxAirTime = currentAirTime;
+
+                let currentAngle = chassis.getAngle();
+                let deltaAngle = currentAngle - lastAngle;
+                
+                if (deltaAngle > Math.PI) deltaAngle -= 2 * Math.PI;
+                if (deltaAngle < -Math.PI) deltaAngle += 2 * Math.PI;
+                
+                accumulatedRotation += deltaAngle;
+                lastAngle = currentAngle;
+
+                if (Math.abs(accumulatedRotation) >= Math.PI * 2) {
+                    flipCount++;
+                    if (accumulatedRotation > 0) accumulatedRotation -= Math.PI * 2;
+                    else accumulatedRotation += Math.PI * 2;
+                }
+            } else {
+                currentAirTime = 0;
+                accumulatedRotation = 0;
+                lastAngle = chassis.getAngle(); 
+            }
+
+            // Логика учета езды на заднем колесе (Вилли)
+            let angle = chassis.getAngle();
+            let isWheelie = (angle < -0.3) && !isAirborne && Math.abs(chassis.getLinearVelocity().x) > 1;
+            
+            if (isWheelie) {
+                currentWheelieTime += dt;
+                if (currentWheelieTime > maxWheelieTime) maxWheelieTime = currentWheelieTime;
+            } else {
+                currentWheelieTime = 0;
+            }
 
             if (window.isGas) {
-                jointRear.setMotorSpeed(50); 
-                jointFront.setMotorSpeed(50);
-                jointRear.setMaxMotorTorque(60); 
-                jointFront.setMaxMotorTorque(60);
+                jointRear.setMotorSpeed(currentBike.motor.speed); jointFront.setMotorSpeed(currentBike.motor.speed);
+                jointRear.setMaxMotorTorque(currentBike.motor.torque); jointFront.setMaxMotorTorque(currentBike.motor.torque);
             } else if (window.isBrake) {
-                jointRear.setMotorSpeed(0);
-                jointFront.setMotorSpeed(0);
-                jointRear.setMaxMotorTorque(100); 
-                jointFront.setMaxMotorTorque(100);
+                jointRear.setMotorSpeed(0); jointFront.setMotorSpeed(0);
+                jointRear.setMaxMotorTorque(currentBike.motor.brake); jointFront.setMaxMotorTorque(currentBike.motor.brake);
             } else {
-                jointRear.setMaxMotorTorque(0);
-                jointFront.setMaxMotorTorque(0);
+                jointRear.setMaxMotorTorque(0); jointFront.setMaxMotorTorque(0);
             }
 
-            // Наклоны
-            let tiltPower = 20;      
-            let maxTiltSpeed = 2.5;  
-
-            if (window.isLeanBack) {
-                if (chassis.getAngularVelocity() > -maxTiltSpeed) {
-                    chassis.applyTorque(-tiltPower, true);
-                }
-            } 
-            else if (window.isLeanForward) {
-                if (chassis.getAngularVelocity() < maxTiltSpeed) {
-                    chassis.applyTorque(tiltPower, true);
-                }
+            if (!isAirborne && speed > 5) {
+                let dustX = (chassis.getPosition().x * SCALE) - (wheelBase * SCALE * 0.8);
+                let dustY = (chassis.getPosition().y * SCALE) + 10;
+                spawnDust(dustX, dustY, chassis.getLinearVelocity().x * SCALE);
+                if (window.isBrake) spawnDust(dustX, dustY, chassis.getLinearVelocity().x * SCALE);
             }
+
+            let tiltPower = 20; let maxTiltSpeed = 2.5;  
+            if (window.isLeanBack) { if (chassis.getAngularVelocity() > -maxTiltSpeed) chassis.applyTorque(-tiltPower, true); } 
+            else if (window.isLeanForward) { if (chassis.getAngularVelocity() < maxTiltSpeed) chassis.applyTorque(tiltPower, true); }
 
             if (ENABLE_AUDIO && isAudioInitialized) {
-                if (window.isGas) {
-                    idleGain.gain.cancelScheduledValues(audioCtx.currentTime);
-                    idleGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.05);
-                } else {
-                    idleGain.gain.cancelScheduledValues(audioCtx.currentTime);
-                    idleGain.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + 0.1);
-                }
-
-                let targetRev = window.isGas ? 0.8 : 0;    
-                let targetWind = Math.min(0.3, 0.05 + speed * 0.15); 
-
-                revGain.gain.setTargetAtTime(targetRev, audioCtx.currentTime, 0.1);
-                windGain.gain.setTargetAtTime(targetWind, audioCtx.currentTime, 0.1);
-
+                if (window.isGas) { idleGain.gain.cancelScheduledValues(audioCtx.currentTime); idleGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.05); } 
+                else { idleGain.gain.cancelScheduledValues(audioCtx.currentTime); idleGain.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + 0.1); }
+                let targetRev = window.isGas ? 0.8 : 0; let targetWind = Math.min(0.3, 0.05 + speed * 0.15); 
+                revGain.gain.setTargetAtTime(targetRev, audioCtx.currentTime, 0.1); windGain.gain.setTargetAtTime(targetWind, audioCtx.currentTime, 0.1);
                 if (window.isGas && revSource) {
-                    let targetRate = 1.0 + (speed * 0.3); 
-                    let finalRate = Math.min(1.3, targetRate);
+                    let targetRate = 1.0 + (speed * 0.3); let finalRate = Math.min(1.3, targetRate);
                     revSource.playbackRate.setTargetAtTime(finalRate, audioCtx.currentTime, 0.1);
-                    let targetFreq = Math.max(1000, 2500 - (speed * 1000));
-                    revFilter.frequency.setTargetAtTime(targetFreq, audioCtx.currentTime, 0.1);
+                    revFilter.frequency.setTargetAtTime(Math.max(1000, 2500 - (speed * 1000)), audioCtx.currentTime, 0.1);
                     previousGasState = true;
-                } else {
-                    if (previousGasState === true) {
-                        if (Math.random() > 0.5) playPop();
-                        previousGasState = false;
-                    }
-                }
+                } else { if (previousGasState === true) { if (Math.random() > 0.5) playPop(); previousGasState = false; } }
             }
 
             let headX = chassis.getPosition().x + Math.sin(chassis.getAngle()) * (35 / SCALE);
-let headY = chassis.getPosition().y - Math.cos(chassis.getAngle()) * (35 / SCALE);
-let groundUnderHead = getTerrainY(headX * SCALE) / SCALE;
+            let headY = chassis.getPosition().y - Math.cos(chassis.getAngle()) * (35 / SCALE);
+            let groundUnderHead = getTerrainY(headX * SCALE) / SCALE;
 
-if (headY >= groundUnderHead || chassis.getPosition().y > canvas.height / SCALE + 10) {
-    gameState = 'gameover';
+            if (headY >= groundUnderHead || chassis.getPosition().y > canvas.height / SCALE + 10) {
+                gameState = 'gameover';
+                
+                let dist = Math.floor(((chassis.getPosition().x * SCALE) - startX) / 10);
+                let earnedCoins = Math.floor(dist / 100) + (flipCount * 10);
+                
+                totalCoins += earnedCoins;
+                localStorage.setItem('totalCoins', totalCoins);
+                
+                document.getElementById('go-distance').innerText = dist + " м";
+                document.getElementById('go-airtime').innerText = maxAirTime.toFixed(1) + " с";
+                document.getElementById('go-wheelie').innerText = maxWheelieTime.toFixed(1) + " с";
+                document.getElementById('go-flips').innerText = flipCount;
+                document.getElementById('go-coins').innerText = earnedCoins;
+                document.getElementById('coinBalanceText').innerText = totalCoins;
+
                 document.getElementById('gameOverScreen').style.display = 'flex';
-                if (ENABLE_AUDIO && isAudioInitialized) {
-                    idleGain.gain.setValueAtTime(0, audioCtx.currentTime);
-                    revGain.gain.setValueAtTime(0, audioCtx.currentTime);
-                    windGain.gain.setValueAtTime(0, audioCtx.currentTime);
-                }
+                if (ENABLE_AUDIO && isAudioInitialized) { idleGain.gain.setValueAtTime(0, audioCtx.currentTime); revGain.gain.setValueAtTime(0, audioCtx.currentTime); windGain.gain.setValueAtTime(0, audioCtx.currentTime); }
             }
 
             let targetCameraX = (chassis.getPosition().x * SCALE) - ((canvas.width * 0.3) / zoom);
@@ -611,23 +699,14 @@ if (headY >= groundUnderHead || chassis.getPosition().y > canvas.height / SCALE 
             let targetCameraY = (canvas.height * 0.5) - (chassis.getPosition().y * SCALE);
             cameraY += (targetCameraY - cameraY) * 0.1;
             
-            generateTerrain();
-            cleanupTerrain();
+            generateTerrain(); cleanupTerrain();
 
             let currentDistance = Math.max(0, Math.floor(((chassis.getPosition().x * SCALE) - startX) / 10));
-            if (currentDistance !== lastDisplayedDistance) {
-                document.getElementById('distanceText').innerText = currentDistance;
-                lastDisplayedDistance = currentDistance;
-            }
-            if (currentDistance > maxDistance) {
-                maxDistance = currentDistance;
-                localStorage.setItem('bestDistance', maxDistance);
-                document.getElementById('bestDistanceText').innerText = maxDistance;
-            }
+            if (currentDistance !== lastDisplayedDistance) { document.getElementById('distanceText').innerText = currentDistance; lastDisplayedDistance = currentDistance; }
+            if (currentDistance > maxDistance) { maxDistance = currentDistance; localStorage.setItem('bestDistance', maxDistance); document.getElementById('bestDistanceText').innerText = maxDistance; }
         }
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
         const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
         gradient.addColorStop(0, '#1a0b2e'); gradient.addColorStop(0.4, '#5a2b58'); gradient.addColorStop(0.7, '#d96b4e'); gradient.addColorStop(1, '#f5c26b');
         ctx.fillStyle = gradient; ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -638,14 +717,8 @@ if (headY >= groundUnderHead || chassis.getPosition().y > canvas.height / SCALE 
         ctx.fillStyle = sunGlow; ctx.beginPath(); ctx.arc(sunX, sunY, 150, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = '#fff3d4'; ctx.beginPath(); ctx.arc(sunX, sunY, 45, 0, Math.PI * 2); ctx.fill();
 
-        ctx.save();
-        ctx.scale(zoom, zoom);
-        ctx.translate(0, cameraY);
-        ctx.translate(-cameraX, 0);
-
-        drawMountainLayer(120, 60, '#3a2354', cameraX * 0.2);
-        drawMountainLayer(60, 100, '#1e1129', cameraX * 0.5);
-        
+        ctx.save(); ctx.scale(zoom, zoom); ctx.translate(0, cameraY); ctx.translate(-cameraX, 0);
+        drawMountainLayer(120, 60, '#3a2354', cameraX * 0.2); drawMountainLayer(60, 100, '#1e1129', cameraX * 0.5);
         drawTerrain();
 
         if (gameState !== 'gameover' && chassis) {
@@ -654,14 +727,14 @@ if (headY >= groundUnderHead || chassis.getPosition().y > canvas.height / SCALE 
             ctx.rotate(chassis.getAngle());
             if (isImageLoaded) ctx.drawImage(bikeImage, -45, -45, 90, 54); 
             ctx.restore();
-            drawWheel(wheelRear);
-            drawWheel(wheelFront);
+            drawWheel(wheelRear); drawWheel(wheelFront);
         }
 
+        drawParticles(); 
         ctx.restore(); 
     }
 
     update();
 </script>
 </body>
-    </html>
+</html>
