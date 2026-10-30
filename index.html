@@ -279,6 +279,7 @@
     const ENABLE_AUDIO = true; 
     const SCALE = 30; 
     const DEBUG_PHYSICS = true; // Включен режим отладки
+    const RENDER_WIDTH = 90; // Жестко задаем ширину отрисовки
 
     const BIKE_CATALOG = {
         ktr_300: {
@@ -307,8 +308,8 @@
     let maxStoppieTime = 0; 
     let currentStoppieTime = 0;
 
-    // Данные для авто-хитбокса
     let hitboxData = null;
+    let renderHeight = 54; // Будет пересчитано при загрузке
 
     document.addEventListener('touchmove', function(e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
 
@@ -438,25 +439,19 @@
 
         chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic' });
         
-        // Если хитбокс не просканирован (картинка не загрузилась), используем заглушку
         if (hitboxData) {
-            // 1. Днище (основа, чтобы не проваливаться)
             let bodyFixture = chassis.createFixture(pl.Box(hitboxData.bodyW, hitboxData.bodyH, pl.Vec2(hitboxData.bodyX, hitboxData.bodyY)), { density: currentBike.density, friction: 0.3 });
             bodyFixture.setUserData('body');
 
-            // 2. Голова (для смерти)
             let headFixture = chassis.createFixture(pl.Circle(hitboxData.headR, pl.Vec2(hitboxData.headX, hitboxData.headY)), { density: 0.1 });
             headFixture.setUserData('head');
 
-            // 3. Нос (для кувырка)
             let noseFixture = chassis.createFixture(pl.Circle(hitboxData.noseR, pl.Vec2(hitboxData.noseX, hitboxData.noseY)), { density: 0.1 });
             noseFixture.setUserData('nose');
 
-            // 4. Хвост (чтобы не проваливался задом)
             let tailFixture = chassis.createFixture(pl.Circle(hitboxData.tailR, pl.Vec2(hitboxData.tailX, hitboxData.tailY)), { density: 0.1 });
             tailFixture.setUserData('tail');
         } else {
-            // Заглушка, если картинки нет
             chassis.createFixture(pl.Box(50 / SCALE, 10 / SCALE), { density: currentBike.density, friction: 0.3 }).setUserData('body');
             chassis.createFixture(pl.Circle(10 / SCALE, pl.Vec2(0, -20 / SCALE)), { density: 0.1 }).setUserData('head');
         }
@@ -496,7 +491,6 @@
             const imgData = scanCtx.getImageData(0, 0, scanCanvas.width, scanCanvas.height).data;
             let minX = scanCanvas.width, maxX = 0, minY = scanCanvas.height, maxY = 0;
             
-            // Ищем крайние непрозрачные пиксели
             for (let y = 0; y < scanCanvas.height; y++) {
                 for (let x = 0; x < scanCanvas.width; x++) {
                     let alpha = imgData[(y * scanCanvas.width + x) * 4 + 3];
@@ -509,32 +503,41 @@
                 }
             }
 
-            // Вычисляем координаты относительно центра картинки
+            // Центр картинки
             let cx = scanCanvas.width / 2;
             let cy = scanCanvas.height / 2;
 
-            // Переводим в физические координаты (делим на SCALE)
-            // Голова (верхняя точка)
+            // Коэффициент масштабирования от оригинальной картинки к экранным 90px
+            let scaleFactor = RENDER_WIDTH / scanCanvas.width;
+            renderHeight = scanCanvas.height * scaleFactor;
+
+            // Находим координаты блоков в пикселях экрана относительно центра
+            let rMinX = (minX - cx) * scaleFactor;
+            let rMaxX = (maxX - cx) * scaleFactor;
+            let rMinY = (minY - cy) * scaleFactor;
+            let rMaxY = (maxY - cy) * scaleFactor;
+
+            // Переводим в метры
             hitboxData = {
-                headX: (0) / SCALE, 
-                headY: (minY - cy) / SCALE, 
+                headX: 0, 
+                headY: rMinY / SCALE, 
                 headR: 8 / SCALE,
                 
-                noseX: (maxX - cx) / SCALE, 
-                noseY: (0) / SCALE, 
-                noseR: 10 / SCALE,
+                noseX: rMaxX / SCALE, 
+                noseY: 0, 
+                noseR: 8 / SCALE,
                 
-                tailX: (minX - cx) / SCALE, 
-                tailY: (0) / SCALE, 
-                tailR: 10 / SCALE,
+                tailX: rMinX / SCALE, 
+                tailY: 0, 
+                tailR: 8 / SCALE,
                 
-                bodyX: (0) / SCALE, 
-                bodyY: (maxY - cy - 10) / SCALE, // Чуть выше самого низа (чтобы колеса не задевали)
-                bodyW: 40 / SCALE, 
+                bodyX: 0, 
+                bodyY: rMaxY / SCALE - (10/SCALE), 
+                bodyW: (rMaxX - rMinX) * 0.6 / SCALE, 
                 bodyH: 10 / SCALE
             };
         } catch(e) {
-            console.log("Ошибка чтения картинки (CORS или нет файла)", e);
+            console.log("Ошибка чтения картинки", e);
         }
     };
 
@@ -919,7 +922,11 @@
             ctx.save();
             ctx.translate(chassis.getPosition().x * SCALE, chassis.getPosition().y * SCALE);
             ctx.rotate(chassis.getAngle());
-            if (isImageLoaded) ctx.drawImage(bikeImage, -bikeImage.width/2, -bikeImage.height/2, bikeImage.width, bikeImage.height); 
+            
+            // Отрисовка картинки нужного размера
+            if (isImageLoaded) {
+                ctx.drawImage(bikeImage, -RENDER_WIDTH/2, -renderHeight/2, RENDER_WIDTH, renderHeight); 
+            }
             
             // --- ОТЛАДКА (Блоки строятся автоматически по картинке) ---
             if (DEBUG_PHYSICS) {
@@ -962,4 +969,4 @@
     update();
 </script>
 </body>
-    </html>
+</html>
