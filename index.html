@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (Perfect)</title>
+    <title>Skyline Moto (Perfect Fix)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -305,8 +305,6 @@
     
     let maxStoppieTime = 0; 
     let currentStoppieTime = 0;
-    
-    let isCrashed = false;
 
     document.addEventListener('touchmove', function(e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
 
@@ -346,7 +344,6 @@
         return r1 * (1 - u) + r2 * u;
     }
 
-    // --- ЗЕМЛЯ С ТРАМПЛИНАМИ И ЯМАМИ ---
     function getTerrainY(x) {
         let y = groundY;
         y -= noise((x + terrainOffset) * 0.001) * 100;  
@@ -420,7 +417,6 @@
         wheelFront = world.createBody({ position: pl.Vec2((x + wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic' });
         wheelFront.createFixture(pl.Circle(wheelRadius), { density: 1.0, friction: 1.0 });
 
-        // ИДЕАЛЬНАЯ ПРИВЯЗКА КОЛЕС
         jointRear = world.createJoint(pl.WheelJoint({
             motorSpeed: 0, maxMotorTorque: currentBike.motor.torque, enableMotor: true,
             frequencyHz: currentBike.suspension.freq, dampingRatio: currentBike.suspension.damp, collideConnected: false
@@ -597,7 +593,6 @@
         maxWheelieTime = 0; currentWheelieTime = 0;
         maxStoppieTime = 0; currentStoppieTime = 0;
         particles.length = 0;
-        isCrashed = false; 
 
         if (ENABLE_AUDIO && isAudioInitialized) {
             idleGain.gain.setValueAtTime(0.4, audioCtx.currentTime); revGain.gain.setValueAtTime(0, audioCtx.currentTime); windGain.gain.setValueAtTime(0, audioCtx.currentTime);
@@ -750,7 +745,12 @@
                 }
             }
 
-            if (window.isGas && !isCrashed) {
+            // --- ИСПРАВЛЕНИЕ ГЛУШЕНИЯ ДВИГАТЕЛЯ ---
+            // Проверяем, касается ли нос земли, прямо перед включением газа
+            let nosePoint = chassis.getWorldPoint(pl.Vec2(45 / SCALE, 0));
+            let noseHit = (nosePoint.y * SCALE) >= getTerrainY(nosePoint.x * SCALE);
+
+            if (window.isGas && !noseHit) {
                 jointRear.setMotorSpeed(currentBike.motor.speed); jointFront.setMotorSpeed(currentBike.motor.speed);
                 jointRear.setMaxMotorTorque(currentBike.motor.torque); jointFront.setMaxMotorTorque(currentBike.motor.torque);
             } else if (window.isBrake) {
@@ -772,7 +772,7 @@
             else if (window.isLeanForward) { if (chassis.getAngularVelocity() < maxTiltSpeed) chassis.applyTorque(tiltPower, true); }
 
             if (ENABLE_AUDIO && isAudioInitialized) {
-                // ИСПРАВЛЕНИЕ ЗВУКА: Холостой ход жестко выключается при газе
+                // Жесткое отключение холостого хода при газе
                 if (window.isGas) {
                     idleGain.gain.cancelScheduledValues(audioCtx.currentTime);
                     idleGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.05);
@@ -811,15 +811,6 @@
             let headX = chassis.getPosition().x + Math.sin(chassis.getAngle()) * (35 / SCALE);
             let headY = chassis.getPosition().y - Math.cos(chassis.getAngle()) * (35 / SCALE);
             let groundUnderHead = getTerrainY(headX * SCALE) / SCALE;
-
-            let nosePoint = chassis.getWorldPoint(pl.Vec2(45 / SCALE, 0));
-            let noseHit = (nosePoint.y * SCALE) >= getTerrainY(nosePoint.x * SCALE);
-
-            if (noseHit) {
-                isCrashed = true;
-                jointRear.setMotorSpeed(0); jointFront.setMotorSpeed(0);
-                jointRear.setMaxMotorTorque(0); jointFront.setMaxMotorTorque(0);
-            }
 
             if (headY >= groundUnderHead || chassis.getPosition().y > canvas.height / SCALE + 10) {
                 triggerGameOver();
@@ -870,4 +861,4 @@
     update();
 </script>
 </body>
-    </html>
+</html>
