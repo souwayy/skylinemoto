@@ -192,8 +192,8 @@
         <div class="stats-left">
             <div class="stat-text">Best: <span id="bestDistanceText">0</span>m</div>
             <div class="stat-text" style="color: #a6ff00;">
-                <img src="coin.png" id="coinIconTop" class="coin-icon" onerror="this.style.display='none'">
-                Coins: <span id="coinBalanceText">0</span>
+                <img src="coin.png" id="coinIconTop" class="coin-icon" style="height: 20px; margin-right: 5px;" onerror="this.style.display='none'">
+                <span id="coinBalanceText">0</span>
             </div>
         </div>
         
@@ -323,6 +323,29 @@
     const pl = planck;
     const world = new pl.World({ gravity: pl.Vec2(0, 10) });
 
+    // --- ОБРАБОТКА СТОЛКНОВЕНИЙ (ДАТЧИКИ) ---
+    world.on('begin-contact', (contact) => {
+        if (gameState !== 'playing') return;
+        
+        const fixA = contact.getFixtureA();
+        const fixB = contact.getFixtureB();
+        const dataA = fixA.getUserData();
+        const dataB = fixB.getUserData();
+
+        const hit = (target) => (dataA === target && dataB === 'terrain') || (dataB === target && dataA === 'terrain');
+
+        // Удар носом: просто глохнет мотор, физика делает кувырок
+        if (hit('nose')) {
+            jointRear.setMotorSpeed(0); jointFront.setMotorSpeed(0);
+            jointRear.setMaxMotorTorque(0); jointFront.setMaxMotorTorque(0);
+        }
+        
+        // Касание головой: моментальная смерть (картинка не провалится)
+        if (hit('head')) {
+            triggerGameOver();
+        }
+    });
+
     const startX = 50000;
     let groundY = canvas.height - 80; 
     let terrainOffset = 0; 
@@ -380,7 +403,9 @@
             
             const chain = world.createBody();
             const chainShape = pl.Chain(vertices, false);
-            chain.createFixture(chainShape, { friction: 1.0, restitution: 0.0 });
+            // Помечаем землю, чтобы датчики понимали, что это земля
+            let terrainFixture = chain.createFixture(chainShape, { friction: 1.0, restitution: 0.0 });
+            terrainFixture.setUserData('terrain');
             
             terrainBodies.push({ body: chain, startX: lastGeneratedX, endX: lastGeneratedX + (chunkSize * chunkWidth) });
             lastGeneratedX += chunkSize * chunkWidth;
@@ -410,7 +435,18 @@
         }
 
         chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic' });
-        chassis.createFixture(pl.Box(60 / SCALE / 2, 15 / SCALE / 2), { density: currentBike.density, friction: 0.3 });
+        
+        // 1. Тело байка
+        let bodyFixture = chassis.createFixture(pl.Box(60 / SCALE / 2, 15 / SCALE / 2), { density: currentBike.density, friction: 0.3 });
+        bodyFixture.setUserData('body');
+
+        // 2. Датчик носа (для начала кувырка)
+        let noseSensor = chassis.createFixture(pl.Circle(10 / SCALE, pl.Vec2(35 / SCALE, -5 / SCALE)), { isSensor: true });
+        noseSensor.setUserData('nose');
+
+        // 3. Датчик головы (для смерти)
+        let headSensor = chassis.createFixture(pl.Circle(12 / SCALE, pl.Vec2(0, -35 / SCALE)), { isSensor: true });
+        headSensor.setUserData('head');
 
         wheelRear = world.createBody({ position: pl.Vec2((x - wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic' });
         wheelRear.createFixture(pl.Circle(wheelRadius), { density: 1.0, friction: 1.0 });
@@ -438,10 +474,8 @@
     window.isLeanBack = false; window.isLeanForward = false;
 
     const particles = [];
-    // --- НОВАЯ ПЫЛЬ (Мелкие точки) ---
     function spawnDust(x, y, speedX) {
         if (particles.length > 150) return; 
-        
         for (let i = 0; i < 2; i++) {
             particles.push({
                 x: x + (Math.random() - 0.5) * 15, 
@@ -460,10 +494,8 @@
             let p = particles[i];
             p.x += p.vx;
             p.y += p.vy;
-            
-            p.vy += 0.2; // Гравитация
-            p.vx *= 0.96; // Сопротивление воздуха
-            
+            p.vy += 0.2; 
+            p.vx *= 0.96; 
             p.alpha -= p.decay;
             if (p.alpha <= 0) particles.splice(i, 1);
         }
@@ -604,6 +636,35 @@
             startRevSound();
         }
         document.getElementById('distanceText').innerText = "0";
+    }
+
+    function triggerGameOver() {
+        if (gameState === 'gameover') return;
+        gameState = 'gameover';
+        
+        let dist = Math.floor(((chassis.getPosition().x * SCALE) - startX) / 10);
+        let earnedCoins = Math.floor(dist / 100) + ((frontflipCount + backflipCount) * 10);
+        
+        totalCoins += earnedCoins;
+        localStorage.setItem('totalCoins', totalCoins);
+        
+        document.getElementById('go-distance').innerText = dist + "m";
+        document.getElementById('go-stoppie').innerText = maxStoppieTime.toFixed(1) + "s";
+        document.getElementById('go-wheelie').innerText = maxWheelieTime.toFixed(1) + "s";
+        document.getElementById('go-frontflips').innerText = frontflipCount;
+        document.getElementById('go-backflips').innerText = backflipCount;
+        document.getElementById('go-totalscore').innerText = dist + (frontflipCount * 100) + (backflipCount * 100);
+        document.getElementById('go-highscore').innerText = maxDistance + "m";
+        document.getElementById('go-coins').innerText = earnedCoins;
+        
+        document.getElementById('coinBalanceText').innerText = totalCoins;
+        document.getElementById('gameOverScreen').style.display = 'flex';
+        
+        if (ENABLE_AUDIO && isAudioInitialized) { 
+            idleGain.gain.setValueAtTime(0, audioCtx.currentTime); 
+            revGain.gain.setValueAtTime(0, audioCtx.currentTime); 
+            windGain.gain.setValueAtTime(0, audioCtx.currentTime); 
+        }
     }
 
     document.getElementById('startScreen').addEventListener('touchstart', async (e) => {
@@ -755,41 +816,9 @@
                 } else { if (previousGasState === true) { if (Math.random() > 0.5) playPop(); previousGasState = false; } }
             }
 
-            let headPoint = chassis.getWorldPoint(pl.Vec2(0, -45 / SCALE));
-            let nosePoint = chassis.getWorldPoint(pl.Vec2(45 / SCALE, 0));
-            let tailPoint = chassis.getWorldPoint(pl.Vec2(-45 / SCALE, 0));
-
-            let headHit = (headPoint.y * SCALE) >= getTerrainY(headPoint.x * SCALE);
-            let noseHit = (nosePoint.y * SCALE) >= getTerrainY(nosePoint.x * SCALE);
-            let tailHit = (tailPoint.y * SCALE) >= getTerrainY(tailPoint.x * SCALE);
-
-            if (noseHit || tailHit) {
-                jointRear.setMotorSpeed(0); jointFront.setMotorSpeed(0);
-                jointRear.setMaxMotorTorque(0); jointFront.setMaxMotorTorque(0);
-            }
-
-            if (headHit || chassis.getPosition().y > canvas.height / SCALE + 10) {
-                gameState = 'gameover';
-                
-                let dist = Math.floor(((chassis.getPosition().x * SCALE) - startX) / 10);
-                let earnedCoins = Math.floor(dist / 100) + ((frontflipCount + backflipCount) * 10);
-                
-                totalCoins += earnedCoins;
-                localStorage.setItem('totalCoins', totalCoins);
-                
-                document.getElementById('go-distance').innerText = dist + "m";
-                document.getElementById('go-stoppie').innerText = maxStoppieTime.toFixed(1) + "s";
-                document.getElementById('go-wheelie').innerText = maxWheelieTime.toFixed(1) + "s";
-                document.getElementById('go-frontflips').innerText = frontflipCount;
-                document.getElementById('go-backflips').innerText = backflipCount;
-                document.getElementById('go-totalscore').innerText = dist + (frontflipCount * 100) + (backflipCount * 100);
-                document.getElementById('go-highscore').innerText = maxDistance + "m";
-                document.getElementById('go-coins').innerText = earnedCoins;
-                
-                document.getElementById('coinBalanceText').innerText = totalCoins;
-                document.getElementById('gameOverScreen').style.display = 'flex';
-                
-                if (ENABLE_AUDIO && isAudioInitialized) { idleGain.gain.setValueAtTime(0, audioCtx.currentTime); revGain.gain.setValueAtTime(0, audioCtx.currentTime); windGain.gain.setValueAtTime(0, audioCtx.currentTime); }
+            // Проверка падения в пропасть (вызывается только тут, т.к. датчики обрабатывают удары)
+            if (chassis.getPosition().y > canvas.height / SCALE + 10) {
+                triggerGameOver();
             }
 
             let targetCameraX = (chassis.getPosition().x * SCALE) - ((canvas.width * 0.3) / zoom);
