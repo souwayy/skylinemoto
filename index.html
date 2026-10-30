@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (Planck.js)</title>
+    <title>Skyline Moto (KTR 300 EXC)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -115,7 +115,6 @@
             font-size: 20px;
         }
     </style>
-    <!-- Подключаем Planck.js (Box2D) -->
     <script src="https://cdn.jsdelivr.net/npm/planck-js@0.3/dist/planck.min.js"></script>
 </head>
 <body>
@@ -153,7 +152,7 @@
 
     <div class="overlay" id="startScreen">
         <h1>Skyline Moto</h1>
-        <p>Нажми, чтобы начать</p>
+        <p>KTR 300 EXC<br>Нажми, чтобы начать</p>
     </div>
 
     <div class="overlay" id="gameOverScreen">
@@ -163,8 +162,8 @@
 
 <script>
     const ENABLE_AUDIO = true; 
-    // Planck.js использует метры, поэтому 1 метр = 30 пикселей
-    const SCALE = 30; 
+    const SCALE = 30; // 30 пикселей = 1 метр
+    const BIKE_NAME = "KTR 300 EXC";
 
     document.addEventListener('touchmove', function(e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
 
@@ -179,10 +178,8 @@
 
     // --- МИР PLANET (BOX2D) ---
     const pl = planck;
-    // Гравитация вниз (10 м/с^2)
     const world = new pl.World({ gravity: pl.Vec2(0, 10) });
 
-    // Настройки генерации
     const startX = 50000;
     let groundY = canvas.height - 80; 
     let terrainOffset = 0; 
@@ -217,7 +214,7 @@
     let terrainBodies = [];
     let lastGeneratedX = startX - 1500; 
     const chunkWidth = 2; 
-    const chunkSize = 100; // Генерируем куски по 100 точек
+    const chunkSize = 100; 
 
     function generateTerrain() {
         while (lastGeneratedX < cameraX + (canvas.width / zoom) + 1000) {
@@ -225,11 +222,9 @@
             for (let i = 0; i < chunkSize; i++) {
                 let px = lastGeneratedX + (i * chunkWidth);
                 let py = getTerrainY(px);
-                // В Planck.js координаты в метрах
                 vertices.push(pl.Vec2(px / SCALE, py / SCALE));
             }
             
-            // Создаем цепь (Chain) - это гладкая линия физики
             const chain = world.createBody();
             const chainShape = pl.Chain(vertices, false);
             chain.createFixture(chainShape, {
@@ -251,67 +246,47 @@
         }
     }
 
-    // --- БАЙК ---
+    // --- БАЙК KTR 300 EXC ---
     const wheelRadius = 10 / SCALE; 
     const wheelBase = 23 / SCALE; 
     
-    // Создаем тела
     let chassis, wheelRear, wheelFront;
     let jointRear, jointFront;
 
     function createBike(x, y) {
-        // Если байк уже есть, удаляем его
         if (chassis) {
             world.destroyBody(chassis);
             world.destroyBody(wheelRear);
             world.destroyBody(wheelFront);
         }
 
-        // Рама
-        chassis = world.createBody({ 
-            position: pl.Vec2(x / SCALE, y / SCALE), 
-            type: 'dynamic' 
-        });
-        chassis.createFixture(pl.Box(60 / SCALE / 2, 15 / SCALE / 2), { 
-            density: 1.0, 
-            friction: 0.3 
-        });
+        // Рама (Плотность 1.2)
+        chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic' });
+        chassis.createFixture(pl.Box(60 / SCALE / 2, 15 / SCALE / 2), { density: 1.2, friction: 0.3 });
 
         // Заднее колесо
-        wheelRear = world.createBody({ 
-            position: pl.Vec2((x - wheelBase * SCALE) / SCALE, y / SCALE), 
-            type: 'dynamic' 
-        });
-        wheelRear.createFixture(pl.Circle(wheelRadius), { 
-            density: 1.0, 
-            friction: 1.0 
-        });
+        wheelRear = world.createBody({ position: pl.Vec2((x - wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic' });
+        wheelRear.createFixture(pl.Circle(wheelRadius), { density: 1.0, friction: 1.0 });
 
         // Переднее колесо
-        wheelFront = world.createBody({ 
-            position: pl.Vec2((x + wheelBase * SCALE) / SCALE, y / SCALE), 
-            type: 'dynamic' 
-        });
-        wheelFront.createFixture(pl.Circle(wheelRadius), { 
-            density: 1.0, 
-            friction: 1.0 
-        });
+        wheelFront = world.createBody({ position: pl.Vec2((x + wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic' });
+        wheelFront.createFixture(pl.Circle(wheelRadius), { density: 1.0, friction: 1.0 });
 
-        // Подвеска (WheelJoint)
+        // Подвеска (frequencyHz: 4.5, dampingRatio: 0.7)
         jointRear = world.createJoint(pl.WheelJoint({
             motorSpeed: 0,
-            maxMotorTorque: 20, // Сила мотора
+            maxMotorTorque: 60, // Сила разгона для 300-кубового
             enableMotor: true,
-            frequencyHz: 4.0, // Жесткость пружины (подвеска)
+            frequencyHz: 4.5,   // Мягкая подвеска
             dampingRatio: 0.7,
             collideConnected: false
         }, chassis, wheelRear, wheelRear.getPosition(), pl.Vec2(0, 1)));
 
         jointFront = world.createJoint(pl.WheelJoint({
             motorSpeed: 0,
-            maxMotorTorque: 20,
+            maxMotorTorque: 60,
             enableMotor: true,
-            frequencyHz: 4.0,
+            frequencyHz: 4.5,
             dampingRatio: 0.7,
             collideConnected: false
         }, chassis, wheelFront, wheelFront.getPosition(), pl.Vec2(0, 1)));
@@ -331,7 +306,7 @@
         document.getElementById('clockText').innerText = timeStr;
     }, 1000);
 
-    // --- ЗВУК (БЕЗ ИЗМЕНЕНИЙ) ---
+    // --- ЗВУК ---
     let audioCtx;
     let idleBuffer, popBuffer, windBuffer, revBuffer;
     let idleSource, windSource, revSource;
@@ -447,7 +422,6 @@
     function resetGame() {
         terrainOffset = Math.random() * 10000;
         
-        // Очистка
         for (let i = 0; i < terrainBodies.length; i++) world.destroyBody(terrainBodies[i].body);
         terrainBodies = [];
         lastGeneratedX = startX - 1500;
@@ -509,7 +483,6 @@
         ctx.beginPath();
         ctx.moveTo(cameraX - 100, canvas.height + 2000);
         
-        // Рисуем землю по точкам
         for (let chunk of terrainBodies) {
             let vertices = chunk.body.getFixtureList().getShape().m_vertices;
             for (let i = 0; i < vertices.length; i++) {
@@ -542,32 +515,31 @@
         let dt = (currentTime - lastTime) / 1000;
         lastTime = currentTime;
         
-        // Физический шаг (фиксированный для стабильности)
         world.step(1/60, dt, 3);
 
         if (gameState === 'playing' && chassis) {
             let speed = Math.abs(wheelRear.getAngularVelocity());
 
-            // Управление мотором
+            // ХАРАКТЕРИСТИКИ KTR 300 EXC
             if (window.isGas) {
-                jointRear.setMotorSpeed(30); // Отрицательная скорость - вперед (зависит от оси)
-                jointFront.setMotorSpeed(30);
-                jointRear.setMaxMotorTorque(60);
+                jointRear.setMotorSpeed(50); // Максималка
+                jointFront.setMotorSpeed(50);
+                jointRear.setMaxMotorTorque(60); // Разгон
                 jointFront.setMaxMotorTorque(60);
             } else if (window.isBrake) {
                 jointRear.setMotorSpeed(0);
                 jointFront.setMotorSpeed(0);
-                jointRear.setMaxMotorTorque(100); // Сильное торможение
+                jointRear.setMaxMotorTorque(100); // Тормоз
                 jointFront.setMaxMotorTorque(100);
             } else {
-                // НАКАТ: Отключаем мотор, колеса катятся свободно
+                // НАКАТ
                 jointRear.setMaxMotorTorque(0);
                 jointFront.setMaxMotorTorque(0);
             }
 
             // Наклоны
-            if (window.isLeanBack) chassis.applyTorque(-10, true);
-            else if (window.isLeanForward) chassis.applyTorque(10, true);
+            if (window.isLeanBack) chassis.applyTorque(-60, true);
+            else if (window.isLeanForward) chassis.applyTorque(60, true);
 
             // Звук
             if (ENABLE_AUDIO && isAudioInitialized) {
@@ -673,7 +645,6 @@
         ctx.restore(); 
     }
 
-    // Запускаем цикл
     update();
 </script>
 </body>
