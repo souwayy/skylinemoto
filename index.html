@@ -205,22 +205,22 @@
     function getTerrainY(x) {
         let y = groundY;
         
-        // Базовый ландшафт (пологие холмы)
-        y -= noise((x + terrainOffset) * 0.001) * 70;  
-        y -= noise((x + terrainOffset) * 0.005) * 25;   
+        // 1. Базовый ландшафт (плавные волны)
+        y -= noise((x + terrainOffset) * 0.001) * 100;  
+        y -= noise((x + terrainOffset) * 0.005) * 30;   
         
-        // Слой крупных фигур (трамплины и ямы)
-        let feature = noise((x + terrainOffset) * 0.002); 
+        // 2. Ямы и трамплины (пологие, без стен)
+        let feature = noise((x + terrainOffset) * 0.0008); 
         
-        if (feature > 0.7) {
-            // ТРАМПЛИН (поднимаем землю)
-            let p = (feature - 0.7) / 0.3; 
-            let ramp = Math.sin(p * Math.PI) * 250; 
+        if (feature > 0.65) {
+            // ТРАМПЛИН
+            let p = (feature - 0.65) / 0.35; 
+            let ramp = Math.sin(p * Math.PI) * 120; 
             y -= ramp;
-        } else if (feature < 0.3) {
-            // ЯМА (опускаем землю)
-            let p = (0.3 - feature) / 0.3; 
-            let pit = Math.sin(p * Math.PI) * 350;  
+        } else if (feature < 0.35) {
+            // ЯМА
+            let p = (0.35 - feature) / 0.35; 
+            let pit = Math.sin(p * Math.PI) * 150;  
             y += pit;
         }
         
@@ -547,7 +547,7 @@
                 jointFront.setMaxMotorTorque(0);
             }
 
-            // Наклоны (исправленные для Box2D)
+            // Наклоны
             let tiltPower = 20;      
             let maxTiltSpeed = 2.5;  
 
