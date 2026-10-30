@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (True Physics)</title>
+    <title>Skyline Moto (Fixed Wheels)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -278,7 +278,7 @@
 <script>
     const ENABLE_AUDIO = true; 
     const SCALE = 30; 
-    const DEBUG_PHYSICS = true; // Включен режим отладки
+    const DEBUG_PHYSICS = true; 
 
     const BIKE_CATALOG = {
         ktr_300: {
@@ -307,7 +307,7 @@
     let maxStoppieTime = 0; 
     let currentStoppieTime = 0;
     
-    let isCrashed = false; // Флаг, чтобы мотор не заводился после удара
+    let isCrashed = false;
 
     document.addEventListener('touchmove', function(e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
 
@@ -339,11 +339,9 @@
 
         const bikePart = dataA === 'terrain' ? dataB : dataA;
 
-        // Смерть при касании головы
         if (bikePart === 'head') {
             triggerGameOver();
         }
-        // При касании носа или хвоста — жестко глушим мотор (isCrashed)
         else if (bikePart === 'nose' || bikePart === 'tail') {
             isCrashed = true;
             jointRear.setMotorSpeed(0); jointFront.setMotorSpeed(0);
@@ -440,20 +438,16 @@
 
         chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic' });
         
-        // --- ФИЗИЧЕСКИЕ БЛОКИ (ТВЕРДЫЕ) ---
-        // 1. Днище (красный)
+        // --- БЛОКИ КУЗОВА ---
         let bodyFixture = chassis.createFixture(pl.Box(25 / SCALE, 5 / SCALE, pl.Vec2(0, 10 / SCALE)), { density: currentBike.density, friction: 0.3 });
         bodyFixture.setUserData('body');
 
-        // 2. Голова (желтый)
         let headFixture = chassis.createFixture(pl.Circle(8 / SCALE, pl.Vec2(0, -22 / SCALE)), { density: 0.1 });
         headFixture.setUserData('head');
 
-        // 3. Нос (голубой)
-        let noseFixture = chassis.createFixture(pl.Circle(8 / SCALE, pl.Vec2(30 / SCALE, 0)), { density: 0.1, friction: 1.0 });
+        let noseFixture = chassis.createFixture(pl.Circle(8 / SCALE, pl.Vec2(30 / SCALE, 0)), { density: 0.1 });
         noseFixture.setUserData('nose');
 
-        // 4. Хвост (розовый)
         let tailFixture = chassis.createFixture(pl.Circle(8 / SCALE, pl.Vec2(-30 / SCALE, 0)), { density: 0.1 });
         tailFixture.setUserData('tail');
 
@@ -463,25 +457,23 @@
         wheelFront = world.createBody({ position: pl.Vec2((x + wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic' });
         wheelFront.createFixture(pl.Circle(wheelRadius), { density: 1.0, friction: 1.0 });
 
-        // ЛОКАЛЬНЫЕ КООРДИНАТЫ КРЕПЛЕНИЯ КОЛЕС (чтобы не отваливались)
+        // ВОЗВРАЩАЕМ ПРИВЯЗКУ КАК БЫЛО (МИРОВЫЕ КООРДИНАТЫ)
         jointRear = world.createJoint(pl.WheelJoint({
             motorSpeed: 0, maxMotorTorque: currentBike.motor.torque, enableMotor: true,
             frequencyHz: currentBike.suspension.freq, dampingRatio: currentBike.suspension.damp, collideConnected: false
-        }, chassis, wheelRear, pl.Vec2(-wheelBase, 0), pl.Vec2(0, 1)));
+        }, chassis, wheelRear, wheelRear.getPosition(), pl.Vec2(0, 1)));
 
         jointFront = world.createJoint(pl.WheelJoint({
             motorSpeed: 0, maxMotorTorque: currentBike.motor.torque, enableMotor: true,
             frequencyHz: currentBike.suspension.freq, dampingRatio: currentBike.suspension.damp, collideConnected: false
-        }, chassis, wheelFront, pl.Vec2(wheelBase, 0), pl.Vec2(0, 1)));
+        }, chassis, wheelFront, wheelFront.getPosition(), pl.Vec2(0, 1)));
     }
 
     const bikeImage = new Image();
     bikeImage.src = 'moto.png'; 
     let isImageLoaded = false;
     
-    bikeImage.onload = () => { 
-        isImageLoaded = true; 
-    };
+    bikeImage.onload = () => { isImageLoaded = true; };
 
     window.isGas = false; window.isBrake = false; 
     window.isLeanBack = false; window.isLeanForward = false;
@@ -643,7 +635,7 @@
         maxWheelieTime = 0; currentWheelieTime = 0;
         maxStoppieTime = 0; currentStoppieTime = 0;
         particles.length = 0;
-        isCrashed = false; // Сброс флага аварии
+        isCrashed = false; 
 
         if (ENABLE_AUDIO && isAudioInitialized) {
             idleGain.gain.setValueAtTime(0.4, audioCtx.currentTime); revGain.gain.setValueAtTime(0, audioCtx.currentTime); windGain.gain.setValueAtTime(0, audioCtx.currentTime);
@@ -796,7 +788,6 @@
                 }
             }
 
-            // ЕСЛИ БАЙК РАЗБИЛСЯ, ГАЗ НЕ РАБОТАЕТ
             if (window.isGas && !isCrashed) {
                 jointRear.setMotorSpeed(currentBike.motor.speed); jointFront.setMotorSpeed(currentBike.motor.speed);
                 jointRear.setMaxMotorTorque(currentBike.motor.torque); jointFront.setMaxMotorTorque(currentBike.motor.torque);
