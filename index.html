@@ -278,7 +278,7 @@
 <script>
     const ENABLE_AUDIO = true; 
     const SCALE = 30; 
-    const DEBUG_POINTS = true; // ОСТАВЛЯЕМ ВКЛЮЧЕННЫМ ДЛЯ ПРОВЕРКИ
+    const DEBUG_POINTS = true; // ВКЛЮЧЕНО ДЛЯ НАСТРОЙКИ
 
     const BIKE_CATALOG = {
         ktr_300: {
@@ -411,18 +411,9 @@
 
         chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic' });
         
-        // --- ОСНОВНАЯ РАМА (СИНИЙ ПРЯМОУГОЛЬНИК) ---
-        chassis.createFixture(pl.Box(60 / SCALE / 2, 15 / SCALE / 2), { density: currentBike.density, friction: 0.3 });
-
-        // --- ПЕРЕДНЕЕ КРЫЛО (КРАСНЫЙ КРУГ) ---
-        let noseShape = pl.Circle(8 / SCALE);
-        noseShape.m_p.set(25 / SCALE, -5 / SCALE);
-        chassis.createFixture(noseShape, { density: 0.1, friction: 0.5 });
-
-        // --- ЗАДНЕЕ КРЫЛО (КРАСНЫЙ КРУГ) ---
-        let tailShape = pl.Circle(8 / SCALE);
-        tailShape.m_p.set(-25 / SCALE, -5 / SCALE);
-        chassis.createFixture(tailShape, { density: 0.1, friction: 0.5 });
+        // --- ОСНОВНАЯ РАМА (ДЛИННАЯ И ТОНКАЯ) ---
+        // Ширина 85, высота 10, смещена вверх на -12
+        chassis.createFixture(pl.Box(85 / SCALE / 2, 10 / SCALE / 2, pl.Vec2(0, -12 / SCALE)), { density: currentBike.density, friction: 0.3 });
 
         wheelRear = world.createBody({ position: pl.Vec2((x - wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic' });
         wheelRear.createFixture(pl.Circle(wheelRadius), { density: 1.0, friction: 1.0 });
@@ -817,7 +808,8 @@
             }
 
             // МАТЕМАТИКА СМЕРТИ (Точный расчет позиции шлема)
-            let headWorldPoint = chassis.getWorldPoint(pl.Vec2(-20 / SCALE, -25 / SCALE));
+            // Сдвинули точку вправо (-5)
+            let headWorldPoint = chassis.getWorldPoint(pl.Vec2(-5 / SCALE, -25 / SCALE));
             let groundUnderHead = getTerrainY(headWorldPoint.x * SCALE) / SCALE;
 
             if (headWorldPoint.y >= groundUnderHead || chassis.getPosition().y > canvas.height / SCALE + 10) {
@@ -883,8 +875,9 @@
                     fix = fix.getNext();
                 }
 
+                // Желтая точка головы (сдвинута вправо на -5)
                 ctx.beginPath();
-                ctx.arc((-20 / SCALE) * SCALE, (-25 / SCALE) * SCALE, 6, 0, Math.PI * 2);
+                ctx.arc((-5 / SCALE) * SCALE, (-25 / SCALE) * SCALE, 6, 0, Math.PI * 2);
                 ctx.fillStyle = 'yellow';
                 ctx.fill();
                 ctx.strokeStyle = 'black';
