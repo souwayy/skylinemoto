@@ -306,8 +306,6 @@
     let maxStoppieTime = 0; 
     let currentStoppieTime = 0;
 
-    let invincibleTimer = 0; // Защита от смерти при старте
-
     document.addEventListener('touchmove', function(e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
 
     const canvas = document.getElementById('gameCanvas');
@@ -323,29 +321,6 @@
 
     const pl = planck;
     const world = new pl.World({ gravity: pl.Vec2(0, 10) });
-
-    // --- ОБРАБОТКА СТОЛКНОВЕНИЙ (ДАТЧИКИ) ---
-    world.on('begin-contact', (contact) => {
-        if (gameState !== 'playing' || invincibleTimer > 0) return; 
-        
-        const fixA = contact.getFixtureA();
-        const fixB = contact.getFixtureB();
-        const dataA = fixA.getUserData();
-        const dataB = fixB.getUserData();
-
-        const hit = (target) => (dataA === target && dataB === 'terrain') || (dataB === target && dataA === 'terrain');
-
-        // Удар носом: просто глохнет мотор, физика делает кувырок
-        if (hit('nose')) {
-            jointRear.setMotorSpeed(0); jointFront.setMotorSpeed(0);
-            jointRear.setMaxMotorTorque(0); jointFront.setMaxMotorTorque(0);
-        }
-        
-        // Касание головой: смерть
-        if (hit('head')) {
-            triggerGameOver();
-        }
-    });
 
     const startX = 50000;
     let groundY = canvas.height - 80; 
@@ -404,8 +379,7 @@
             
             const chain = world.createBody();
             const chainShape = pl.Chain(vertices, false);
-            let terrainFixture = chain.createFixture(chainShape, { friction: 1.0, restitution: 0.0 });
-            terrainFixture.setUserData('terrain');
+            chain.createFixture(chainShape, { friction: 1.0, restitution: 0.0 });
             
             terrainBodies.push({ body: chain, startX: lastGeneratedX, endX: lastGeneratedX + (chunkSize * chunkWidth) });
             lastGeneratedX += chunkSize * chunkWidth;
@@ -435,17 +409,7 @@
         }
 
         chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic' });
-        
-        let bodyFixture = chassis.createFixture(pl.Box(60 / SCALE / 2, 15 / SCALE / 2), { density: currentBike.density, friction: 0.3 });
-        bodyFixture.setUserData('body');
-
-        // Датчик носа (смещен чуть выше, чтобы не цеплять кочки)
-        let noseSensor = chassis.createFixture(pl.Circle(5 / SCALE, pl.Vec2(35 / SCALE, -3 / SCALE)), { isSensor: true });
-        noseSensor.setUserData('nose');
-
-        // Датчик головы (смерть)
-        let headSensor = chassis.createFixture(pl.Circle(8 / SCALE, pl.Vec2(0, -32 / SCALE)), { isSensor: true });
-        headSensor.setUserData('head');
+        chassis.createFixture(pl.Box(60 / SCALE / 2, 15 / SCALE / 2), { density: currentBike.density, friction: 0.3 });
 
         wheelRear = world.createBody({ position: pl.Vec2((x - wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic' });
         wheelRear.createFixture(pl.Circle(wheelRadius), { density: 1.0, friction: 1.0 });
@@ -462,10 +426,6 @@
             motorSpeed: 0, maxMotorTorque: currentBike.motor.torque, enableMotor: true,
             frequencyHz: currentBike.suspension.freq, dampingRatio: currentBike.suspension.damp, collideConnected: false
         }, chassis, wheelFront, wheelFront.getPosition(), pl.Vec2(0, 1)));
-        
-        // Сбрасываем углы при создании, чтобы он падал ровно
-        chassis.setAngle(0);
-        chassis.setAngularVelocity(0);
     }
 
     const bikeImage = new Image();
@@ -620,9 +580,7 @@
         terrainBodies = []; lastGeneratedX = startX - 1500; cameraX = startX - (canvas.width * 0.3);
         
         let startHillY = getTerrainY(startX);
-        // Спавним высоко, чтобы ровно упал
-        let startY = startHillY - 50; 
-        
+        let startY = startHillY - 25;
         createBike(startX, startY);
         generateTerrain();
 
@@ -634,8 +592,6 @@
         maxWheelieTime = 0; currentWheelieTime = 0;
         maxStoppieTime = 0; currentStoppieTime = 0;
         particles.length = 0;
-        
-        invincibleTimer = 1.0; // 1 секунда неуязвимости после старта
 
         if (ENABLE_AUDIO && isAudioInitialized) {
             idleGain.gain.setValueAtTime(0.4, audioCtx.currentTime); revGain.gain.setValueAtTime(0, audioCtx.currentTime); windGain.gain.setValueAtTime(0, audioCtx.currentTime);
@@ -646,7 +602,6 @@
     }
 
     function triggerGameOver() {
-        if (gameState === 'gameover') return;
         gameState = 'gameover';
         
         let dist = Math.floor(((chassis.getPosition().x * SCALE) - startX) / 10);
@@ -743,14 +698,12 @@
         lastTime = currentTime;
         if (dt > 0.1) dt = 0.1; 
 
-        if (gameState === 'playing' || gameState === 'gameover') {
+        if (gameState === 'playing') {
             world.step(1/60, dt, 3);
             updateParticles();
         }
 
         if (gameState === 'playing' && chassis) {
-            if (invincibleTimer > 0) invincibleTimer -= dt; // Считаем время неуязвимости
-            
             let speed = Math.abs(wheelRear.getAngularVelocity());
             let isAirborne = Math.abs(chassis.getLinearVelocity().y) > 1.5;
             let angle = chassis.getAngle();
@@ -825,7 +778,23 @@
                 } else { if (previousGasState === true) { if (Math.random() > 0.5) playPop(); previousGasState = false; } }
             }
 
-            if (chassis.getPosition().y > canvas.height / SCALE + 10) {
+            // --- ТА САМАЯ МАТЕМАТИКА ---
+            let headPoint = chassis.getWorldPoint(pl.Vec2(0, -40 / SCALE));
+            let nosePoint = chassis.getWorldPoint(pl.Vec2(40 / SCALE, 0));
+            let tailPoint = chassis.getWorldPoint(pl.Vec2(-40 / SCALE, 0));
+
+            let headHit = (headPoint.y * SCALE) >= getTerrainY(headPoint.x * SCALE);
+            let noseHit = (nosePoint.y * SCALE) >= getTerrainY(nosePoint.x * SCALE);
+            let tailHit = (tailPoint.y * SCALE) >= getTerrainY(tailPoint.x * SCALE);
+
+            // Если уткнулся носом или хвостом — глохнет мотор
+            if (noseHit || tailHit) {
+                jointRear.setMotorSpeed(0); jointFront.setMotorSpeed(0);
+                jointRear.setMaxMotorTorque(0); jointFront.setMaxMotorTorque(0);
+            }
+
+            // Если коснулся головой или упал в пропасть
+            if (headHit || chassis.getPosition().y > canvas.height / SCALE + 10) {
                 triggerGameOver();
             }
 
@@ -872,4 +841,4 @@
     update();
 </script>
 </body>
-                </html>
+</html>
