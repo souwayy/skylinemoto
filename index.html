@@ -278,7 +278,7 @@
 <script>
     const ENABLE_AUDIO = true; 
     const SCALE = 30; 
-    const DEBUG_POINTS = true; // ВКЛЮЧЕНО ДЛЯ НАСТРОЙКИ ТОЧЕК
+    const DEBUG_POINTS = true; // ОСТАВЛЯЕМ ВКЛЮЧЕННЫМ ДЛЯ ПРОВЕРКИ
 
     const BIKE_CATALOG = {
         ktr_300: {
@@ -416,12 +416,12 @@
 
         // --- ПЕРЕДНЕЕ КРЫЛО (КРАСНЫЙ КРУГ) ---
         let noseShape = pl.Circle(8 / SCALE);
-        noseShape.m_p.set(30 / SCALE, -10 / SCALE);
+        noseShape.m_p.set(25 / SCALE, -5 / SCALE);
         chassis.createFixture(noseShape, { density: 0.1, friction: 0.5 });
 
         // --- ЗАДНЕЕ КРЫЛО (КРАСНЫЙ КРУГ) ---
         let tailShape = pl.Circle(8 / SCALE);
-        tailShape.m_p.set(-30 / SCALE, -10 / SCALE);
+        tailShape.m_p.set(-25 / SCALE, -5 / SCALE);
         chassis.createFixture(tailShape, { density: 0.1, friction: 0.5 });
 
         wheelRear = world.createBody({ position: pl.Vec2((x - wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic' });
@@ -817,7 +817,7 @@
             }
 
             // МАТЕМАТИКА СМЕРТИ (Точный расчет позиции шлема)
-            let headWorldPoint = chassis.getWorldPoint(pl.Vec2(-10 / SCALE, -40 / SCALE));
+            let headWorldPoint = chassis.getWorldPoint(pl.Vec2(-20 / SCALE, -25 / SCALE));
             let groundUnderHead = getTerrainY(headWorldPoint.x * SCALE) / SCALE;
 
             if (headWorldPoint.y >= groundUnderHead || chassis.getPosition().y > canvas.height / SCALE + 10) {
@@ -858,12 +858,9 @@
             ctx.translate(chassis.getPosition().x * SCALE, chassis.getPosition().y * SCALE);
             ctx.rotate(chassis.getAngle());
             
-            // Рисуем картинку байка
             if (isImageLoaded) ctx.drawImage(bikeImage, -45, -45, 90, 54); 
             
-            // === ОТЛАДОЧНЫЕ ТОЧКИ ===
             if (DEBUG_POINTS) {
-                // 1. Отрисовка физических фикстур (синяя рама и красные крылья)
                 let fix = chassis.getFixtureList();
                 while (fix) {
                     let shape = fix.getShape();
@@ -886,16 +883,13 @@
                     fix = fix.getNext();
                 }
 
-                // 2. Отрисовка математической головы (желтая точка)
-                // Координаты должны совпадать с теми, что в "МАТЕМАТИКА СМЕРТИ" (-40 / SCALE, -45 / SCALE)
                 ctx.beginPath();
-                ctx.arc((-10 / SCALE) * SCALE, (-40 / SCALE) * SCALE, 6, 0, Math.PI * 2);
+                ctx.arc((-20 / SCALE) * SCALE, (-25 / SCALE) * SCALE, 6, 0, Math.PI * 2);
                 ctx.fillStyle = 'yellow';
                 ctx.fill();
                 ctx.strokeStyle = 'black';
                 ctx.stroke();
             }
-            // =======================
             
             ctx.restore();
             drawWheel(wheelRear); drawWheel(wheelFront);
