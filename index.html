@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (Fixed Wheels)</title>
+    <title>Skyline Moto (Restored & Points)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -278,7 +278,6 @@
 <script>
     const ENABLE_AUDIO = true; 
     const SCALE = 30; 
-    const DEBUG_PHYSICS = true; 
 
     const BIKE_CATALOG = {
         ktr_300: {
@@ -438,10 +437,11 @@
 
         chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic' });
         
-        // --- БЛОКИ КУЗОВА ---
-        let bodyFixture = chassis.createFixture(pl.Box(25 / SCALE, 5 / SCALE, pl.Vec2(0, 10 / SCALE)), { density: currentBike.density, friction: 0.3 });
+        // --- РАБОЧАЯ РАМА ---
+        let bodyFixture = chassis.createFixture(pl.Box(60 / SCALE / 2, 15 / SCALE / 2), { density: currentBike.density, friction: 0.3 });
         bodyFixture.setUserData('body');
 
+        // --- ТОЧКИ (ТВЕРДЫЕ) ---
         let headFixture = chassis.createFixture(pl.Circle(8 / SCALE, pl.Vec2(0, -22 / SCALE)), { density: 0.1 });
         headFixture.setUserData('head');
 
@@ -451,13 +451,14 @@
         let tailFixture = chassis.createFixture(pl.Circle(8 / SCALE, pl.Vec2(-30 / SCALE, 0)), { density: 0.1 });
         tailFixture.setUserData('tail');
 
+        // --- РАБОЧИЕ КОЛЕСА ---
         wheelRear = world.createBody({ position: pl.Vec2((x - wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic' });
         wheelRear.createFixture(pl.Circle(wheelRadius), { density: 1.0, friction: 1.0 });
 
         wheelFront = world.createBody({ position: pl.Vec2((x + wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic' });
         wheelFront.createFixture(pl.Circle(wheelRadius), { density: 1.0, friction: 1.0 });
 
-        // ВОЗВРАЩАЕМ ПРИВЯЗКУ КАК БЫЛО (МИРОВЫЕ КООРДИНАТЫ)
+        // --- РАБОЧИЕ КРЕПЛЕНИЯ ---
         jointRear = world.createJoint(pl.WheelJoint({
             motorSpeed: 0, maxMotorTorque: currentBike.motor.torque, enableMotor: true,
             frequencyHz: currentBike.suspension.freq, dampingRatio: currentBike.suspension.damp, collideConnected: false
@@ -859,6 +860,7 @@
             ctx.rotate(chassis.getAngle());
             
             if (isImageLoaded) {
+                // Рисуем картинку ровно по центру физического тела
                 ctx.drawImage(bikeImage, -45, -27, 90, 54); 
             }
             
