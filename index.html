@@ -204,9 +204,26 @@
 
     function getTerrainY(x) {
         let y = groundY;
-        y -= noise((x + terrainOffset) * 0.001) * 120;  
-        y -= noise((x + terrainOffset) * 0.005) * 30;   
-        y -= noise((x + terrainOffset) * 0.015) * 8;    
+        
+        // Базовый ландшафт (пологие холмы)
+        y -= noise((x + terrainOffset) * 0.001) * 70;  
+        y -= noise((x + terrainOffset) * 0.005) * 25;   
+        
+        // Слой крупных фигур (трамплины и ямы)
+        let feature = noise((x + terrainOffset) * 0.002); 
+        
+        if (feature > 0.7) {
+            // ТРАМПЛИН (поднимаем землю)
+            let p = (feature - 0.7) / 0.3; 
+            let ramp = Math.sin(p * Math.PI) * 250; 
+            y -= ramp;
+        } else if (feature < 0.3) {
+            // ЯМА (опускаем землю)
+            let p = (0.3 - feature) / 0.3; 
+            let pit = Math.sin(p * Math.PI) * 350;  
+            y += pit;
+        }
+        
         return y;
     }
 
@@ -535,13 +552,11 @@
             let maxTiltSpeed = 2.5;  
 
             if (window.isLeanBack) {
-                // Задираем нос (Вилли) - отрицательный момент
                 if (chassis.getAngularVelocity() > -maxTiltSpeed) {
                     chassis.applyTorque(-tiltPower, true);
                 }
             } 
             else if (window.isLeanForward) {
-                // Опускаем нос (Стоппи) - положительный момент
                 if (chassis.getAngularVelocity() < maxTiltSpeed) {
                     chassis.applyTorque(tiltPower, true);
                 }
