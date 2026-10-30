@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (Perfect Fix)</title>
+    <title>Skyline Moto (Debug Points)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -278,6 +278,7 @@
 <script>
     const ENABLE_AUDIO = true; 
     const SCALE = 30; 
+    const DEBUG_POINTS = true; // ВКЛЮЧЕНО ДЛЯ НАСТРОЙКИ ТОЧЕК
 
     const BIKE_CATALOG = {
         ktr_300: {
@@ -410,15 +411,15 @@
 
         chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic' });
         
-        // --- ОСНОВНАЯ РАМА ---
+        // --- ОСНОВНАЯ РАМА (СИНИЙ ПРЯМОУГОЛЬНИК) ---
         chassis.createFixture(pl.Box(60 / SCALE / 2, 15 / SCALE / 2), { density: currentBike.density, friction: 0.3 });
 
-        // --- ПЕРЕДНЕЕ КРЫЛО (ФИЗИЧЕСКОЕ) ---
+        // --- ПЕРЕДНЕЕ КРЫЛО (КРАСНЫЙ КРУГ) ---
         let noseShape = pl.Circle(8 / SCALE);
         noseShape.m_p.set(30 / SCALE, -10 / SCALE);
         chassis.createFixture(noseShape, { density: 0.1, friction: 0.5 });
 
-        // --- ЗАДНЕЕ КРЫЛО (ФИЗИЧЕСКОЕ) ---
+        // --- ЗАДНЕЕ КРЫЛО (КРАСНЫЙ КРУГ) ---
         let tailShape = pl.Circle(8 / SCALE);
         tailShape.m_p.set(-30 / SCALE, -10 / SCALE);
         chassis.createFixture(tailShape, { density: 0.1, friction: 0.5 });
@@ -592,7 +593,6 @@
         terrainBodies = []; lastGeneratedX = startX - 1500; cameraX = startX - (canvas.width * 0.3);
         
         let startHillY = getTerrainY(startX);
-        // Спавним байк выше (60 пикселей вместо 20), чтобы он не застревал в земле на склонах
         let startY = startHillY - 60; 
         
         createBike(startX, startY);
@@ -617,7 +617,7 @@
 
     function triggerGameOver() {
         gameState = 'gameover';
-        window.isGas = false; // Отключаем газ при смерти
+        window.isGas = false; 
         
         let dist = Math.floor(((chassis.getPosition().x * SCALE) - startX) / 10);
         let earnedCoins = Math.floor(dist / 100) + ((frontflipCount + backflipCount) * 10);
@@ -646,7 +646,7 @@
 
     document.getElementById('startScreen').addEventListener('touchstart', (e) => {
         e.preventDefault(); 
-        initAudio(); // Убрали await, игра запускается мгновенно
+        initAudio(); 
         document.getElementById('startScreen').style.display = 'none';
         document.getElementById('controls').classList.add('active');
         resetGame(); gameState = 'playing';
@@ -817,7 +817,6 @@
             }
 
             // МАТЕМАТИКА СМЕРТИ (Точный расчет позиции шлема)
-            // Используем getWorldPoint с координатами, соответствующими визуальному шлему (-40 по X, -45 по Y)
             let headWorldPoint = chassis.getWorldPoint(pl.Vec2(-40 / SCALE, -45 / SCALE));
             let groundUnderHead = getTerrainY(headWorldPoint.x * SCALE) / SCALE;
 
@@ -858,7 +857,46 @@
             ctx.save();
             ctx.translate(chassis.getPosition().x * SCALE, chassis.getPosition().y * SCALE);
             ctx.rotate(chassis.getAngle());
+            
+            // Рисуем картинку байка
             if (isImageLoaded) ctx.drawImage(bikeImage, -45, -45, 90, 54); 
+            
+            // === ОТЛАДОЧНЫЕ ТОЧКИ ===
+            if (DEBUG_POINTS) {
+                // 1. Отрисовка физических фикстур (синяя рама и красные крылья)
+                let fix = chassis.getFixtureList();
+                while (fix) {
+                    let shape = fix.getShape();
+                    ctx.beginPath();
+                    if (shape.getType() === 'circle') {
+                        ctx.arc(shape.m_p.x * SCALE, shape.m_p.y * SCALE, shape.m_radius * SCALE, 0, Math.PI * 2);
+                        ctx.strokeStyle = 'red';
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+                    } else if (shape.getType() === 'polygon') {
+                        let vertices = shape.m_vertices;
+                        ctx.moveTo(vertices[0].x * SCALE, vertices[0].y * SCALE);
+                        for (let i = 1; i < vertices.length; i++) {
+                            ctx.lineTo(vertices[i].x * SCALE, vertices[i].y * SCALE);
+                        }
+                        ctx.closePath();
+                        ctx.strokeStyle = 'blue';
+                        ctx.stroke();
+                    }
+                    fix = fix.getNext();
+                }
+
+                // 2. Отрисовка математической головы (желтая точка)
+                // Координаты должны совпадать с теми, что в "МАТЕМАТИКА СМЕРТИ" (-40 / SCALE, -45 / SCALE)
+                ctx.beginPath();
+                ctx.arc((-40 / SCALE) * SCALE, (-45 / SCALE) * SCALE, 6, 0, Math.PI * 2);
+                ctx.fillStyle = 'yellow';
+                ctx.fill();
+                ctx.strokeStyle = 'black';
+                ctx.stroke();
+            }
+            // =======================
+            
             ctx.restore();
             drawWheel(wheelRear); drawWheel(wheelFront);
         }
@@ -870,4 +908,4 @@
     update();
 </script>
 </body>
-                                             </html>
+    </html>
