@@ -415,12 +415,12 @@
 
         // --- ПЕРЕДНЕЕ КРЫЛО (ФИЗИЧЕСКОЕ) ---
         let noseShape = pl.Circle(8 / SCALE);
-        noseShape.m_p.set(29 / SCALE, -10 / SCALE);
+        noseShape.m_p.set(28 / SCALE, -10 / SCALE);
         chassis.createFixture(noseShape, { density: 0.1, friction: 0.5 });
 
         // --- ЗАДНЕЕ КРЫЛО (ФИЗИЧЕСКОЕ) ---
         let tailShape = pl.Circle(8 / SCALE);
-        tailShape.m_p.set(-29 / SCALE, -10 / SCALE);
+        tailShape.m_p.set(-28 / SCALE, -10 / SCALE);
         chassis.createFixture(tailShape, { density: 0.1, friction: 0.5 });
 
         wheelRear = world.createBody({ position: pl.Vec2((x - wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic' });
