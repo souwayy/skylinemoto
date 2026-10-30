@@ -106,64 +106,86 @@
             100% { opacity: 0.5; }
         }
         
+        /* --- НОВЫЙ ЭКРАН СМЕРТИ (В стиле референса) --- */
         #gameOverScreen { 
             display: none; 
-            background: rgba(0,0,0,0.85); 
-            justify-content: center; 
-            align-items: center;
+            background: #0f1410; /* Темный, почти черный фон без прозрачности */
+            justify-content: flex-start; 
+            align-items: stretch;
+            padding: 40px 20px;
+            box-sizing: border-box;
         }
-        .gameover-box {
-            background: #111;
-            padding: 30px;
-            border-radius: 15px;
-            border: 1px solid #333;
+        
+        .score-header {
             text-align: center;
-            box-shadow: 0 0 20px rgba(217, 107, 78, 0.2);
-            width: 80%;
-            max-width: 400px;
-        }
-        .gameover-title {
-            color: #d96b4e;
-            font-size: 28px;
+            font-size: 24px;
             font-weight: bold;
-            margin-bottom: 20px;
+            letter-spacing: 2px;
+            color: #fff;
+            margin-bottom: 30px;
             text-transform: uppercase;
         }
-        .stat-row {
+
+        .score-list {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .score-row {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 10px;
+            padding: 15px 0;
             font-size: 18px;
-            color: #ccc;
+            color: #e0e0e0;
+            border-bottom: 1px solid rgba(255,255,255,0.15);
         }
-        .stat-value {
-            color: white;
+
+        .score-row.high-score {
+            font-size: 24px;
             font-weight: bold;
+            color: #fff;
+            border-bottom: none;
+            margin-top: 10px;
         }
-        .coins-earned {
-            margin-top: 20px;
-            padding-top: 15px;
-            border-top: 1px solid #333;
+
+        .score-row.reward-row {
             font-size: 22px;
-            color: #f5c26b;
             font-weight: bold;
-            display: flex;
-            justify-content: center;
+            color: #a6ff00; /* Ярко-зеленый цвет для награды */
+            border-bottom: none;
             align-items: center;
-            gap: 8px;
         }
-        .restart-text {
-            margin-top: 20px;
-            font-size: 16px;
-            color: rgba(255,255,255,0.5);
-            animation: pulse 1.5s infinite;
-        }
+
         .coin-icon {
-            height: 20px;
+            height: 24px;
             width: auto;
-            display: none; /* Убери это, когда закинешь coin.png */
+            display: inline-block;
             vertical-align: middle;
-            margin-right: 5px;
+            margin-left: 8px;
+            border-radius: 50%;
+        }
+
+        .icon-btn {
+            position: absolute;
+            cursor: pointer;
+            pointer-events: auto;
+            transition: transform 0.1s;
+        }
+        .icon-btn:active { transform: scale(0.9); }
+
+        .home-btn {
+            top: 30px;
+            right: 30px;
+        }
+        
+        .restart-btn {
+            bottom: 30px;
+            right: 30px;
+        }
+
+        .icon-btn svg {
+            width: 50px; height: 50px; fill: #fff;
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/planck-js@0.3/dist/planck.min.js"></script>
@@ -176,8 +198,8 @@
     <div class="top-bar">
         <div class="stats-left">
             <div class="stat-text">Best: <span id="bestDistanceText">0</span>m</div>
-            <div class="stat-text" style="color: #f5c26b;">
-                <img src="coin.png" id="coinIcon" class="coin-icon" onerror="this.style.display='none'">
+            <div class="stat-text" style="color: #a6ff00;">
+                <img src="coin.png" id="coinIconTop" class="coin-icon" style="height: 16px; margin-right: 4px;" onerror="this.style.display='none'">
                 Coins: <span id="coinBalanceText">0</span>
             </div>
         </div>
@@ -195,11 +217,9 @@
         <div class="btn" id="btnLeanForward">
             <svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/></svg>
         </div>
-        
         <div class="btn" id="btnGas">
             <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </div>
-
         <div class="btn" id="btnBrake">
             <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
         </div>
@@ -210,18 +230,58 @@
         <p>Нажми, чтобы начать</p>
     </div>
 
+    <!-- Новый экран Game Over -->
     <div class="overlay" id="gameOverScreen">
-        <div class="gameover-box">
-            <div class="gameover-title">Вы разбились</div>
-            <div class="stat-row"><span>Дистанция:</span> <span class="stat-value" id="go-distance">0 м</span></div>
-            <div class="stat-row"><span>Время в полете:</span> <span class="stat-value" id="go-airtime">0.0 с</span></div>
-            <div class="stat-row"><span>На заднем колесе:</span> <span class="stat-value" id="go-wheelie">0.0 с</span></div>
-            <div class="stat-row"><span>Сальто:</span> <span class="stat-value" id="go-flips">0</span></div>
-            <div class="coins-earned">
-                + <span id="go-coins">0</span> 
-                <img src="coin.png" class="coin-icon" style="height: 24px; display: inline-block;" onerror="this.style.display='none'">
+        <!-- Кнопка "Домой" -->
+        <div class="icon-btn home-btn" id="btnHome">
+            <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </div>
+
+        <div class="score-header">SCORE</div>
+        
+        <div class="score-list">
+            <div class="score-row">
+                <span>Distance</span>
+                <span id="go-distance">0m</span>
             </div>
-            <div class="restart-text">Нажми, чтобы продолжить</div>
+            <div class="score-row">
+                <span>Riding on the front wheel</span>
+                <span id="go-stoppie">0m</span>
+            </div>
+            <div class="score-row">
+                <span>Riding on the rear wheel</span>
+                <span id="go-wheelie">0m</span>
+            </div>
+            <div class="score-row">
+                <span>Frontflips</span>
+                <span id="go-frontflips">0</span>
+            </div>
+            <div class="score-row">
+                <span>Backflips</span>
+                <span id="go-backflips">0</span>
+            </div>
+            <div class="score-row">
+                <span>Total score</span>
+                <span id="go-totalscore">0</span>
+            </div>
+            
+            <div class="score-row high-score">
+                <span>HIGH SCORE</span>
+                <span id="go-highscore">0</span>
+            </div>
+            
+            <div class="score-row reward-row">
+                <span>REWARD</span>
+                <span>
+                    <span id="go-coins">0</span>
+                    <img src="coin.png" class="coin-icon" onerror="this.style.display='none'">
+                </span>
+            </div>
+        </div>
+
+        <!-- Кнопка "Рестарт" -->
+        <div class="icon-btn restart-btn" id="btnRestart">
+            <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
         </div>
     </div>
 </div>
@@ -245,12 +305,17 @@
     
     let maxAirTime = 0;
     let currentAirTime = 0;
-    let flipCount = 0;
+    
+    let frontflipCount = 0;
+    let backflipCount = 0;
     let accumulatedRotation = 0; 
     let lastAngle = 0;
 
-    let maxWheelieTime = 0;
+    let maxWheelieTime = 0; // Заднее колесо
     let currentWheelieTime = 0;
+    
+    let maxStoppieTime = 0; // Переднее колесо
+    let currentStoppieTime = 0;
 
     document.addEventListener('touchmove', function(e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
 
@@ -526,9 +591,11 @@
 
         window.isGas = false; window.isBrake = false; window.isLeanBack = false; window.isLeanForward = false;
         
-        maxAirTime = 0; currentAirTime = 0; flipCount = 0; 
+        maxAirTime = 0; currentAirTime = 0; 
+        frontflipCount = 0; backflipCount = 0;
         accumulatedRotation = 0; lastAngle = 0;
         maxWheelieTime = 0; currentWheelieTime = 0;
+        maxStoppieTime = 0; currentStoppieTime = 0;
         particles.length = 0;
 
         if (ENABLE_AUDIO && isAudioInitialized) {
@@ -539,6 +606,7 @@
         document.getElementById('distanceText').innerText = "0";
     }
 
+    // Запуск игры
     document.getElementById('startScreen').addEventListener('touchstart', async (e) => {
         e.preventDefault(); await initAudio(); 
         document.getElementById('startScreen').style.display = 'none';
@@ -546,10 +614,19 @@
         resetGame(); gameState = 'playing';
     });
 
-    document.getElementById('gameOverScreen').addEventListener('touchstart', (e) => {
+    // Кнопки на экране Game Over
+    document.getElementById('btnRestart').addEventListener('touchstart', (e) => {
         e.preventDefault();
         document.getElementById('gameOverScreen').style.display = 'none';
         resetGame(); gameState = 'playing';
+    });
+    
+    document.getElementById('btnHome').addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        document.getElementById('gameOverScreen').style.display = 'none';
+        document.getElementById('startScreen').style.display = 'flex';
+        document.getElementById('controls').classList.remove('active');
+        gameState = 'start';
     });
 
     function drawMountainLayer(yOffset, height, color, parallaxOffset) {
@@ -594,46 +671,52 @@
         lastTime = currentTime;
         if (dt > 0.1) dt = 0.1; 
 
-        world.step(1/60, dt, 3);
-        updateParticles();
+        if (gameState === 'playing' || gameState === 'gameover') {
+            world.step(1/60, dt, 3);
+            updateParticles();
+        }
 
         if (gameState === 'playing' && chassis) {
             let speed = Math.abs(wheelRear.getAngularVelocity());
             let isAirborne = Math.abs(chassis.getLinearVelocity().y) > 1.5;
+            let angle = chassis.getAngle();
             
             if (isAirborne) {
                 currentAirTime += dt;
                 if (currentAirTime > maxAirTime) maxAirTime = currentAirTime;
 
-                let currentAngle = chassis.getAngle();
-                let deltaAngle = currentAngle - lastAngle;
-                
+                let deltaAngle = angle - lastAngle;
                 if (deltaAngle > Math.PI) deltaAngle -= 2 * Math.PI;
                 if (deltaAngle < -Math.PI) deltaAngle += 2 * Math.PI;
                 
                 accumulatedRotation += deltaAngle;
-                lastAngle = currentAngle;
+                lastAngle = angle;
 
                 if (Math.abs(accumulatedRotation) >= Math.PI * 2) {
-                    flipCount++;
-                    if (accumulatedRotation > 0) accumulatedRotation -= Math.PI * 2;
-                    else accumulatedRotation += Math.PI * 2;
+                    if (accumulatedRotation > 0) backflipCount++; // Крутимся назад
+                    else frontflipCount++; // Крутимся вперед
+                    accumulatedRotation -= Math.sign(accumulatedRotation) * Math.PI * 2;
                 }
             } else {
                 currentAirTime = 0;
                 accumulatedRotation = 0;
-                lastAngle = chassis.getAngle(); 
-            }
+                lastAngle = angle; 
 
-            // Логика учета езды на заднем колесе (Вилли)
-            let angle = chassis.getAngle();
-            let isWheelie = (angle < -0.3) && !isAirborne && Math.abs(chassis.getLinearVelocity().x) > 1;
-            
-            if (isWheelie) {
-                currentWheelieTime += dt;
-                if (currentWheelieTime > maxWheelieTime) maxWheelieTime = currentWheelieTime;
-            } else {
-                currentWheelieTime = 0;
+                // Вилли (Заднее колесо)
+                if (angle < -0.3 && Math.abs(chassis.getLinearVelocity().x) > 1) {
+                    currentWheelieTime += dt;
+                    if (currentWheelieTime > maxWheelieTime) maxWheelieTime = currentWheelieTime;
+                } else {
+                    currentWheelieTime = 0;
+                }
+
+                // Стоппи (Переднее колесо)
+                if (angle > 0.3 && Math.abs(chassis.getLinearVelocity().x) > 1) {
+                    currentStoppieTime += dt;
+                    if (currentStoppieTime > maxStoppieTime) maxStoppieTime = currentStoppieTime;
+                } else {
+                    currentStoppieTime = 0;
+                }
             }
 
             if (window.isGas) {
@@ -670,30 +753,50 @@
                 } else { if (previousGasState === true) { if (Math.random() > 0.5) playPop(); previousGasState = false; } }
             }
 
-            let headX = chassis.getPosition().x + Math.sin(chassis.getAngle()) * (35 / SCALE);
-            let headY = chassis.getPosition().y - Math.cos(chassis.getAngle()) * (35 / SCALE);
-            let groundUnderHead = getTerrainY(headX * SCALE) / SCALE;
+            // Проверка аварии (по краям картинки)
+            let headPoint = chassis.getWorldPoint(pl.Vec2(0, -45 / SCALE));
+            let nosePoint = chassis.getWorldPoint(pl.Vec2(45 / SCALE, 0));
+            let tailPoint = chassis.getWorldPoint(pl.Vec2(-45 / SCALE, 0));
 
-            if (headY >= groundUnderHead || chassis.getPosition().y > canvas.height / SCALE + 10) {
+            let headHit = (headPoint.y * SCALE) >= getTerrainY(headPoint.x * SCALE);
+            let noseHit = (nosePoint.y * SCALE) >= getTerrainY(nosePoint.x * SCALE);
+            let tailHit = (tailPoint.y * SCALE) >= getTerrainY(tailPoint.x * SCALE);
+
+            // Если уткнулся носом или хвостом - глохнет мотор (начинает падать)
+            if (noseHit || tailHit) {
+                jointRear.setMotorSpeed(0); jointFront.setMotorSpeed(0);
+                jointRear.setMaxMotorTorque(0); jointFront.setMaxMotorTorque(0);
+            }
+
+            // Если коснулся головой - моментальная смерть
+            if (headHit || chassis.getPosition().y > canvas.height / SCALE + 10) {
                 gameState = 'gameover';
                 
                 let dist = Math.floor(((chassis.getPosition().x * SCALE) - startX) / 10);
-                let earnedCoins = Math.floor(dist / 100) + (flipCount * 10);
+                
+                // Начисление монет (10 за флип, 1 за 100 метров)
+                let earnedCoins = Math.floor(dist / 100) + ((frontflipCount + backflipCount) * 10);
                 
                 totalCoins += earnedCoins;
                 localStorage.setItem('totalCoins', totalCoins);
                 
-                document.getElementById('go-distance').innerText = dist + " м";
-                document.getElementById('go-airtime').innerText = maxAirTime.toFixed(1) + " с";
-                document.getElementById('go-wheelie').innerText = maxWheelieTime.toFixed(1) + " с";
-                document.getElementById('go-flips').innerText = flipCount;
+                // Заполняем UI
+                document.getElementById('go-distance').innerText = dist + "m";
+                document.getElementById('go-stoppie').innerText = maxStoppieTime.toFixed(1) + "s";
+                document.getElementById('go-wheelie').innerText = maxWheelieTime.toFixed(1) + "s";
+                document.getElementById('go-frontflips').innerText = frontflipCount;
+                document.getElementById('go-backflips').innerText = backflipCount;
+                document.getElementById('go-totalscore').innerText = dist + (frontflipCount * 100) + (backflipCount * 100);
+                document.getElementById('go-highscore').innerText = maxDistance + "m";
                 document.getElementById('go-coins').innerText = earnedCoins;
+                
                 document.getElementById('coinBalanceText').innerText = totalCoins;
-
                 document.getElementById('gameOverScreen').style.display = 'flex';
+                
                 if (ENABLE_AUDIO && isAudioInitialized) { idleGain.gain.setValueAtTime(0, audioCtx.currentTime); revGain.gain.setValueAtTime(0, audioCtx.currentTime); windGain.gain.setValueAtTime(0, audioCtx.currentTime); }
             }
 
+            // Камера
             let targetCameraX = (chassis.getPosition().x * SCALE) - ((canvas.width * 0.3) / zoom);
             cameraX += (targetCameraX - cameraX) * 0.1; 
             let targetCameraY = (canvas.height * 0.5) - (chassis.getPosition().y * SCALE);
@@ -706,6 +809,7 @@
             if (currentDistance > maxDistance) { maxDistance = currentDistance; localStorage.setItem('bestDistance', maxDistance); document.getElementById('bestDistanceText').innerText = maxDistance; }
         }
 
+        // РЕНДЕР
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
         gradient.addColorStop(0, '#1a0b2e'); gradient.addColorStop(0.4, '#5a2b58'); gradient.addColorStop(0.7, '#d96b4e'); gradient.addColorStop(1, '#f5c26b');
@@ -721,7 +825,7 @@
         drawMountainLayer(120, 60, '#3a2354', cameraX * 0.2); drawMountainLayer(60, 100, '#1e1129', cameraX * 0.5);
         drawTerrain();
 
-        if (gameState !== 'gameover' && chassis) {
+        if (chassis) {
             ctx.save();
             ctx.translate(chassis.getPosition().x * SCALE, chassis.getPosition().y * SCALE);
             ctx.rotate(chassis.getAngle());
@@ -737,4 +841,4 @@
     update();
 </script>
 </body>
-</html>
+            </html>
