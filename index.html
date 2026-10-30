@@ -278,7 +278,7 @@
 <script>
     const ENABLE_AUDIO = true; 
     const SCALE = 30; 
-    const DEBUG_PHYSICS = true; // Включен режим отладки, чтобы видеть, как села рама и голова
+    const DEBUG_PHYSICS = true; // Включено, чтобы ты проверил совпадение
 
     const BIKE_CATALOG = {
         ktr_300: {
@@ -438,15 +438,15 @@
 
         chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic' });
         
-        // --- РАБОЧАЯ РАМА 60x15 (смещение -18) ---
+        // --- РАМА (прямоугольник) поднята на -18 к раме на картинке ---
         let bodyFixture = chassis.createFixture(pl.Box(60 / SCALE / 2, 15 / SCALE / 2, pl.Vec2(0, -18 / SCALE)), { density: currentBike.density, friction: 0.3 });
         bodyFixture.setUserData('body');
 
-        // --- ДОБАВЛЕННЫЕ ТОЧКИ ---
-        // Смещение головы (-55) поднимает желтый круг к шлему на картинке
-        let headFixture = chassis.createFixture(pl.Circle(8 / SCALE, pl.Vec2(0, -55 / SCALE)), { density: 0.1 });
+        // --- ГОЛОВА (желтый круг) поднята на -45 к шлему на картинке ---
+        let headFixture = chassis.createFixture(pl.Circle(8 / SCALE, pl.Vec2(0, -45 / SCALE)), { density: 0.1 });
         headFixture.setUserData('head');
 
+        // Нос и хвост на уровне рамы
         let noseFixture = chassis.createFixture(pl.Circle(8 / SCALE, pl.Vec2(30 / SCALE, -18 / SCALE)), { density: 0.1 });
         noseFixture.setUserData('nose');
 
@@ -459,7 +459,6 @@
         wheelFront = world.createBody({ position: pl.Vec2((x + wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic' });
         wheelFront.createFixture(pl.Circle(wheelRadius), { density: 1.0, friction: 1.0 });
 
-        // --- РАБОЧАЯ ПРИВЯЗКА КОЛЕС ---
         jointRear = world.createJoint(pl.WheelJoint({
             motorSpeed: 0, maxMotorTorque: currentBike.motor.torque, enableMotor: true,
             frequencyHz: currentBike.suspension.freq, dampingRatio: currentBike.suspension.damp, collideConnected: false
@@ -861,8 +860,8 @@
             ctx.rotate(chassis.getAngle());
             
             if (isImageLoaded) {
-                // Картинка опущена обратно вниз (-20)
-                ctx.drawImage(bikeImage, -45, -20, 90, 54); 
+                // Картинка возвращена на исходное место (-45)
+                ctx.drawImage(bikeImage, -45, -45, 90, 54); 
             }
             
             if (DEBUG_PHYSICS) {
@@ -904,4 +903,4 @@
     update();
 </script>
 </body>
-    </html>
+</html>
