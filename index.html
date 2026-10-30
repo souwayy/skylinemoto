@@ -415,12 +415,12 @@
 
         // --- ПЕРЕДНЕЕ КРЫЛО (ФИЗИЧЕСКОЕ) ---
         let noseShape = pl.Circle(8 / SCALE);
-        noseShape.m_p.set(28 / SCALE, -10 / SCALE);
+        noseShape.m_p.set(30 / SCALE, -10 / SCALE);
         chassis.createFixture(noseShape, { density: 0.1, friction: 0.5 });
 
         // --- ЗАДНЕЕ КРЫЛО (ФИЗИЧЕСКОЕ) ---
         let tailShape = pl.Circle(8 / SCALE);
-        tailShape.m_p.set(-28 / SCALE, -10 / SCALE);
+        tailShape.m_p.set(-30 / SCALE, -10 / SCALE);
         chassis.createFixture(tailShape, { density: 0.1, friction: 0.5 });
 
         wheelRear = world.createBody({ position: pl.Vec2((x - wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic' });
@@ -592,7 +592,8 @@
         terrainBodies = []; lastGeneratedX = startX - 1500; cameraX = startX - (canvas.width * 0.3);
         
         let startHillY = getTerrainY(startX);
-        let startY = startHillY - 20; 
+        // Спавним байк выше (60 пикселей вместо 20), чтобы он не застревал в земле на склонах
+        let startY = startHillY - 60; 
         
         createBike(startX, startY);
         generateTerrain();
@@ -616,6 +617,7 @@
 
     function triggerGameOver() {
         gameState = 'gameover';
+        window.isGas = false; // Отключаем газ при смерти
         
         let dist = Math.floor(((chassis.getPosition().x * SCALE) - startX) / 10);
         let earnedCoins = Math.floor(dist / 100) + ((frontflipCount + backflipCount) * 10);
@@ -758,7 +760,6 @@
                 }
             }
 
-            // Газ работает всегда, физика сама решит, поедет байк или застрянет носом
             if (window.isGas) {
                 jointRear.setMotorSpeed(currentBike.motor.speed); jointFront.setMotorSpeed(currentBike.motor.speed);
                 jointRear.setMaxMotorTorque(currentBike.motor.torque); jointFront.setMaxMotorTorque(currentBike.motor.torque);
@@ -815,12 +816,12 @@
                 }
             }
 
-            // МАТЕМАТИКА СМЕРТИ (от головы)
-            let headX = chassis.getPosition().x + Math.sin(chassis.getAngle()) * (35 / SCALE);
-            let headY = chassis.getPosition().y - Math.cos(chassis.getAngle()) * (35 / SCALE);
-            let groundUnderHead = getTerrainY(headX * SCALE) / SCALE;
+            // МАТЕМАТИКА СМЕРТИ (Точный расчет позиции шлема)
+            // Используем getWorldPoint с координатами, соответствующими визуальному шлему (-40 по X, -45 по Y)
+            let headWorldPoint = chassis.getWorldPoint(pl.Vec2(-40 / SCALE, -45 / SCALE));
+            let groundUnderHead = getTerrainY(headWorldPoint.x * SCALE) / SCALE;
 
-            if (headY >= groundUnderHead || chassis.getPosition().y > canvas.height / SCALE + 10) {
+            if (headWorldPoint.y >= groundUnderHead || chassis.getPosition().y > canvas.height / SCALE + 10) {
                 triggerGameOver();
             }
 
@@ -869,4 +870,4 @@
     update();
 </script>
 </body>
-</html>
+                                             </html>
