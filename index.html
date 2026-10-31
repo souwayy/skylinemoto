@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (Debug Points)</title>
+    <title>Skyline Moto (Dust & Pops)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -278,7 +278,7 @@
 <script>
     const ENABLE_AUDIO = true; 
     const SCALE = 30; 
-    const DEBUG_POINTS = true; // Оставляем включенным для проверки
+    const DEBUG_POINTS = false; // Отключено для чистого вида
 
     const BIKE_CATALOG = {
         cayo_125: {
@@ -429,10 +429,10 @@
 
         chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic' });
         
-        // --- РАМА (Настройки пользователя: 53 / 6 / -18) ---
+        // --- РАМА (Настройки 53 / 6 / -18) ---
         chassis.createFixture(pl.Box(53 / SCALE / 2, 6 / SCALE / 2, pl.Vec2(0, -18 / SCALE)), { density: currentBike.density, friction: 0.3 });
 
-        // --- ГОЛОВА (СЕНСОР) (Настройки пользователя: 0 / -35) ---
+        // --- ГОЛОВА (СЕНСОР) (Настройки 0 / -35) ---
         let headShape = pl.Circle(8 / SCALE);
         headShape.m_p.set(0 / SCALE, -35 / SCALE);
         let headFixture = chassis.createFixture(headShape, { isSensor: true });
@@ -464,17 +464,22 @@
     window.isLeanBack = false; window.isLeanForward = false;
 
     const particles = [];
-    function spawnDust(x, y, speedX) {
-        if (particles.length > 150) return; 
-        for (let i = 0; i < 2; i++) {
+    
+    // Обновленная функция создания пыли
+    function spawnDust(x, y, speedX, isSkid) {
+        if (particles.length > 200) return; 
+        let count = isSkid ? 4 : 1; // При торможении больше пыли
+        
+        for (let i = 0; i < count; i++) {
             particles.push({
-                x: x + (Math.random() - 0.5) * 15, 
-                y: y + (Math.random() - 0.5) * 5,
-                vx: -speedX * 0.8 - Math.random() * 8, 
-                vy: -Math.random() * 4 - 1, 
-                radius: Math.random() * 2 + 1, 
-                alpha: 1.0, 
-                decay: 0.03 + Math.random() * 0.03 
+                x: x + (Math.random() - 0.5) * 10, 
+                y: y - (Math.random() * 5),
+                vx: -speedX * 0.5 - Math.random() * 10, 
+                vy: -Math.random() * 3 - 0.5, 
+                radius: Math.random() * 3 + 2, // Начальный размер
+                growth: Math.random() * 1.5 + 0.5, // Скорость роста
+                alpha: 0.6 + Math.random() * 0.2, // Начальная прозрачность
+                decay: 0.01 + Math.random() * 0.02 
             });
         }
     }
@@ -484,15 +489,18 @@
             let p = particles[i];
             p.x += p.vx;
             p.y += p.vy;
-            p.vy += 0.2; 
-            p.vx *= 0.96; 
+            p.vy += 0.1; // Легкая гравитация
+            p.vx *= 0.95; // Сопротивление воздуха
+            p.radius += p.growth; // Частица раздувается
             p.alpha -= p.decay;
+            
             if (p.alpha <= 0) particles.splice(i, 1);
         }
     }
 
     function drawParticles() {
-        ctx.fillStyle = '#999'; 
+        // Теплый светло-песочный цвет, не вырвиглазный
+        ctx.fillStyle = '#d4cfc7'; 
         for (let p of particles) {
             ctx.globalAlpha = p.alpha; 
             ctx.beginPath();
@@ -512,6 +520,7 @@
     let idleSource, windSource, revSource;
     let idleGain, revGain, windGain, revFilter, revTremoloGain, revLfoTone, revLfoToneGain, revLfoVol, revLfoVolGain;
     let isAudioInitialized = false, previousGasState = false;
+    let popTimer = 0; // Таймер для отстрелов
     
     async function loadAudio(url) {
         try {
@@ -620,6 +629,7 @@
         maxWheelieTime = 0; currentWheelieTime = 0;
         maxStoppieTime = 0; currentStoppieTime = 0;
         particles.length = 0;
+        popTimer = 0;
 
         if (ENABLE_AUDIO && isAudioInitialized) {
             idleGain.gain.setValueAtTime(0.4, audioCtx.currentTime); revGain.gain.setValueAtTime(0, audioCtx.currentTime); windGain.gain.setValueAtTime(0, audioCtx.currentTime);
@@ -774,6 +784,24 @@
                 }
             }
 
+            // Система спавна пыли
+            if (!isAirborne && speed > 2) {
+                let wheelWorldPos = wheelRear.getPosition();
+                let dustX = wheelWorldPos.x * SCALE;
+                let dustY = wheelWorldPos.y * SCALE + (wheelRadius * SCALE); // Из-под колеса
+
+                if (window.isGas) {
+                    // При газе сыпет активно
+                    spawnDust(dustX, dustY, chassis.getLinearVelocity().x * SCALE, false);
+                } else if (window.isBrake && speed > 5) {
+                    // При торможении сильный выброс
+                    spawnDust(dustX, dustY, chassis.getLinearVelocity().x * SCALE, true);
+                } else if (speed > 10) {
+                    // На накате легкая дымка
+                    spawnDust(dustX, dustY, chassis.getLinearVelocity().x * SCALE, false);
+                }
+            }
+
             if (window.isGas) {
                 jointRear.setMotorSpeed(currentBike.motor.speed); jointFront.setMotorSpeed(currentBike.motor.speed);
                 jointRear.setMaxMotorTorque(currentBike.motor.torque); jointFront.setMaxMotorTorque(currentBike.motor.torque);
@@ -782,13 +810,6 @@
                 jointRear.setMaxMotorTorque(currentBike.motor.brake); jointFront.setMaxMotorTorque(currentBike.motor.brake);
             } else {
                 jointRear.setMaxMotorTorque(0); jointFront.setMaxMotorTorque(0);
-            }
-
-            if (!isAirborne && speed > 5) {
-                let dustX = (chassis.getPosition().x * SCALE) - (wheelBase * SCALE * 0.8);
-                let dustY = (chassis.getPosition().y * SCALE) + 10;
-                spawnDust(dustX, dustY, chassis.getLinearVelocity().x * SCALE);
-                if (window.isBrake) spawnDust(dustX, dustY, chassis.getLinearVelocity().x * SCALE);
             }
 
             let tiltPower = 20; let maxTiltSpeed = 2.5;  
@@ -821,16 +842,21 @@
                     
                     previousGasState = true;
                 } else {
-                    if (previousGasState === true) {
-                        if (Math.random() > 0.5) { 
-                            playPop();
-                        }
-                        previousGasState = false;
+                    previousGasState = false;
+                }
+
+                // Рандомные отстрелы при сбросе газа или накате
+                if (!window.isGas && speed > 2) {
+                    popTimer += dt;
+                    if (popTimer > 1.0 && Math.random() < 0.02) { // Шанс 2% каждый кадр после 1 сек
+                        playPop();
+                        popTimer = 0; 
                     }
+                } else {
+                    popTimer = 0;
                 }
             }
 
-            // Проверка падения за пределы экрана (математика головы убрана)
             if (chassis.getPosition().y > canvas.height / SCALE + 10) {
                 triggerGameOver();
             }
@@ -876,7 +902,6 @@
                 while (fix) {
                     let shape = fix.getShape();
                     if (fix.getUserData() === 'head') {
-                        // Отрисовка сенсора головы
                         ctx.beginPath();
                         ctx.arc(shape.m_p.x * SCALE, shape.m_p.y * SCALE, shape.m_radius * SCALE, 0, Math.PI * 2);
                         ctx.strokeStyle = 'yellow';
@@ -885,7 +910,6 @@
                         ctx.lineWidth = 2;
                         ctx.stroke();
                     } else {
-                        // Отрисовка прямоугольников
                         ctx.beginPath();
                         if (shape.getType() === 'circle') {
                             ctx.arc(shape.m_p.x * SCALE, shape.m_p.y * SCALE, shape.m_radius * SCALE, 0, Math.PI * 2);
@@ -919,4 +943,4 @@
     update();
 </script>
 </body>
-    </html>
+</html>
