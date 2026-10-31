@@ -413,7 +413,7 @@
         
         // --- ИДЕАЛЬНАЯ РАМА ---
         // Ширина 50, высота 6, смещение -12
-        chassis.createFixture(pl.Box(52 / SCALE / 2, 3 / SCALE / 2, pl.Vec2(0, -17 / SCALE)), { density: currentBike.density, friction: 0.3 });
+        chassis.createFixture(pl.Box(53 / SCALE / 2, 2 / SCALE / 2, pl.Vec2(0, -18 / SCALE)), { density: currentBike.density, friction: 0.3 });
 
         wheelRear = world.createBody({ position: pl.Vec2((x - wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic' });
         wheelRear.createFixture(pl.Circle(wheelRadius), { density: 1.0, friction: 1.0 });
