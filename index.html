@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (Update)</title>
+    <title>Skyline Moto (Terrain & Flips)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -360,45 +360,38 @@
         return r1 * (1 - u) + r2 * u;
     }
 
-    // ИСПРАВЛЕННАЯ ГЕНЕРАЦИЯ ЗЕМЛИ (ПЛАВНЫЕ ХОЛМЫ, КИКЕРЫ И СТОЛЫ)
+    // ИДЕАЛЬНО ПЛАВНАЯ ГЕНЕРАЦИЯ (БЕЗ СТЕН)
     function getTerrainY(x) {
-        let distFromStart = Math.abs(x - startX);
-        if (distFromStart < 1200) {
+        let distFromStart = x - startX;
+        if (distFromStart < 1500) {
             return groundY - (distFromStart * 0.02); 
         }
 
         let y = groundY;
         
-        // 1. Базовые плавные холмы (чтобы не было острых стен)
-        let hillY = Math.sin((x + terrainOffset) * 0.002) * 80;
-        let microHill = Math.sin((x + terrainOffset) * 0.015) * 10;
-        let baseTerrain = y - Math.abs(hillY) - microHill;
+        // 1. Базовые холмы (плавные синусоиды)
+        let baseHill = Math.sin(x * 0.0015) * 100;
+        let microHill = Math.sin(x * 0.005) * 20;
+        
+        // 2. Трамплины (высокие, но плавные, без острых углов)
+        // Используем степень 3 для создания крутого подъема и плавного спуска
+        let kickerWave = Math.sin(x * 0.001);
+        let kickerY = Math.pow(Math.max(0, kickerWave), 3) * 280;
 
-        // 2. Определяем зону (0 - равнина, 1 - трамплины)
-        let zoneType = noise((x + terrainOffset) * 0.0003);
+        // 3. Смешиваем зоны с помощью низкочастотного шума
+        let zone = noise(x * 0.0002); // 0..1
 
-        if (zoneType > 0.6) {
-            // ЗОНА ТРАМПЛИНОВ
-            let jumpType = noise((x + terrainOffset) * 0.001); // Тип трамплина
-            let phase = (x + terrainOffset) * 0.003;
-            let sinWave = Math.sin(phase);
-
-            if (jumpType > 0.5) {
-                // Кикер (плавный подъем, резкий обрыв). Используем степень 3.
-                let kickerH = Math.pow(Math.max(0, sinWave), 3) * 250;
-                return y - kickerH - microHill;
-            } else {
-                // Стол (подъем, площадка, спуск). Ограничиваем высоту.
-                let tableH = Math.min(Math.max(0, sinWave), 0.8) * 200;
-                return y - tableH - microHill;
-            }
-        } else if (zoneType < 0.3) {
-            // ЗОНА РАВНИНЫ
-            return y - (microHill * 0.5); 
+        if (zone > 0.6) {
+            // Зона трамплинов
+            let factor = (zone - 0.6) / 0.4;
+            return y - (baseHill * (1 - factor)) - (kickerY * factor) - microHill;
+        } else if (zone < 0.3) {
+            // Зона равнин
+            return y - (microHill * 0.5);
         }
 
-        // ЗОНА ХОЛМОВ
-        return baseTerrain;
+        // Зона обычных холмов
+        return y - baseHill - microHill;
     }
 
     let terrainBodies = [];
@@ -479,52 +472,7 @@
     window.isGas = false; window.isBrake = false; 
     window.isLeanBack = false; window.isLeanForward = false;
 
-    const particles = [];
-    let dustTimer = 0;
-    
-    // ЛЕГКАЯ И БЫСТРАЯ ПЫЛЬ (Без тяжелых градиентов)
-    function spawnDust(x, y, speedX, isSkid) {
-        if (particles.length > 150) return; 
-        let count = isSkid ? 3 : 1; 
-        
-        for (let i = 0; i < count; i++) {
-            particles.push({
-                x: x + (Math.random() - 0.5) * 10, 
-                y: y - (Math.random() * 5),
-                vx: -speedX * 0.4 - Math.random() * 8, 
-                vy: -Math.random() * 4 - 0.5, 
-                radius: Math.random() * 2 + 2, 
-                growth: Math.random() * 1.5 + 1.0, 
-                alpha: 0.5 + Math.random() * 0.3, 
-                decay: 0.02 + Math.random() * 0.02 
-            });
-        }
-    }
-
-    function updateParticles() {
-        for (let i = particles.length - 1; i >= 0; i--) {
-            let p = particles[i];
-            p.x += p.vx;
-            p.y += p.vy;
-            p.vy += 0.1; 
-            p.vx *= 0.94; 
-            p.radius += p.growth; 
-            p.alpha -= p.decay;
-            
-            if (p.alpha <= 0) particles.splice(i, 1);
-        }
-    }
-
-    function drawParticles() {
-        ctx.fillStyle = '#d4cfc7'; 
-        for (let p of particles) {
-            ctx.globalAlpha = p.alpha; 
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-            ctx.fill();
-        }
-        ctx.globalAlpha = 1.0; 
-    }
+    // ПЫЛЬ УДАЛЕНА
 
     setInterval(() => {
         const now = new Date();
@@ -644,7 +592,6 @@
         accumulatedRotation = 0; lastAngle = 0;
         maxWheelieTime = 0; currentWheelieTime = 0;
         maxStoppieTime = 0; currentStoppieTime = 0;
-        particles.length = 0;
         popTimer = 0;
         sessionCoins = 0;
         
@@ -762,15 +709,14 @@
 
         if (gameState === 'playing' || gameState === 'gameover') {
             world.step(1/60, dt, 3);
-            updateParticles();
         }
 
         if (gameState === 'playing' && chassis) {
             let wheelSpeed = Math.abs(wheelRear.getAngularVelocity());
             let linearSpeed = Math.abs(chassis.getLinearVelocity().x) * SCALE; 
             
-            // Порог полета (выше, чтобы пыль не мигала на кочках)
-            let isAirborne = Math.abs(chassis.getLinearVelocity().y) > 3.0; 
+            // Снизили порог полета для корректного подсчета сальто
+            let isAirborne = Math.abs(chassis.getLinearVelocity().y) > 1.0; 
             
             let angle = chassis.getAngle();
             
@@ -785,10 +731,11 @@
                 accumulatedRotation += deltaAngle;
                 lastAngle = angle;
 
-                if (Math.abs(accumulatedRotation) >= Math.PI * 2) {
+                // Засчитываем сальто чуть раньше 360 градусов, чтобы было не так строго
+                if (Math.abs(accumulatedRotation) >= Math.PI * 1.8) {
                     if (accumulatedRotation > 0) backflipCount++; 
                     else frontflipCount++; 
-                    accumulatedRotation -= Math.sign(accumulatedRotation) * Math.PI * 2;
+                    accumulatedRotation = 0; // Сбрасываем, чтобы не засчитать дважды
                 }
             } else {
                 currentAirTime = 0;
@@ -808,27 +755,6 @@
                 } else {
                     currentStoppieTime = 0;
                 }
-            }
-
-            // ПЫЛЬ (Исправлено появление)
-            if (!isAirborne && linearSpeed > 5) {
-                dustTimer += dt;
-                if (dustTimer > 0.03) {
-                    let wheelWorldPos = wheelRear.getPosition();
-                    let dustX = wheelWorldPos.x * SCALE;
-                    let dustY = wheelWorldPos.y * SCALE + (wheelRadius * SCALE);
-
-                    if (window.isBrake && linearSpeed > 10) {
-                        spawnDust(dustX, dustY, linearSpeed, true); 
-                    } else if (window.isGas) {
-                        spawnDust(dustX, dustY, linearSpeed, false); 
-                    } else if (linearSpeed > 15) {
-                        spawnDust(dustX, dustY, linearSpeed, false); 
-                    }
-                    dustTimer = 0;
-                }
-            } else {
-                dustTimer = 0.05; 
             }
 
             if (window.isGas) {
@@ -940,7 +866,6 @@
             drawWheel(wheelRear); drawWheel(wheelFront);
         }
 
-        drawParticles(); 
         ctx.restore(); 
     }
 
