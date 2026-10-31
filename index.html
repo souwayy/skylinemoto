@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (Terrain & Flips)</title>
+    <title>Skyline Moto (Smooth Terrain)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -360,38 +360,32 @@
         return r1 * (1 - u) + r2 * u;
     }
 
-    // ИДЕАЛЬНО ПЛАВНАЯ ГЕНЕРАЦИЯ (БЕЗ СТЕН)
+    // ИДЕАЛЬНО ПЛАВНАЯ ГЕНЕРАЦИЯ БЕЗ СТЕН
     function getTerrainY(x) {
-        let distFromStart = x - startX;
-        if (distFromStart < 1500) {
-            return groundY - (distFromStart * 0.02); 
+        // Безопасная зона для старта
+        if (x - startX < 1200) {
+            return groundY - ((x - startX) * 0.02); 
         }
 
-        let y = groundY;
+        // 1. Маска для создания ровных участков (очень медленная волна от 0 до 1)
+        // Умножая высоту на эту маску, мы плавно "выключаем" рельеф
+        let flatMask = Math.max(0, Math.sin((x + terrainOffset) * 0.00015));
+
+        // 2. Обычные плавные холмы
+        let waveHill = Math.sin((x + terrainOffset) * 0.0015) * 80;
+
+        // 3. Трамплины (крутые подъемы).
+        // Используем степень 3 для создания асимметричной формы (длинный заезд, крутой пик)
+        let jumpWave = Math.sin((x + terrainOffset) * 0.001);
+        let jumpHill = Math.pow(Math.max(0, jumpWave), 3) * 220;
+
+        // 4. Микро-кочки (чтобы на "равнине" не было ощущения асфальта)
+        let microHill = Math.sin((x + terrainOffset) * 0.01) * 5;
+
+        // Комбинируем всё в единую плавную формулу
+        let height = (waveHill + jumpHill) * flatMask + microHill;
         
-        // 1. Базовые холмы (плавные синусоиды)
-        let baseHill = Math.sin(x * 0.0015) * 100;
-        let microHill = Math.sin(x * 0.005) * 20;
-        
-        // 2. Трамплины (высокие, но плавные, без острых углов)
-        // Используем степень 3 для создания крутого подъема и плавного спуска
-        let kickerWave = Math.sin(x * 0.001);
-        let kickerY = Math.pow(Math.max(0, kickerWave), 3) * 280;
-
-        // 3. Смешиваем зоны с помощью низкочастотного шума
-        let zone = noise(x * 0.0002); // 0..1
-
-        if (zone > 0.6) {
-            // Зона трамплинов
-            let factor = (zone - 0.6) / 0.4;
-            return y - (baseHill * (1 - factor)) - (kickerY * factor) - microHill;
-        } else if (zone < 0.3) {
-            // Зона равнин
-            return y - (microHill * 0.5);
-        }
-
-        // Зона обычных холмов
-        return y - baseHill - microHill;
+        return groundY - height;
     }
 
     let terrainBodies = [];
@@ -439,7 +433,8 @@
             world.destroyBody(wheelFront);
         }
 
-        chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic' });
+        // Добавили bullet: true, чтобы байк не проваливался сквозь землю на огромной скорости
+        chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic', bullet: true });
         chassis.createFixture(pl.Box(53 / SCALE / 2, 6 / SCALE / 2, pl.Vec2(0, -18 / SCALE)), { density: currentBike.density, friction: 0.3 });
 
         let headShape = pl.Circle(8 / SCALE);
@@ -447,10 +442,10 @@
         let headFixture = chassis.createFixture(headShape, { isSensor: true });
         headFixture.setUserData('head');
 
-        wheelRear = world.createBody({ position: pl.Vec2((x - wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic' });
+        wheelRear = world.createBody({ position: pl.Vec2((x - wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic', bullet: true });
         wheelRear.createFixture(pl.Circle(wheelRadius), { density: 1.0, friction: 1.0 });
 
-        wheelFront = world.createBody({ position: pl.Vec2((x + wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic' });
+        wheelFront = world.createBody({ position: pl.Vec2((x + wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic', bullet: true });
         wheelFront.createFixture(pl.Circle(wheelRadius), { density: 1.0, friction: 1.0 });
 
         jointRear = world.createJoint(pl.WheelJoint({
@@ -471,8 +466,6 @@
 
     window.isGas = false; window.isBrake = false; 
     window.isLeanBack = false; window.isLeanForward = false;
-
-    // ПЫЛЬ УДАЛЕНА
 
     setInterval(() => {
         const now = new Date();
@@ -715,7 +708,6 @@
             let wheelSpeed = Math.abs(wheelRear.getAngularVelocity());
             let linearSpeed = Math.abs(chassis.getLinearVelocity().x) * SCALE; 
             
-            // Снизили порог полета для корректного подсчета сальто
             let isAirborne = Math.abs(chassis.getLinearVelocity().y) > 1.0; 
             
             let angle = chassis.getAngle();
@@ -731,11 +723,10 @@
                 accumulatedRotation += deltaAngle;
                 lastAngle = angle;
 
-                // Засчитываем сальто чуть раньше 360 градусов, чтобы было не так строго
                 if (Math.abs(accumulatedRotation) >= Math.PI * 1.8) {
                     if (accumulatedRotation > 0) backflipCount++; 
                     else frontflipCount++; 
-                    accumulatedRotation = 0; // Сбрасываем, чтобы не засчитать дважды
+                    accumulatedRotation = 0; 
                 }
             } else {
                 currentAirTime = 0;
@@ -872,4 +863,4 @@
     update();
 </script>
 </body>
-    </html>
+</html>
