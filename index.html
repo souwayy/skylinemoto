@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (Sensor Death)</title>
+    <title>Skyline Moto (Perfect Physics)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -287,7 +287,7 @@
 <script>
     const ENABLE_AUDIO = true; 
     const SCALE = 30; 
-    const DEBUG_POINTS = false; // Отрисовка рамы отключена
+    const DEBUG_POINTS = false; 
 
     const BIKE_CATALOG = {
         cayo_125: { name: "CAYO 125 TRAIL", density: 2.2, suspension: { freq: 3.5, damp: 0.8 }, motor: { speed: 35, torque: 40, brake: 50 } },
@@ -329,7 +329,7 @@
     const pl = planck;
     const world = new pl.World({ gravity: pl.Vec2(0, 10) });
 
-    // СМЕРТЬ ТОЛЬКО ЧЕРЕЗ ФИЗИЧЕСКИЙ СЕНСОР
+    // СМЕРТЬ ОТ СЕНСОРА
     world.on('begin-contact', (contact) => {
         if (gameState !== 'playing') return;
         const fixA = contact.getFixtureA();
@@ -337,7 +337,6 @@
         const dataA = fixA.getUserData();
         const dataB = fixB.getUserData();
 
-        // Если один объект - голова, а другой - земля
         if ((dataA === 'head' && dataB === 'terrain') || (dataB === 'head' && dataA === 'terrain')) {
             triggerGameOver();
         }
@@ -354,32 +353,46 @@
     let cameraY = 0; 
     const zoom = 1.1; 
 
-    // ПЛАВНАЯ ЗЕМЛЯ БЕЗ СТЕН
+    function noise(x) {
+        let i = Math.floor(x);
+        let f = x - i;
+        let u = f * f * (3.0 - 2.0 * f);
+        let r1 = Math.sin(i * 12.9898) * 43758.5453;
+        let r2 = Math.sin((i + 1) * 12.9898) * 43758.5453;
+        r1 = r1 - Math.floor(r1);
+        r2 = r2 - Math.floor(r2);
+        return r1 * (1 - u) + r2 * u;
+    }
+
+    // ЗЕМЛЯ С ХОЛМАМИ И ТРАМПЛИНАМИ (БЕЗ СТЕН)
     function getTerrainY(x) {
         if (x - startX < 1200) {
             return groundY - ((x - startX) * 0.02); 
         }
 
         let y = groundY;
-        y -= Math.sin((x + terrainOffset) * 0.0015) * 100;
-        y -= Math.sin((x + terrainOffset) * 0.004) * 30;
-        y -= Math.sin((x + terrainOffset) * 0.01) * 8;
         
-        let rampWave = Math.sin((x + terrainOffset) * 0.002);
-        y -= Math.pow(Math.max(0, rampWave), 4) * 180; 
+        // Плавные холмы (старый добрый шум)
+        y -= noise((x + terrainOffset) * 0.001) * 120;  
+        y -= noise((x + terrainOffset) * 0.004) * 30;   
+        y -= Math.sin((x + terrainOffset) * 0.01) * 8; 
+        
+        // Трамплины (плавный синус, поднимает только вверх, без выворотов)
+        let ramp = Math.sin((x + terrainOffset) * 0.002);
+        y -= Math.max(0, ramp) * 180; 
 
         return y;
     }
 
     let terrainBodies = [];
     let lastGeneratedX = startX - 1500; 
-    const chunkWidth = 2; 
-    const chunkSize = 100; 
+    const chunkWidth = 1; // ШАГ 1 ПИКСЕЛЬ ДЛЯ ИДЕАЛЬНОЙ ФИЗИКИ
+    const chunkSize = 200; // Больше вершин на кусок
 
     function generateTerrain() {
         while (lastGeneratedX < cameraX + (canvas.width / zoom) + 1000) {
             let vertices = [];
-            for (let i = 0; i < chunkSize; i++) {
+            for (let i = 0; i <= chunkSize; i++) {
                 let px = lastGeneratedX + (i * chunkWidth);
                 let py = getTerrainY(px);
                 vertices.push(pl.Vec2(px / SCALE, py / SCALE));
@@ -388,7 +401,7 @@
             const chain = world.createBody();
             const chainShape = pl.Chain(vertices, false);
             let terrainFixture = chain.createFixture(chainShape, { friction: 1.0, restitution: 0.0 });
-            terrainFixture.setUserData('terrain'); // Важно для сенсора!
+            terrainFixture.setUserData('terrain');
             
             terrainBodies.push({ body: chain, startX: lastGeneratedX, endX: lastGeneratedX + (chunkSize * chunkWidth) });
             lastGeneratedX += chunkSize * chunkWidth;
@@ -418,9 +431,10 @@
         }
 
         chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic', bullet: true });
+        // РАМА 53 / -18
         chassis.createFixture(pl.Box(53 / SCALE / 2, 6 / SCALE / 2, pl.Vec2(0, -18 / SCALE)), { density: currentBike.density, friction: 0.3 });
 
-        // ФИЗИЧЕСКИЙ СЕНСОР ГОЛОВЫ
+        // СЕНСОР ГОЛОВЫ (Радиус 8, смещение 0, -35)
         let headShape = pl.Circle(8 / SCALE);
         headShape.m_p.set(0 / SCALE, -35 / SCALE);
         let headFixture = chassis.createFixture(headShape, { isSensor: true });
@@ -656,13 +670,24 @@
     }
 
     function drawTerrain() {
-        ctx.fillStyle = '#000'; ctx.strokeStyle = '#000'; ctx.lineWidth = 4; 
-        ctx.beginPath(); ctx.moveTo(cameraX - 100, canvas.height + 2000);
-        for (let chunk of terrainBodies) {
-            let vertices = chunk.body.getFixtureList().getShape().m_vertices;
-            for (let i = 0; i < vertices.length; i++) ctx.lineTo(vertices[i].x * SCALE, vertices[i].y * SCALE);
+        ctx.fillStyle = '#000'; 
+        ctx.strokeStyle = '#000'; 
+        ctx.lineWidth = 4; 
+        
+        ctx.beginPath(); 
+        ctx.moveTo(cameraX - 100, canvas.height + 2000);
+        
+        let startDrawX = Math.floor(cameraX) - 100;
+        let endDrawX = Math.floor(cameraX) + (canvas.width / zoom) + 100;
+        
+        for (let x = startDrawX; x <= endDrawX; x += 2) {
+            ctx.lineTo(x, getTerrainY(x));
         }
-        ctx.lineTo(lastGeneratedX, canvas.height + 2000); ctx.closePath(); ctx.fill(); ctx.stroke();
+        
+        ctx.lineTo(endDrawX, canvas.height + 2000); 
+        ctx.closePath(); 
+        ctx.fill(); 
+        ctx.stroke();
     }
 
     function drawWheel(wheel) {
@@ -786,7 +811,6 @@
                 }
             }
 
-            // СМЕРТЬ ТЕПЕРЬ ТОЛЬКО ЕСЛИ УПАЛ ЗА ЭКРАН
             if (chassis.getPosition().y > canvas.height / SCALE + 10) {
                 triggerGameOver();
             }
@@ -849,4 +873,4 @@
     update();
 </script>
 </body>
-    </html>
+</html>
