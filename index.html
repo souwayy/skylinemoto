@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (Smooth Terrain)</title>
+    <title>Skyline Moto (Smooth Physics)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -360,32 +360,52 @@
         return r1 * (1 - u) + r2 * u;
     }
 
-    // ИДЕАЛЬНО ПЛАВНАЯ ГЕНЕРАЦИЯ БЕЗ СТЕН
+    // БЕСШОВНАЯ ГЕНЕРАЦИЯ ЗЕМЛИ (БЕЗ СТЕН)
     function getTerrainY(x) {
-        // Безопасная зона для старта
-        if (x - startX < 1200) {
-            return groundY - ((x - startX) * 0.02); 
+        let distFromStart = x - startX;
+        if (distFromStart < 1500) {
+            return groundY - (distFromStart * 0.02); 
         }
 
-        // 1. Маска для создания ровных участков (очень медленная волна от 0 до 1)
-        // Умножая высоту на эту маску, мы плавно "выключаем" рельеф
-        let flatMask = Math.max(0, Math.sin((x + terrainOffset) * 0.00015));
-
-        // 2. Обычные плавные холмы
-        let waveHill = Math.sin((x + terrainOffset) * 0.0015) * 80;
-
-        // 3. Трамплины (крутые подъемы).
-        // Используем степень 3 для создания асимметричной формы (длинный заезд, крутой пик)
-        let jumpWave = Math.sin((x + terrainOffset) * 0.001);
-        let jumpHill = Math.pow(Math.max(0, jumpWave), 3) * 220;
-
-        // 4. Микро-кочки (чтобы на "равнине" не было ощущения асфальта)
-        let microHill = Math.sin((x + terrainOffset) * 0.01) * 5;
-
-        // Комбинируем всё в единую плавную формулу
-        let height = (waveHill + jumpHill) * flatMask + microHill;
+        // 1. Базовые плавные холмы
+        let hills = Math.sin((x + terrainOffset) * 0.0015) * 80;
         
-        return groundY - height;
+        // 2. Микро-кочки (чтобы на равнинах не было идеального асфальта)
+        let micro = Math.sin((x + terrainOffset) * 0.015) * 6;
+        
+        // 3. Зоны разгона (плавно выключают высокие холмы)
+        let flatNoise = noise((x + terrainOffset) * 0.0005);
+        let flattenFactor = Math.min(1, Math.max(0, (0.4 - flatNoise) * 4));
+        let finalHills = hills * (1 - flattenFactor);
+
+        // 4. Трамплины (Кикеры)
+        let ramp = 0;
+        let rampSpacing = 1800; // Расстояние между трамплинами
+        let rampPhase = (x + terrainOffset) / rampSpacing;
+        let rampIndex = Math.floor(rampPhase);
+        let rampProgress = rampPhase - rampIndex;
+
+        let rampChance = noise(rampIndex * 456.789);
+        
+        // Если выпал трамплин
+        if (rampChance > 0.4) {
+            if (rampProgress > 0.2 && rampProgress < 0.8) {
+                let t = (rampProgress - 0.2) / 0.6; // 0..1
+                let rampHeight = 120 + (rampChance - 0.4) * 300; 
+
+                if (t < 0.7) {
+                    // Плавный заезд (парабола)
+                    let tUp = t / 0.7; 
+                    ramp = Math.pow(tUp, 2) * rampHeight;
+                } else {
+                    // Резкий обрыв
+                    let tDown = (1 - t) / 0.3; 
+                    ramp = Math.pow(tDown, 1.2) * rampHeight;
+                }
+            }
+        }
+
+        return groundY - finalHills - micro - ramp;
     }
 
     let terrainBodies = [];
@@ -433,7 +453,7 @@
             world.destroyBody(wheelFront);
         }
 
-        // Добавили bullet: true, чтобы байк не проваливался сквозь землю на огромной скорости
+        // Включаем bullet: true для всех частей (защита от проскока сквозь землю)
         chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic', bullet: true });
         chassis.createFixture(pl.Box(53 / SCALE / 2, 6 / SCALE / 2, pl.Vec2(0, -18 / SCALE)), { density: currentBike.density, friction: 0.3 });
 
@@ -863,4 +883,4 @@
     update();
 </script>
 </body>
-</html>
+    </html>
