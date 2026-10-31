@@ -808,7 +808,7 @@
             }
 
             // МАТЕМАТИКА СМЕРТИ (Идеальная координата головы)
-            let headWorldPoint = chassis.getWorldPoint(pl.Vec2(-3 / SCALE, -35 / SCALE));
+            let headWorldPoint = chassis.getWorldPoint(pl.Vec2(-2 / SCALE, -35 / SCALE));
             let groundUnderHead = getTerrainY(headWorldPoint.x * SCALE) / SCALE;
 
             if (headWorldPoint.y >= groundUnderHead || chassis.getPosition().y > canvas.height / SCALE + 10) {
@@ -876,7 +876,7 @@
 
                 // Желтая точка головы (Идеальная координата)
                 ctx.beginPath();
-                ctx.arc((-3 / SCALE) * SCALE, (-35 / SCALE) * SCALE, 6, 0, Math.PI * 2);
+                ctx.arc((-2 / SCALE) * SCALE, (-35 / SCALE) * SCALE, 6, 0, Math.PI * 2);
                 ctx.fillStyle = 'yellow';
                 ctx.fill();
                 ctx.strokeStyle = 'black';
