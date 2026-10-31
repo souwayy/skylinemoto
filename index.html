@@ -278,17 +278,17 @@
 <script>
     const ENABLE_AUDIO = true; 
     const SCALE = 30; 
-    const DEBUG_POINTS = true; 
+    const DEBUG_POINTS = true; // Отладка включена
 
     const BIKE_CATALOG = {
-        ctr_300: {
-            name: "CTR 300 EXC",
+        ctm_300: {
+            name: "CTM 300 EXC",
             density: 1.2,
             suspension: { freq: 4.5, damp: 0.7 },
             motor: { speed: 50, torque: 60, brake: 100 }
         }
     };
-    let currentBike = BIKE_CATALOG.ktr_300;
+    let currentBike = BIKE_CATALOG.ctm_300;
 
     let totalCoins = parseInt(localStorage.getItem('totalCoins')) || 0;
     document.getElementById('coinBalanceText').innerText = totalCoins;
@@ -411,9 +411,9 @@
 
         chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic' });
         
-        // --- ОСНОВНАЯ РАМА (ТОНКАЯ ЛИНИЯ) ---
-        // Ширина 75, высота 6, смещена вверх на -15
-        chassis.createFixture(pl.Box(65 / SCALE / 2, 4 / SCALE / 2, pl.Vec2(0, -17 / SCALE)), { density: currentBike.density, friction: 0.3 });
+        // --- ИДЕАЛЬНАЯ РАМА ---
+        // Ширина 50, высота 6, смещение -12
+        chassis.createFixture(pl.Box(50 / SCALE / 2, 6 / SCALE / 2, pl.Vec2(0, -12 / SCALE)), { density: currentBike.density, friction: 0.3 });
 
         wheelRear = world.createBody({ position: pl.Vec2((x - wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic' });
         wheelRear.createFixture(pl.Circle(wheelRadius), { density: 1.0, friction: 1.0 });
@@ -807,9 +807,8 @@
                 }
             }
 
-            // МАТЕМАТИКА СМЕРТИ (Точный расчет позиции шлема)
-            // Подняли выше (-35) и сдвинули вправо (5)
-            let headWorldPoint = chassis.getWorldPoint(pl.Vec2(5 / SCALE, -35 / SCALE));
+            // МАТЕМАТИКА СМЕРТИ (Идеальная координата головы)
+            let headWorldPoint = chassis.getWorldPoint(pl.Vec2(-10 / SCALE, -35 / SCALE));
             let groundUnderHead = getTerrainY(headWorldPoint.x * SCALE) / SCALE;
 
             if (headWorldPoint.y >= groundUnderHead || chassis.getPosition().y > canvas.height / SCALE + 10) {
@@ -875,9 +874,9 @@
                     fix = fix.getNext();
                 }
 
-                // Желтая точка головы
+                // Желтая точка головы (Идеальная координата)
                 ctx.beginPath();
-                ctx.arc((5 / SCALE) * SCALE, (-35 / SCALE) * SCALE, 6, 0, Math.PI * 2);
+                ctx.arc((-10 / SCALE) * SCALE, (-35 / SCALE) * SCALE, 6, 0, Math.PI * 2);
                 ctx.fillStyle = 'yellow';
                 ctx.fill();
                 ctx.strokeStyle = 'black';
@@ -895,4 +894,4 @@
     update();
 </script>
 </body>
-    </html>
+</html>
