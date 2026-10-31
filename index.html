@@ -278,17 +278,23 @@
 <script>
     const ENABLE_AUDIO = true; 
     const SCALE = 30; 
-    const DEBUG_POINTS = true; // Отладка включена
+    const DEBUG_POINTS = true; // Оставляем включенным для проверки
 
     const BIKE_CATALOG = {
-        ctm_300: {
+        cayo_125: {
+            name: "CAYO 125 TRAIL",
+            density: 2.2,
+            suspension: { freq: 3.5, damp: 0.8 },
+            motor: { speed: 35, torque: 40, brake: 50 }
+        },
+        ctm_300_exc: {
             name: "CTM 300 EXC",
             density: 1.2,
             suspension: { freq: 4.5, damp: 0.7 },
             motor: { speed: 50, torque: 60, brake: 100 }
         }
     };
-    let currentBike = BIKE_CATALOG.ctm_300;
+    let currentBike = BIKE_CATALOG.ctm_300_exc;
 
     let totalCoins = parseInt(localStorage.getItem('totalCoins')) || 0;
     document.getElementById('coinBalanceText').innerText = totalCoins;
@@ -322,6 +328,18 @@
 
     const pl = planck;
     const world = new pl.World({ gravity: pl.Vec2(0, 10) });
+
+    // --- ФИЗИЧЕСКИЕ СТОЛКНОВЕНИЯ (ТОЛЬКО ДЛЯ СЕНСОРА ГОЛОВЫ) ---
+    world.on('begin-contact', (contact) => {
+        if (gameState !== 'playing') return;
+        
+        const fixA = contact.getFixtureA();
+        const fixB = contact.getFixtureB();
+        
+        if (fixA.getUserData() === 'head' || fixB.getUserData() === 'head') {
+            triggerGameOver();
+        }
+    });
 
     const startX = 50000;
     let groundY = canvas.height - 80; 
@@ -411,9 +429,14 @@
 
         chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic' });
         
-        // --- ИДЕАЛЬНАЯ РАМА ---
-        // Ширина 50, высота 6, смещение -12
-        chassis.createFixture(pl.Box(53 / SCALE / 2, 2 / SCALE / 2, pl.Vec2(0, -18 / SCALE)), { density: currentBike.density, friction: 0.3 });
+        // --- РАМА (Настройки пользователя: 53 / 6 / -18) ---
+        chassis.createFixture(pl.Box(53 / SCALE / 2, 6 / SCALE / 2, pl.Vec2(0, -18 / SCALE)), { density: currentBike.density, friction: 0.3 });
+
+        // --- ГОЛОВА (СЕНСОР) (Настройки пользователя: 0 / -35) ---
+        let headShape = pl.Circle(8 / SCALE);
+        headShape.m_p.set(0 / SCALE, -35 / SCALE);
+        let headFixture = chassis.createFixture(headShape, { isSensor: true });
+        headFixture.setUserData('head');
 
         wheelRear = world.createBody({ position: pl.Vec2((x - wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic' });
         wheelRear.createFixture(pl.Circle(wheelRadius), { density: 1.0, friction: 1.0 });
@@ -807,11 +830,8 @@
                 }
             }
 
-            // МАТЕМАТИКА СМЕРТИ (Идеальная координата головы)
-            let headWorldPoint = chassis.getWorldPoint(pl.Vec2(0 / SCALE, -35 / SCALE));
-            let groundUnderHead = getTerrainY(headWorldPoint.x * SCALE) / SCALE;
-
-            if (headWorldPoint.y >= groundUnderHead || chassis.getPosition().y > canvas.height / SCALE + 10) {
+            // Проверка падения за пределы экрана (математика головы убрана)
+            if (chassis.getPosition().y > canvas.height / SCALE + 10) {
                 triggerGameOver();
             }
 
@@ -855,32 +875,37 @@
                 let fix = chassis.getFixtureList();
                 while (fix) {
                     let shape = fix.getShape();
-                    ctx.beginPath();
-                    if (shape.getType() === 'circle') {
+                    if (fix.getUserData() === 'head') {
+                        // Отрисовка сенсора головы
+                        ctx.beginPath();
                         ctx.arc(shape.m_p.x * SCALE, shape.m_p.y * SCALE, shape.m_radius * SCALE, 0, Math.PI * 2);
-                        ctx.strokeStyle = 'red';
+                        ctx.strokeStyle = 'yellow';
+                        ctx.fillStyle = 'rgba(255, 255, 0, 0.3)';
+                        ctx.fill();
                         ctx.lineWidth = 2;
                         ctx.stroke();
-                    } else if (shape.getType() === 'polygon') {
-                        let vertices = shape.m_vertices;
-                        ctx.moveTo(vertices[0].x * SCALE, vertices[0].y * SCALE);
-                        for (let i = 1; i < vertices.length; i++) {
-                            ctx.lineTo(vertices[i].x * SCALE, vertices[i].y * SCALE);
+                    } else {
+                        // Отрисовка прямоугольников
+                        ctx.beginPath();
+                        if (shape.getType() === 'circle') {
+                            ctx.arc(shape.m_p.x * SCALE, shape.m_p.y * SCALE, shape.m_radius * SCALE, 0, Math.PI * 2);
+                            ctx.strokeStyle = 'red';
+                            ctx.lineWidth = 2;
+                            ctx.stroke();
+                        } else if (shape.getType() === 'polygon') {
+                            let vertices = shape.m_vertices;
+                            ctx.moveTo(vertices[0].x * SCALE, vertices[0].y * SCALE);
+                            for (let i = 1; i < vertices.length; i++) {
+                                ctx.lineTo(vertices[i].x * SCALE, vertices[i].y * SCALE);
+                            }
+                            ctx.closePath();
+                            ctx.strokeStyle = 'blue';
+                            ctx.lineWidth = 2;
+                            ctx.stroke();
                         }
-                        ctx.closePath();
-                        ctx.strokeStyle = 'blue';
-                        ctx.stroke();
                     }
                     fix = fix.getNext();
                 }
-
-                // Желтая точка головы (Идеальная координата)
-                ctx.beginPath();
-                ctx.arc((0 / SCALE) * SCALE, (-35 / SCALE) * SCALE, 6, 0, Math.PI * 2);
-                ctx.fillStyle = 'yellow';
-                ctx.fill();
-                ctx.strokeStyle = 'black';
-                ctx.stroke();
             }
             
             ctx.restore();
@@ -894,4 +919,4 @@
     update();
 </script>
 </body>
-</html>
+    </html>
