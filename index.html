@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (Dust & Pops)</title>
+    <title>Skyline Moto</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -151,7 +151,7 @@
         .score-row.reward-row {
             font-size: 18px;
             font-weight: bold;
-            color: #a6ff00; 
+            color: #fff3d4; 
             border-bottom: none;
             align-items: center;
         }
@@ -190,7 +190,8 @@
     <div class="top-bar">
         <div class="stats-left">
             <div class="stat-text">Best: <span id="bestDistanceText">0</span>m</div>
-            <div class="stat-text" style="color: #a6ff00;">
+            <!-- Обновленный цвет и иконка монеты -->
+            <div class="stat-text" style="color: #fff3d4;">
                 <img src="coin.png" id="coinIconTop" class="coin-icon" style="height: 20px; margin-right: 5px;" onerror="this.style.display='none'">
                 <span id="coinBalanceText">0</span>
             </div>
@@ -278,7 +279,7 @@
 <script>
     const ENABLE_AUDIO = true; 
     const SCALE = 30; 
-    const DEBUG_POINTS = false; // Отключено для чистого вида
+    const DEBUG_POINTS = false; 
 
     const BIKE_CATALOG = {
         cayo_125: {
@@ -329,13 +330,10 @@
     const pl = planck;
     const world = new pl.World({ gravity: pl.Vec2(0, 10) });
 
-    // --- ФИЗИЧЕСКИЕ СТОЛКНОВЕНИЯ (ТОЛЬКО ДЛЯ СЕНСОРА ГОЛОВЫ) ---
     world.on('begin-contact', (contact) => {
         if (gameState !== 'playing') return;
-        
         const fixA = contact.getFixtureA();
         const fixB = contact.getFixtureB();
-        
         if (fixA.getUserData() === 'head' || fixB.getUserData() === 'head') {
             triggerGameOver();
         }
@@ -363,23 +361,49 @@
         return r1 * (1 - u) + r2 * u;
     }
 
+    // ОБНОВЛЕННАЯ ГЕНЕРАЦИЯ ЗЕМЛИ (ЗОНЫ И ТРАМПЛИНЫ)
     function getTerrainY(x) {
-        let y = groundY;
-        y -= noise((x + terrainOffset) * 0.001) * 100;  
-        y -= noise((x + terrainOffset) * 0.005) * 30;   
+        let distFromStart = Math.abs(x - startX);
         
-        let feature = noise((x + terrainOffset) * 0.0008); 
-        
-        if (feature > 0.6) {
-            let p = (feature - 0.6) / 0.4; 
-            let ramp = Math.sin(p * Math.PI) * 150; 
-            y -= ramp;
-        } else if (feature < 0.4) {
-            let p = (0.4 - feature) / 0.4; 
-            let pit = Math.sin(p * Math.PI) * 100;  
-            y += pit;
+        // 1. Безопасная стартовая зона (разгон без препятствий)
+        if (distFromStart < 1200) {
+            return groundY - (distFromStart * 0.02); 
         }
-        return y;
+
+        let y = groundY;
+        
+        // 2. Определяем текущую зону с помощью низкочастотного шума
+        let zoneType = Math.sin((x + terrainOffset) * 0.0004);
+
+        // Базовые компоненты рельефа
+        let microHill = (noise((x + terrainOffset) * 0.01) - 0.5) * 15; // Мелкие кочки
+        let hillNoise = (noise((x + terrainOffset) * 0.002) - 0.5) * 120; // Обычные холмы
+        let hillY = y - Math.abs(hillNoise) - microHill; // Абсолютное значение делает холмы более выраженными
+
+        // Трамплин (резкий подъем)
+        let kickerWave = Math.sin((x + terrainOffset) * 0.0025);
+        // Возводим в степень для крутого подъема, но плавного спуска
+        let kickerY = y - (Math.pow(Math.max(0, kickerWave), 2.5) * 220) - microHill; 
+
+        // Равнина (почти плоская, только микро-кочки)
+        let flatY = y - (microHill * 0.5);
+
+        // 3. Смешиваем зоны для плавного перехода
+        let flatFactor = 0;
+        let kickerFactor = 0;
+        let hillFactor = 1;
+
+        if (zoneType < -0.4) {
+            // Зона разгона (равнина)
+            flatFactor = Math.min(1, (-zoneType - 0.4) / 0.4);
+            hillFactor = 1 - flatFactor;
+        } else if (zoneType > 0.4) {
+            // Зона трамплинов
+            kickerFactor = Math.min(1, (zoneType - 0.4) / 0.4);
+            hillFactor = 1 - kickerFactor;
+        }
+
+        return (flatY * flatFactor) + (kickerY * kickerFactor) + (hillY * hillFactor);
     }
 
     let terrainBodies = [];
@@ -428,11 +452,8 @@
         }
 
         chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic' });
-        
-        // --- РАМА (Настройки 53 / 6 / -18) ---
         chassis.createFixture(pl.Box(53 / SCALE / 2, 6 / SCALE / 2, pl.Vec2(0, -18 / SCALE)), { density: currentBike.density, friction: 0.3 });
 
-        // --- ГОЛОВА (СЕНСОР) (Настройки 0 / -35) ---
         let headShape = pl.Circle(8 / SCALE);
         headShape.m_p.set(0 / SCALE, -35 / SCALE);
         let headFixture = chassis.createFixture(headShape, { isSensor: true });
@@ -465,21 +486,20 @@
 
     const particles = [];
     
-    // Обновленная функция создания пыли
     function spawnDust(x, y, speedX, isSkid) {
-        if (particles.length > 200) return; 
-        let count = isSkid ? 4 : 1; // При торможении больше пыли
+        if (particles.length > 250) return; 
+        let count = isSkid ? 8 : 2; 
         
         for (let i = 0; i < count; i++) {
             particles.push({
-                x: x + (Math.random() - 0.5) * 10, 
-                y: y - (Math.random() * 5),
-                vx: -speedX * 0.5 - Math.random() * 10, 
-                vy: -Math.random() * 3 - 0.5, 
-                radius: Math.random() * 3 + 2, // Начальный размер
-                growth: Math.random() * 1.5 + 0.5, // Скорость роста
-                alpha: 0.6 + Math.random() * 0.2, // Начальная прозрачность
-                decay: 0.01 + Math.random() * 0.02 
+                x: x + (Math.random() - 0.5) * 15, 
+                y: y - (Math.random() * 10),
+                vx: -speedX * 0.3 - Math.random() * 15, 
+                vy: -Math.random() * 6 - 1, 
+                radius: Math.random() * 4 + 3, 
+                growth: Math.random() * 1.5 + 0.5, // Эффект полета в экран
+                alpha: 0.5 + Math.random() * 0.3, 
+                decay: 0.01 + Math.random() * 0.015 
             });
         }
     }
@@ -489,9 +509,9 @@
             let p = particles[i];
             p.x += p.vx;
             p.y += p.vy;
-            p.vy += 0.1; // Легкая гравитация
-            p.vx *= 0.95; // Сопротивление воздуха
-            p.radius += p.growth; // Частица раздувается
+            p.vy += 0.1; 
+            p.vx *= 0.94; 
+            p.radius += p.growth; 
             p.alpha -= p.decay;
             
             if (p.alpha <= 0) particles.splice(i, 1);
@@ -499,7 +519,6 @@
     }
 
     function drawParticles() {
-        // Теплый светло-песочный цвет, не вырвиглазный
         ctx.fillStyle = '#d4cfc7'; 
         for (let p of particles) {
             ctx.globalAlpha = p.alpha; 
@@ -520,7 +539,7 @@
     let idleSource, windSource, revSource;
     let idleGain, revGain, windGain, revFilter, revTremoloGain, revLfoTone, revLfoToneGain, revLfoVol, revLfoVolGain;
     let isAudioInitialized = false, previousGasState = false;
-    let popTimer = 0; // Таймер для отстрелов
+    let popTimer = 0; 
     
     async function loadAudio(url) {
         try {
@@ -744,8 +763,12 @@
         }
 
         if (gameState === 'playing' && chassis) {
-            let speed = Math.abs(wheelRear.getAngularVelocity());
-            let isAirborne = Math.abs(chassis.getLinearVelocity().y) > 1.5;
+            let wheelSpeed = Math.abs(wheelRear.getAngularVelocity());
+            let linearSpeed = Math.abs(chassis.getLinearVelocity().x) * SCALE; // Скорость байка для пыли
+            
+            // УВЕЛИЧИЛИ ПОРОГ, ЧТОБЫ ПЫЛЬ НЕ МИГАЛА НА КОЧКАХ
+            let isAirborne = Math.abs(chassis.getLinearVelocity().y) > 3.0; 
+            
             let angle = chassis.getAngle();
             
             if (isAirborne) {
@@ -784,21 +807,21 @@
                 }
             }
 
-            // Система спавна пыли
-            if (!isAirborne && speed > 2) {
+            // СИСТЕМА ПЫЛИ (ИСПРАВЛЕНА)
+            if (!isAirborne && linearSpeed > 5) {
                 let wheelWorldPos = wheelRear.getPosition();
                 let dustX = wheelWorldPos.x * SCALE;
-                let dustY = wheelWorldPos.y * SCALE + (wheelRadius * SCALE); // Из-под колеса
+                let dustY = wheelWorldPos.y * SCALE + (wheelRadius * SCALE);
 
-                if (window.isGas) {
-                    // При газе сыпет активно
-                    spawnDust(dustX, dustY, chassis.getLinearVelocity().x * SCALE, false);
-                } else if (window.isBrake && speed > 5) {
-                    // При торможении сильный выброс
-                    spawnDust(dustX, dustY, chassis.getLinearVelocity().x * SCALE, true);
-                } else if (speed > 10) {
-                    // На накате легкая дымка
-                    spawnDust(dustX, dustY, chassis.getLinearVelocity().x * SCALE, false);
+                if (window.isBrake && linearSpeed > 10) {
+                    // ТОРМОЗ (ЮЗ) - мощный выброс
+                    spawnDust(dustX, dustY, linearSpeed, true);
+                } else if (window.isGas) {
+                    // ГАЗ - стандартный выброс
+                    spawnDust(dustX, dustY, linearSpeed, false);
+                } else if (linearSpeed > 20 && Math.random() > 0.5) {
+                    // НАКАТ - легкая дымка
+                    spawnDust(dustX, dustY, linearSpeed, false);
                 }
             }
 
@@ -826,18 +849,18 @@
                 }
 
                 let targetRev = window.isGas ? 0.8 : 0;    
-                let targetWind = Math.min(0.3, 0.05 + speed * 0.15); 
+                let targetWind = Math.min(0.3, 0.05 + wheelSpeed * 0.15); 
 
                 revGain.gain.setTargetAtTime(targetRev, audioCtx.currentTime, 0.1);
                 windGain.gain.setTargetAtTime(targetWind, audioCtx.currentTime, 0.1);
 
                 if (window.isGas && revSource) {
-                    let targetRate = 1.0 + (speed * 0.3); 
+                    let targetRate = 1.0 + (wheelSpeed * 0.3); 
                     let finalRate = Math.min(1.3, targetRate);
                     
                     revSource.playbackRate.setTargetAtTime(finalRate, audioCtx.currentTime, 0.1);
                     
-                    let targetFreq = Math.max(1000, 2500 - (speed * 1000));
+                    let targetFreq = Math.max(1000, 2500 - (wheelSpeed * 1000));
                     revFilter.frequency.setTargetAtTime(targetFreq, audioCtx.currentTime, 0.1);
                     
                     previousGasState = true;
@@ -845,10 +868,9 @@
                     previousGasState = false;
                 }
 
-                // Рандомные отстрелы при сбросе газа или накате
-                if (!window.isGas && speed > 2) {
+                if (!window.isGas && wheelSpeed > 2) {
                     popTimer += dt;
-                    if (popTimer > 1.0 && Math.random() < 0.02) { // Шанс 2% каждый кадр после 1 сек
+                    if (popTimer > 1.0 && Math.random() < 0.02) { 
                         playPop();
                         popTimer = 0; 
                     }
@@ -896,42 +918,6 @@
             ctx.rotate(chassis.getAngle());
             
             if (isImageLoaded) ctx.drawImage(bikeImage, -45, -45, 90, 54); 
-            
-            if (DEBUG_POINTS) {
-                let fix = chassis.getFixtureList();
-                while (fix) {
-                    let shape = fix.getShape();
-                    if (fix.getUserData() === 'head') {
-                        ctx.beginPath();
-                        ctx.arc(shape.m_p.x * SCALE, shape.m_p.y * SCALE, shape.m_radius * SCALE, 0, Math.PI * 2);
-                        ctx.strokeStyle = 'yellow';
-                        ctx.fillStyle = 'rgba(255, 255, 0, 0.3)';
-                        ctx.fill();
-                        ctx.lineWidth = 2;
-                        ctx.stroke();
-                    } else {
-                        ctx.beginPath();
-                        if (shape.getType() === 'circle') {
-                            ctx.arc(shape.m_p.x * SCALE, shape.m_p.y * SCALE, shape.m_radius * SCALE, 0, Math.PI * 2);
-                            ctx.strokeStyle = 'red';
-                            ctx.lineWidth = 2;
-                            ctx.stroke();
-                        } else if (shape.getType() === 'polygon') {
-                            let vertices = shape.m_vertices;
-                            ctx.moveTo(vertices[0].x * SCALE, vertices[0].y * SCALE);
-                            for (let i = 1; i < vertices.length; i++) {
-                                ctx.lineTo(vertices[i].x * SCALE, vertices[i].y * SCALE);
-                            }
-                            ctx.closePath();
-                            ctx.strokeStyle = 'blue';
-                            ctx.lineWidth = 2;
-                            ctx.stroke();
-                        }
-                    }
-                    fix = fix.getNext();
-                }
-            }
-            
             ctx.restore();
             drawWheel(wheelRear); drawWheel(wheelFront);
         }
