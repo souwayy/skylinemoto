@@ -281,8 +281,8 @@
     const DEBUG_POINTS = true; 
 
     const BIKE_CATALOG = {
-        ktr_300: {
-            name: "KTR 300 EXC",
+        ctr_300: {
+            name: "CTR 300 EXC",
             density: 1.2,
             suspension: { freq: 4.5, damp: 0.7 },
             motor: { speed: 50, torque: 60, brake: 100 }
@@ -413,7 +413,7 @@
         
         // --- ОСНОВНАЯ РАМА (ТОНКАЯ ЛИНИЯ) ---
         // Ширина 75, высота 6, смещена вверх на -15
-        chassis.createFixture(pl.Box(75 / SCALE / 2, 6 / SCALE / 2, pl.Vec2(0, -15 / SCALE)), { density: currentBike.density, friction: 0.3 });
+        chassis.createFixture(pl.Box(65 / SCALE / 2, 4 / SCALE / 2, pl.Vec2(0, -17 / SCALE)), { density: currentBike.density, friction: 0.3 });
 
         wheelRear = world.createBody({ position: pl.Vec2((x - wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic' });
         wheelRear.createFixture(pl.Circle(wheelRadius), { density: 1.0, friction: 1.0 });
