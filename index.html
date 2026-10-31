@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto</title>
+    <title>Skyline Moto (Update)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -165,19 +165,29 @@
             border-radius: 50%;
         }
 
+        /* Стилизация кнопок Home и Restart */
         .icon-btn {
             position: absolute;
             cursor: pointer;
             pointer-events: auto;
-            transition: transform 0.1s;
+            width: 50px; height: 50px; border-radius: 50%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(0,0,0,0.4) 100%);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 0 10px rgba(0,0,0,0.5), inset 0 0 8px rgba(255,255,255,0.1);
+            display: flex; align-items: center; justify-content: center;
+            transition: transform 0.1s, background 0.1s;
         }
-        .icon-btn:active { transform: scale(0.9); }
+        .icon-btn:active { 
+            transform: scale(0.95);
+            background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, rgba(0,0,0,0.5) 100%);
+        }
 
         .home-btn { top: 15px; right: 20px; }
         .restart-btn { bottom: 15px; right: 20px; }
 
         .icon-btn svg {
-            width: 40px; height: 40px; fill: #fff;
+            width: 28px; height: 28px; fill: none; stroke: #fff;
+            stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/planck-js@0.3/dist/planck.min.js"></script>
@@ -190,7 +200,6 @@
     <div class="top-bar">
         <div class="stats-left">
             <div class="stat-text">Best: <span id="bestDistanceText">0</span>m</div>
-            <!-- Обновленный цвет и иконка монеты -->
             <div class="stat-text" style="color: #fff3d4;">
                 <img src="coin.png" id="coinIconTop" class="coin-icon" style="height: 20px; margin-right: 5px;" onerror="this.style.display='none'">
                 <span id="coinBalanceText">0</span>
@@ -236,11 +245,11 @@
                 <span id="go-distance">0m</span>
             </div>
             <div class="score-row">
-                <span>Riding on the front wheel</span>
+                <span>Max Stoppie</span>
                 <span id="go-stoppie">0s</span>
             </div>
             <div class="score-row">
-                <span>Riding on the rear wheel</span>
+                <span>Max Wheelie</span>
                 <span id="go-wheelie">0s</span>
             </div>
             <div class="score-row">
@@ -252,12 +261,12 @@
                 <span id="go-backflips">0</span>
             </div>
             <div class="score-row">
-                <span>Total score</span>
+                <span>Score</span>
                 <span id="go-totalscore">0</span>
             </div>
             
             <div class="score-row high-score">
-                <span>HIGH SCORE</span>
+                <span>BEST DISTANCE</span>
                 <span id="go-highscore">0</span>
             </div>
             
@@ -298,6 +307,7 @@
     let currentBike = BIKE_CATALOG.ctm_300_exc;
 
     let totalCoins = parseInt(localStorage.getItem('totalCoins')) || 0;
+    let sessionCoins = 0;
     document.getElementById('coinBalanceText').innerText = totalCoins;
     
     let maxAirTime = 0;
@@ -361,49 +371,65 @@
         return r1 * (1 - u) + r2 * u;
     }
 
-    // ОБНОВЛЕННАЯ ГЕНЕРАЦИЯ ЗЕМЛИ (ЗОНЫ И ТРАМПЛИНЫ)
+    // ОБНОВЛЕННАЯ ГЕНЕРАЦИЯ ЗЕМЛИ (КИКЕРЫ И СТОЛЫ)
     function getTerrainY(x) {
         let distFromStart = Math.abs(x - startX);
-        
-        // 1. Безопасная стартовая зона (разгон без препятствий)
+        // Безопасный старт
         if (distFromStart < 1200) {
             return groundY - (distFromStart * 0.02); 
         }
 
         let y = groundY;
         
-        // 2. Определяем текущую зону с помощью низкочастотного шума
-        let zoneType = Math.sin((x + terrainOffset) * 0.0004);
+        // Используем шум для определения зоны (каждые ~2500 пикселей)
+        let zoneType = noise((x + terrainOffset) * 0.0004);
 
-        // Базовые компоненты рельефа
-        let microHill = (noise((x + terrainOffset) * 0.01) - 0.5) * 15; // Мелкие кочки
-        let hillNoise = (noise((x + terrainOffset) * 0.002) - 0.5) * 120; // Обычные холмы
-        let hillY = y - Math.abs(hillNoise) - microHill; // Абсолютное значение делает холмы более выраженными
+        // Мелкие кочки (всегда есть)
+        let microHill = (noise((x + terrainOffset) * 0.01) - 0.5) * 15;
 
-        // Трамплин (резкий подъем)
-        let kickerWave = Math.sin((x + terrainOffset) * 0.0025);
-        // Возводим в степень для крутого подъема, но плавного спуска
-        let kickerY = y - (Math.pow(Math.max(0, kickerWave), 2.5) * 220) - microHill; 
+        // Обычные холмы (плавные)
+        let hillNoise = (noise((x + terrainOffset) * 0.0015) - 0.5) * 100;
+        let hillY = y - Math.abs(hillNoise) - microHill; 
 
-        // Равнина (почти плоская, только микро-кочки)
+        // Трамплины
+        let jumpPhase = (x + terrainOffset) * 0.002;
+        let jumpWave = Math.sin(jumpPhase);
+        
+        // Kicker (Кикер) - плавный подъем и резкий обрыв
+        // Возводим в квадрат для сглаживания верхушки, но не делаем "стену"
+        let kickerY = y - (Math.pow(Math.max(0, jumpWave), 2) * 180) - microHill;
+
+        // Tabletop (Стол) - подъем, ровная площадка, спуск
+        // Ограничиваем верхушку (Math.min), чтобы получилось плато
+        let tableY = y - (Math.min(Math.max(0, jumpWave) * 2.5, 1.0) * 160) - microHill;
+
+        // Равнина (Разгон)
         let flatY = y - (microHill * 0.5);
 
-        // 3. Смешиваем зоны для плавного перехода
+        // Смешивание зон
         let flatFactor = 0;
-        let kickerFactor = 0;
+        let jumpFactor = 0;
         let hillFactor = 1;
 
-        if (zoneType < -0.4) {
-            // Зона разгона (равнина)
-            flatFactor = Math.min(1, (-zoneType - 0.4) / 0.4);
+        if (zoneType < 0.3) {
+            flatFactor = Math.min(1, (0.3 - zoneType) / 0.3);
             hillFactor = 1 - flatFactor;
-        } else if (zoneType > 0.4) {
-            // Зона трамплинов
-            kickerFactor = Math.min(1, (zoneType - 0.4) / 0.4);
-            hillFactor = 1 - kickerFactor;
+        } else if (zoneType > 0.6) {
+            jumpFactor = Math.min(1, (zoneType - 0.6) / 0.4);
+            hillFactor = 1 - jumpFactor;
         }
 
-        return (flatY * flatFactor) + (kickerY * kickerFactor) + (hillY * hillFactor);
+        // Внутри зоны прыжков чередуем Кикер и Стол (зависит от шума)
+        if (jumpFactor > 0) {
+            let jumpType = noise((x + terrainOffset) * 0.0002);
+            if (jumpType > 0.5) {
+                return (flatY * flatFactor) + (tableY * jumpFactor) + (hillY * hillFactor);
+            } else {
+                return (flatY * flatFactor) + (kickerY * jumpFactor) + (hillY * hillFactor);
+            }
+        }
+
+        return (flatY * flatFactor) + (hillY * hillFactor);
     }
 
     let terrainBodies = [];
@@ -485,21 +511,25 @@
     window.isLeanBack = false; window.isLeanForward = false;
 
     const particles = [];
+    let dustTimer = 0;
     
+    // НОВАЯ МЯГКАЯ ПЫЛЬ
     function spawnDust(x, y, speedX, isSkid) {
-        if (particles.length > 250) return; 
-        let count = isSkid ? 8 : 2; 
+        if (particles.length > 200) return; 
+        let count = isSkid ? 3 : 1; 
         
         for (let i = 0; i < count; i++) {
             particles.push({
-                x: x + (Math.random() - 0.5) * 15, 
-                y: y - (Math.random() * 10),
-                vx: -speedX * 0.3 - Math.random() * 15, 
-                vy: -Math.random() * 6 - 1, 
-                radius: Math.random() * 4 + 3, 
-                growth: Math.random() * 1.5 + 0.5, // Эффект полета в экран
-                alpha: 0.5 + Math.random() * 0.3, 
-                decay: 0.01 + Math.random() * 0.015 
+                x: x + (Math.random() - 0.5) * 10, 
+                y: y - (Math.random() * 5),
+                vx: -speedX * 0.4 - Math.random() * 8, 
+                vy: -Math.random() * 4 - 0.5, 
+                radius: Math.random() * 2 + 1, 
+                growth: Math.random() * 1.5 + 1.0, 
+                alpha: 0, 
+                maxAlpha: 0.6 + Math.random() * 0.2,
+                fadeIn: true,
+                decay: 0.01 + Math.random() * 0.02 
             });
         }
     }
@@ -512,21 +542,31 @@
             p.vy += 0.1; 
             p.vx *= 0.94; 
             p.radius += p.growth; 
-            p.alpha -= p.decay;
             
-            if (p.alpha <= 0) particles.splice(i, 1);
+            if (p.fadeIn) {
+                p.alpha += 0.05;
+                if (p.alpha >= p.maxAlpha) {
+                    p.alpha = p.maxAlpha;
+                    p.fadeIn = false;
+                }
+            } else {
+                p.alpha -= p.decay;
+            }
+            
+            if (p.alpha <= 0 && !p.fadeIn) particles.splice(i, 1);
         }
     }
 
     function drawParticles() {
-        ctx.fillStyle = '#d4cfc7'; 
         for (let p of particles) {
-            ctx.globalAlpha = p.alpha; 
+            let grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius);
+            grad.addColorStop(0, `rgba(212, 207, 199, ${p.alpha})`);
+            grad.addColorStop(1, 'rgba(212, 207, 199, 0)');
+            ctx.fillStyle = grad;
             ctx.beginPath();
             ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
             ctx.fill();
         }
-        ctx.globalAlpha = 1.0; 
     }
 
     setInterval(() => {
@@ -649,6 +689,9 @@
         maxStoppieTime = 0; currentStoppieTime = 0;
         particles.length = 0;
         popTimer = 0;
+        sessionCoins = 0;
+        
+        document.getElementById('coinBalanceText').innerText = totalCoins;
 
         if (ENABLE_AUDIO && isAudioInitialized) {
             idleGain.gain.setValueAtTime(0.4, audioCtx.currentTime); revGain.gain.setValueAtTime(0, audioCtx.currentTime); windGain.gain.setValueAtTime(0, audioCtx.currentTime);
@@ -662,7 +705,8 @@
         gameState = 'gameover';
         window.isGas = false; 
         
-        let dist = Math.floor(((chassis.getPosition().x * SCALE) - startX) / 10);
+        // Защита от минусовых значений
+        let dist = Math.max(0, Math.floor(((chassis.getPosition().x * SCALE) - startX) / 10));
         let earnedCoins = Math.floor(dist / 100) + ((frontflipCount + backflipCount) * 10);
         
         totalCoins += earnedCoins;
@@ -673,7 +717,11 @@
         document.getElementById('go-wheelie').innerText = maxWheelieTime.toFixed(1) + "s";
         document.getElementById('go-frontflips').innerText = frontflipCount;
         document.getElementById('go-backflips').innerText = backflipCount;
-        document.getElementById('go-totalscore').innerText = dist + (frontflipCount * 100) + (backflipCount * 100);
+        
+        // Счет тоже не может быть меньше 0
+        let totalScore = Math.max(0, dist + (frontflipCount * 100) + (backflipCount * 100));
+        document.getElementById('go-totalscore').innerText = totalScore;
+        
         document.getElementById('go-highscore').innerText = maxDistance + "m";
         document.getElementById('go-coins').innerText = earnedCoins;
         
@@ -764,10 +812,10 @@
 
         if (gameState === 'playing' && chassis) {
             let wheelSpeed = Math.abs(wheelRear.getAngularVelocity());
-            let linearSpeed = Math.abs(chassis.getLinearVelocity().x) * SCALE; // Скорость байка для пыли
+            let linearSpeed = Math.abs(chassis.getLinearVelocity().x) * SCALE; 
             
-            // УВЕЛИЧИЛИ ПОРОГ, ЧТОБЫ ПЫЛЬ НЕ МИГАЛА НА КОЧКАХ
-            let isAirborne = Math.abs(chassis.getLinearVelocity().y) > 3.0; 
+            // Порог для трюков
+            let isAirborne = Math.abs(chassis.getLinearVelocity().y) > 1.5; 
             
             let angle = chassis.getAngle();
             
@@ -792,14 +840,14 @@
                 accumulatedRotation = 0;
                 lastAngle = angle; 
 
-                if (angle < -0.3 && Math.abs(chassis.getLinearVelocity().x) > 1) {
+                if (angle < -0.3 && linearSpeed > 5) {
                     currentWheelieTime += dt;
                     if (currentWheelieTime > maxWheelieTime) maxWheelieTime = currentWheelieTime;
                 } else {
                     currentWheelieTime = 0;
                 }
 
-                if (angle > 0.3 && Math.abs(chassis.getLinearVelocity().x) > 1) {
+                if (angle > 0.3 && linearSpeed > 5) {
                     currentStoppieTime += dt;
                     if (currentStoppieTime > maxStoppieTime) maxStoppieTime = currentStoppieTime;
                 } else {
@@ -807,22 +855,25 @@
                 }
             }
 
-            // СИСТЕМА ПЫЛИ (ИСПРАВЛЕНА)
+            // ПЫЛЬ
             if (!isAirborne && linearSpeed > 5) {
-                let wheelWorldPos = wheelRear.getPosition();
-                let dustX = wheelWorldPos.x * SCALE;
-                let dustY = wheelWorldPos.y * SCALE + (wheelRadius * SCALE);
+                dustTimer += dt;
+                if (dustTimer > 0.03) {
+                    let wheelWorldPos = wheelRear.getPosition();
+                    let dustX = wheelWorldPos.x * SCALE;
+                    let dustY = wheelWorldPos.y * SCALE + (wheelRadius * SCALE);
 
-                if (window.isBrake && linearSpeed > 10) {
-                    // ТОРМОЗ (ЮЗ) - мощный выброс
-                    spawnDust(dustX, dustY, linearSpeed, true);
-                } else if (window.isGas) {
-                    // ГАЗ - стандартный выброс
-                    spawnDust(dustX, dustY, linearSpeed, false);
-                } else if (linearSpeed > 20 && Math.random() > 0.5) {
-                    // НАКАТ - легкая дымка
-                    spawnDust(dustX, dustY, linearSpeed, false);
+                    if (window.isBrake && linearSpeed > 10) {
+                        spawnDust(dustX, dustY, linearSpeed, true); 
+                    } else if (window.isGas) {
+                        spawnDust(dustX, dustY, linearSpeed, false); 
+                    } else if (linearSpeed > 15) {
+                        spawnDust(dustX, dustY, linearSpeed, false); 
+                    }
+                    dustTimer = 0;
                 }
+            } else {
+                dustTimer = 0.05; 
             }
 
             if (window.isGas) {
@@ -890,9 +941,22 @@
             
             generateTerrain(); cleanupTerrain();
 
+            // ДИСТАНЦИЯ И ЖИВЫЕ МОНЕТЫ (ЗАЩИТА ОТ МИНУСА)
             let currentDistance = Math.max(0, Math.floor(((chassis.getPosition().x * SCALE) - startX) / 10));
-            if (currentDistance !== lastDisplayedDistance) { document.getElementById('distanceText').innerText = currentDistance; lastDisplayedDistance = currentDistance; }
-            if (currentDistance > maxDistance) { maxDistance = currentDistance; localStorage.setItem('bestDistance', maxDistance); document.getElementById('bestDistanceText').innerText = maxDistance; }
+            
+            if (currentDistance !== lastDisplayedDistance) { 
+                document.getElementById('distanceText').innerText = currentDistance; 
+                lastDisplayedDistance = currentDistance; 
+                
+                sessionCoins = Math.floor(currentDistance / 100);
+                document.getElementById('coinBalanceText').innerText = totalCoins + sessionCoins;
+            }
+            
+            if (currentDistance > maxDistance) { 
+                maxDistance = currentDistance; 
+                localStorage.setItem('bestDistance', maxDistance); 
+                document.getElementById('bestDistanceText').innerText = maxDistance; 
+            }
         }
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
