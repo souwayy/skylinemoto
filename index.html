@@ -165,7 +165,6 @@
             border-radius: 50%;
         }
 
-        /* Стилизация кнопок Home и Restart */
         .icon-btn {
             position: absolute;
             cursor: pointer;
@@ -291,18 +290,8 @@
     const DEBUG_POINTS = false; 
 
     const BIKE_CATALOG = {
-        cayo_125: {
-            name: "CAYO 125 TRAIL",
-            density: 2.2,
-            suspension: { freq: 3.5, damp: 0.8 },
-            motor: { speed: 35, torque: 40, brake: 50 }
-        },
-        ctm_300_exc: {
-            name: "CTM 300 EXC",
-            density: 1.2,
-            suspension: { freq: 4.5, damp: 0.7 },
-            motor: { speed: 50, torque: 60, brake: 100 }
-        }
+        cayo_125: { name: "CAYO 125 TRAIL", density: 2.2, suspension: { freq: 3.5, damp: 0.8 }, motor: { speed: 35, torque: 40, brake: 50 } },
+        ctm_300_exc: { name: "CTM 300 EXC", density: 1.2, suspension: { freq: 4.5, damp: 0.7 }, motor: { speed: 50, torque: 60, brake: 100 } }
     };
     let currentBike = BIKE_CATALOG.ctm_300_exc;
 
@@ -371,65 +360,45 @@
         return r1 * (1 - u) + r2 * u;
     }
 
-    // ОБНОВЛЕННАЯ ГЕНЕРАЦИЯ ЗЕМЛИ (КИКЕРЫ И СТОЛЫ)
+    // ИСПРАВЛЕННАЯ ГЕНЕРАЦИЯ ЗЕМЛИ (ПЛАВНЫЕ ХОЛМЫ, КИКЕРЫ И СТОЛЫ)
     function getTerrainY(x) {
         let distFromStart = Math.abs(x - startX);
-        // Безопасный старт
         if (distFromStart < 1200) {
             return groundY - (distFromStart * 0.02); 
         }
 
         let y = groundY;
         
-        // Используем шум для определения зоны (каждые ~2500 пикселей)
-        let zoneType = noise((x + terrainOffset) * 0.0004);
+        // 1. Базовые плавные холмы (чтобы не было острых стен)
+        let hillY = Math.sin((x + terrainOffset) * 0.002) * 80;
+        let microHill = Math.sin((x + terrainOffset) * 0.015) * 10;
+        let baseTerrain = y - Math.abs(hillY) - microHill;
 
-        // Мелкие кочки (всегда есть)
-        let microHill = (noise((x + terrainOffset) * 0.01) - 0.5) * 15;
+        // 2. Определяем зону (0 - равнина, 1 - трамплины)
+        let zoneType = noise((x + terrainOffset) * 0.0003);
 
-        // Обычные холмы (плавные)
-        let hillNoise = (noise((x + terrainOffset) * 0.0015) - 0.5) * 100;
-        let hillY = y - Math.abs(hillNoise) - microHill; 
+        if (zoneType > 0.6) {
+            // ЗОНА ТРАМПЛИНОВ
+            let jumpType = noise((x + terrainOffset) * 0.001); // Тип трамплина
+            let phase = (x + terrainOffset) * 0.003;
+            let sinWave = Math.sin(phase);
 
-        // Трамплины
-        let jumpPhase = (x + terrainOffset) * 0.002;
-        let jumpWave = Math.sin(jumpPhase);
-        
-        // Kicker (Кикер) - плавный подъем и резкий обрыв
-        // Возводим в квадрат для сглаживания верхушки, но не делаем "стену"
-        let kickerY = y - (Math.pow(Math.max(0, jumpWave), 2) * 180) - microHill;
-
-        // Tabletop (Стол) - подъем, ровная площадка, спуск
-        // Ограничиваем верхушку (Math.min), чтобы получилось плато
-        let tableY = y - (Math.min(Math.max(0, jumpWave) * 2.5, 1.0) * 160) - microHill;
-
-        // Равнина (Разгон)
-        let flatY = y - (microHill * 0.5);
-
-        // Смешивание зон
-        let flatFactor = 0;
-        let jumpFactor = 0;
-        let hillFactor = 1;
-
-        if (zoneType < 0.3) {
-            flatFactor = Math.min(1, (0.3 - zoneType) / 0.3);
-            hillFactor = 1 - flatFactor;
-        } else if (zoneType > 0.6) {
-            jumpFactor = Math.min(1, (zoneType - 0.6) / 0.4);
-            hillFactor = 1 - jumpFactor;
-        }
-
-        // Внутри зоны прыжков чередуем Кикер и Стол (зависит от шума)
-        if (jumpFactor > 0) {
-            let jumpType = noise((x + terrainOffset) * 0.0002);
             if (jumpType > 0.5) {
-                return (flatY * flatFactor) + (tableY * jumpFactor) + (hillY * hillFactor);
+                // Кикер (плавный подъем, резкий обрыв). Используем степень 3.
+                let kickerH = Math.pow(Math.max(0, sinWave), 3) * 250;
+                return y - kickerH - microHill;
             } else {
-                return (flatY * flatFactor) + (kickerY * jumpFactor) + (hillY * hillFactor);
+                // Стол (подъем, площадка, спуск). Ограничиваем высоту.
+                let tableH = Math.min(Math.max(0, sinWave), 0.8) * 200;
+                return y - tableH - microHill;
             }
+        } else if (zoneType < 0.3) {
+            // ЗОНА РАВНИНЫ
+            return y - (microHill * 0.5); 
         }
 
-        return (flatY * flatFactor) + (hillY * hillFactor);
+        // ЗОНА ХОЛМОВ
+        return baseTerrain;
     }
 
     let terrainBodies = [];
@@ -513,9 +482,9 @@
     const particles = [];
     let dustTimer = 0;
     
-    // НОВАЯ МЯГКАЯ ПЫЛЬ
+    // ЛЕГКАЯ И БЫСТРАЯ ПЫЛЬ (Без тяжелых градиентов)
     function spawnDust(x, y, speedX, isSkid) {
-        if (particles.length > 200) return; 
+        if (particles.length > 150) return; 
         let count = isSkid ? 3 : 1; 
         
         for (let i = 0; i < count; i++) {
@@ -524,12 +493,10 @@
                 y: y - (Math.random() * 5),
                 vx: -speedX * 0.4 - Math.random() * 8, 
                 vy: -Math.random() * 4 - 0.5, 
-                radius: Math.random() * 2 + 1, 
+                radius: Math.random() * 2 + 2, 
                 growth: Math.random() * 1.5 + 1.0, 
-                alpha: 0, 
-                maxAlpha: 0.6 + Math.random() * 0.2,
-                fadeIn: true,
-                decay: 0.01 + Math.random() * 0.02 
+                alpha: 0.5 + Math.random() * 0.3, 
+                decay: 0.02 + Math.random() * 0.02 
             });
         }
     }
@@ -542,31 +509,21 @@
             p.vy += 0.1; 
             p.vx *= 0.94; 
             p.radius += p.growth; 
+            p.alpha -= p.decay;
             
-            if (p.fadeIn) {
-                p.alpha += 0.05;
-                if (p.alpha >= p.maxAlpha) {
-                    p.alpha = p.maxAlpha;
-                    p.fadeIn = false;
-                }
-            } else {
-                p.alpha -= p.decay;
-            }
-            
-            if (p.alpha <= 0 && !p.fadeIn) particles.splice(i, 1);
+            if (p.alpha <= 0) particles.splice(i, 1);
         }
     }
 
     function drawParticles() {
+        ctx.fillStyle = '#d4cfc7'; 
         for (let p of particles) {
-            let grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius);
-            grad.addColorStop(0, `rgba(212, 207, 199, ${p.alpha})`);
-            grad.addColorStop(1, 'rgba(212, 207, 199, 0)');
-            ctx.fillStyle = grad;
+            ctx.globalAlpha = p.alpha; 
             ctx.beginPath();
             ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
             ctx.fill();
         }
+        ctx.globalAlpha = 1.0; 
     }
 
     setInterval(() => {
@@ -705,7 +662,6 @@
         gameState = 'gameover';
         window.isGas = false; 
         
-        // Защита от минусовых значений
         let dist = Math.max(0, Math.floor(((chassis.getPosition().x * SCALE) - startX) / 10));
         let earnedCoins = Math.floor(dist / 100) + ((frontflipCount + backflipCount) * 10);
         
@@ -718,7 +674,6 @@
         document.getElementById('go-frontflips').innerText = frontflipCount;
         document.getElementById('go-backflips').innerText = backflipCount;
         
-        // Счет тоже не может быть меньше 0
         let totalScore = Math.max(0, dist + (frontflipCount * 100) + (backflipCount * 100));
         document.getElementById('go-totalscore').innerText = totalScore;
         
@@ -814,8 +769,8 @@
             let wheelSpeed = Math.abs(wheelRear.getAngularVelocity());
             let linearSpeed = Math.abs(chassis.getLinearVelocity().x) * SCALE; 
             
-            // Порог для трюков
-            let isAirborne = Math.abs(chassis.getLinearVelocity().y) > 1.5; 
+            // Порог полета (выше, чтобы пыль не мигала на кочках)
+            let isAirborne = Math.abs(chassis.getLinearVelocity().y) > 3.0; 
             
             let angle = chassis.getAngle();
             
@@ -855,7 +810,7 @@
                 }
             }
 
-            // ПЫЛЬ
+            // ПЫЛЬ (Исправлено появление)
             if (!isAirborne && linearSpeed > 5) {
                 dustTimer += dt;
                 if (dustTimer > 0.03) {
@@ -941,7 +896,6 @@
             
             generateTerrain(); cleanupTerrain();
 
-            // ДИСТАНЦИЯ И ЖИВЫЕ МОНЕТЫ (ЗАЩИТА ОТ МИНУСА)
             let currentDistance = Math.max(0, Math.floor(((chassis.getPosition().x * SCALE) - startX) / 10));
             
             if (currentDistance !== lastDisplayedDistance) { 
@@ -993,4 +947,4 @@
     update();
 </script>
 </body>
-</html>
+    </html>
