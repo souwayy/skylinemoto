@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (Smooth Physics)</title>
+    <title>Skyline Moto (Sensor Fixed)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -329,10 +329,17 @@
     const pl = planck;
     const world = new pl.World({ gravity: pl.Vec2(0, 10) });
 
+    // ВОЗВРАЩАЕМ СЕНСОР НА ГОЛОВУ
     world.on('begin-contact', (contact) => {
         if (gameState !== 'playing') return;
         const fixA = contact.getFixtureA();
         const fixB = contact.getFixtureB();
+        
+        // Проверяем, что столкнулись именно с землей
+        const isTerrain = (fixA.getUserData() === 'terrain' || fixB.getUserData() === 'terrain');
+        if (!isTerrain) return;
+
+        // Проверяем, что голова коснулась земли
         if (fixA.getUserData() === 'head' || fixB.getUserData() === 'head') {
             triggerGameOver();
         }
@@ -360,52 +367,24 @@
         return r1 * (1 - u) + r2 * u;
     }
 
-    // БЕСШОВНАЯ ГЕНЕРАЦИЯ ЗЕМЛИ (БЕЗ СТЕН)
+    // ТА САМАЯ ИДЕАЛЬНАЯ ЗЕМЛЯ (БЕЗ СТЕН)
     function getTerrainY(x) {
-        let distFromStart = x - startX;
-        if (distFromStart < 1500) {
-            return groundY - (distFromStart * 0.02); 
+        if (x - startX < 1200) {
+            return groundY - ((x - startX) * 0.02); 
         }
 
-        // 1. Базовые плавные холмы
-        let hills = Math.sin((x + terrainOffset) * 0.0015) * 80;
+        let y = groundY;
         
-        // 2. Микро-кочки (чтобы на равнинах не было идеального асфальта)
-        let micro = Math.sin((x + terrainOffset) * 0.015) * 6;
+        // Базовые холмы (как было)
+        y -= noise((x + terrainOffset) * 0.001) * 120;  
+        y -= noise((x + terrainOffset) * 0.005) * 30;   
         
-        // 3. Зоны разгона (плавно выключают высокие холмы)
-        let flatNoise = noise((x + terrainOffset) * 0.0005);
-        let flattenFactor = Math.min(1, Math.max(0, (0.4 - flatNoise) * 4));
-        let finalHills = hills * (1 - flattenFactor);
+        // Плавные трамплины (добавлены прямо в формулу, без резких зон)
+        let ramp = Math.sin((x + terrainOffset) * 0.002);
+        // Возводим в квадрат, чтобы подъем был плавным, но высоким
+        y -= Math.pow(Math.max(0, ramp), 2) * 150; 
 
-        // 4. Трамплины (Кикеры)
-        let ramp = 0;
-        let rampSpacing = 1800; // Расстояние между трамплинами
-        let rampPhase = (x + terrainOffset) / rampSpacing;
-        let rampIndex = Math.floor(rampPhase);
-        let rampProgress = rampPhase - rampIndex;
-
-        let rampChance = noise(rampIndex * 456.789);
-        
-        // Если выпал трамплин
-        if (rampChance > 0.4) {
-            if (rampProgress > 0.2 && rampProgress < 0.8) {
-                let t = (rampProgress - 0.2) / 0.6; // 0..1
-                let rampHeight = 120 + (rampChance - 0.4) * 300; 
-
-                if (t < 0.7) {
-                    // Плавный заезд (парабола)
-                    let tUp = t / 0.7; 
-                    ramp = Math.pow(tUp, 2) * rampHeight;
-                } else {
-                    // Резкий обрыв
-                    let tDown = (1 - t) / 0.3; 
-                    ramp = Math.pow(tDown, 1.2) * rampHeight;
-                }
-            }
-        }
-
-        return groundY - finalHills - micro - ramp;
+        return y;
     }
 
     let terrainBodies = [];
@@ -424,7 +403,8 @@
             
             const chain = world.createBody();
             const chainShape = pl.Chain(vertices, false);
-            chain.createFixture(chainShape, { friction: 1.0, restitution: 0.0 });
+            let fixture = chain.createFixture(chainShape, { friction: 1.0, restitution: 0.0 });
+            fixture.setUserData('terrain'); // Важно для сенсора!
             
             terrainBodies.push({ body: chain, startX: lastGeneratedX, endX: lastGeneratedX + (chunkSize * chunkWidth) });
             lastGeneratedX += chunkSize * chunkWidth;
@@ -453,10 +433,11 @@
             world.destroyBody(wheelFront);
         }
 
-        // Включаем bullet: true для всех частей (защита от проскока сквозь землю)
         chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic', bullet: true });
-        chassis.createFixture(pl.Box(53 / SCALE / 2, 6 / SCALE / 2, pl.Vec2(0, -18 / SCALE)), { density: currentBike.density, friction: 0.3 });
+        // Ширина 40 (чтобы не было эффекта подставки при вилли)
+        chassis.createFixture(pl.Box(40 / SCALE / 2, 6 / SCALE / 2, pl.Vec2(0, -18 / SCALE)), { density: currentBike.density, friction: 0.3 });
 
+        // СЕНСОР ГОЛОВЫ (как ты просил: 0 / -35)
         let headShape = pl.Circle(8 / SCALE);
         headShape.m_p.set(0 / SCALE, -35 / SCALE);
         let headFixture = chassis.createFixture(headShape, { isSensor: true });
