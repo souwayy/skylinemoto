@@ -353,36 +353,39 @@
     let cameraY = 0; 
     const zoom = 1.1; 
 
-    // ТА САМАЯ ИДЕАЛЬНАЯ ЗЕМЛЯ
-    function getTerrainY(x) {
-        let y = groundY;
-        
-        // 1. Базовые волны
-        let wave = Math.sin((x + terrainOffset) * 0.001) * 80;
+function getTerrainY(x) {
+    let y = groundY;
+    
+    // 1. Базовые холмы (используем шум для уникальности)
+    let baseHill = (noise((x + terrainOffset) * 0.001) - 0.5) * 120;
 
-        // 2. Трамплины (высота 200 для уверенного одинарного сальто)
-        let kickerWave = Math.sin((x + terrainOffset) * 0.0025);
-        let kicker = Math.pow(Math.max(0, kickerWave), 3) * 200;
+    // 2. Трамплины (обычные, для одинарного сальто)
+    // Смещаем фазу синуса с помощью шума, чтобы они никогда не повторялись
+    let jumpPhase = (x + terrainOffset) * 0.003 + noise((x + terrainOffset) * 0.0005) * 15;
+    let kickerWave = Math.sin(jumpPhase);
+    let kicker = Math.pow(Math.max(0, kickerWave), 3) * 180; 
 
-        // 3. РЕДКИЕ МЕГА-ТРАМПЛИНЫ (для двойного сальто)
-        let megaWave = Math.sin((x + terrainOffset) * 0.00015);
-        let megaRamp = Math.pow(Math.max(0, megaWave), 2) * 250;
+    // 3. РЕДКИЕ МЕГА-ТРАМПЛИНЫ (для двойного сальто)
+    let megaPhase = (x + terrainOffset) * 0.0008 + noise((x + terrainOffset) * 0.0001) * 30;
+    let megaWave = Math.sin(megaPhase);
+    let mega = Math.pow(Math.max(0, megaWave), 2) * 250;
 
-        // 4. Микро-кочки
-        let micro = Math.sin((x + terrainOffset) * 0.015) * 6;
+    // 4. Микро-кочки
+    let micro = (noise((x + terrainOffset) * 0.01) - 0.5) * 8;
 
-        let mathY = y - wave - kicker - micro - megaRamp;
+    let mathY = y - baseHill - kicker - mega - micro;
 
-        // Плавный переход от старта
-        let distFromStart = x - startX;
-        if (distFromStart < 1000) {
-            let factor = Math.max(0, distFromStart / 1000); 
-            let flatY = groundY - (distFromStart * 0.02);   
-            return flatY * (1 - factor) + mathY * factor;   
-        }
-        
-        return mathY;
+    // 5. Плавный старт
+    let distFromStart = x - startX;
+    if (distFromStart < 1000) {
+        let factor = Math.max(0, distFromStart / 1000); 
+        let flatY = groundY - (distFromStart * 0.02);   
+        return flatY * (1 - factor) + mathY * factor;   
     }
+    
+    return mathY;
+}
+    
 
     let terrainBodies = [];
     let lastGeneratedX = startX - 1500; 
