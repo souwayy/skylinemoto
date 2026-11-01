@@ -364,37 +364,40 @@
         return r1 * (1 - u) + r2 * u;
     }
 
-    // ГЕНЕРАЦИЯ ЗЕМЛИ БЕЗ ПОВТОРЕНИЙ (ШУМ СДВИГАЕТ ФАЗУ СИНУСА)
     function getTerrainY(x) {
-        let y = groundY;
-        
-        // 1. Базовые холмы (используем шум для уникальности)
-        let baseHill = (noise((x + terrainOffset) * 0.001) - 0.5) * 120;
+    let y = groundY;
+    
+    // 1. Базовые холмы
+    let baseHill = (noise((x + terrainOffset) * 0.001) - 0.5) * 120;
 
-        // 2. Трамплины (обычные, для одинарного сальто)
-        let jumpPhase = (x + terrainOffset) * 0.003 + noise((x + terrainOffset) * 0.0005) * 15;
-        let kickerWave = Math.sin(jumpPhase);
-        let kicker = Math.pow(Math.max(0, kickerWave), 3) * 180; 
+    // 2. ОБЫЧНЫЕ ТРАМПЛИНЫ (Раз в ~500 метров)
+    // Частота 0.0012 дает период ~5000 пикселей (500 метров)
+    let jumpPhase = (x + terrainOffset) * 0.0012 + noise((x + terrainOffset) * 0.0005) * 50;
+    let kickerWave = Math.sin(jumpPhase);
+    // Степень 4 делает трамплин крутым и узким (нужен разгон)
+    let kicker = Math.pow(Math.max(0, kickerWave), 4) * 180; 
 
-        // 3. РЕДКИЕ МЕГА-ТРАМПЛИНЫ (для двойного сальто)
-        let megaPhase = (x + terrainOffset) * 0.0008 + noise((x + terrainOffset) * 0.0001) * 30;
-        let megaWave = Math.sin(megaPhase);
-        let mega = Math.pow(Math.max(0, megaWave), 2) * 250;
+    // 3. МЕГА-ТРАМПЛИНЫ (Раз в ~2000 метров)
+    // Частота 0.0003 дает период ~20000 пикселей
+    let megaPhase = (x + terrainOffset) * 0.0003 + noise((x + terrainOffset) * 0.0001) * 100;
+    let megaWave = Math.sin(megaPhase);
+    // Делаем мега-трамплин еще выше для двойного сальто
+    let mega = Math.pow(Math.max(0, megaWave), 3) * 300;
 
-        // 4. Микро-кочки
-        let micro = (noise((x + terrainOffset) * 0.01) - 0.5) * 8;
+    // 4. Микро-кочки
+    let micro = (noise((x + terrainOffset) * 0.01) - 0.5) * 8;
 
-        let mathY = y - baseHill - kicker - mega - micro;
+    let mathY = y - baseHill - kicker - mega - micro;
 
-        // 5. Плавный старт
-        let distFromStart = x - startX;
-        if (distFromStart < 1000) {
-            let factor = Math.max(0, distFromStart / 1000); 
-            let flatY = groundY - (distFromStart * 0.02);   
-            return flatY * (1 - factor) + mathY * factor;   
-        }
-        
-        return mathY;
+    // 5. Плавный старт
+    let distFromStart = x - startX;
+    if (distFromStart < 1000) {
+        let factor = Math.max(0, distFromStart / 1000); 
+        let flatY = groundY - (distFromStart * 0.02);   
+        return flatY * (1 - factor) + mathY * factor;   
+    }
+    
+    return mathY;
     }
 
     let terrainBodies = [];
