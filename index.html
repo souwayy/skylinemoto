@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (v6.1)</title>
+    <title>Skyline Moto (v8.1)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -140,20 +140,37 @@
             border-bottom: 1px solid rgba(255,255,255,0.15);
         }
 
+        /* Стили для бонусных монет в статистике */
+        .coin-bonus {
+            color: #a6ff00; 
+            font-size: 13px;
+            margin-left: 6px;
+            font-weight: normal;
+        }
+
+        .coin-bonus-icon {
+            height: 14px;
+            width: auto;
+            vertical-align: middle;
+            margin-left: 3px;
+            margin-bottom: 2px;
+        }
+
         .score-row.high-score {
             font-size: 18px;
             font-weight: bold;
             color: #fff;
             border-bottom: none;
-            margin-top: 5px;
+            margin-top: 10px;
         }
 
         .score-row.reward-row {
-            font-size: 18px;
+            font-size: 20px;
             font-weight: bold;
             color: #fff3d4; 
             border-bottom: none;
             align-items: center;
+            margin-top: 5px;
         }
 
         .coin-icon {
@@ -200,7 +217,7 @@
 <body>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v6.1</div>
+<div class="version-text">v8.1</div>
 
 <div class="ui-layer">
     <div class="top-bar">
@@ -248,27 +265,43 @@
         <div class="score-list">
             <div class="score-row">
                 <span>Distance</span>
-                <span id="go-distance">0m</span>
+                <span>
+                    <span id="go-distance">0m</span> 
+                    <span class="coin-bonus" id="go-coins-dist">(+0)</span>
+                    <img src="coin.png" class="coin-bonus-icon" onerror="this.style.display='none'">
+                </span>
+            </div>
+            <div class="score-row">
+                <span>Max Air Time</span>
+                <span>
+                    <span id="go-airtime">0.0s</span> 
+                    <span class="coin-bonus" id="go-coins-air">(+0)</span>
+                    <img src="coin.png" class="coin-bonus-icon" onerror="this.style.display='none'">
+                </span>
             </div>
             <div class="score-row">
                 <span>Max Stoppie</span>
-                <span id="go-stoppie">0s</span>
+                <span>
+                    <span id="go-stoppie">0.0s</span> 
+                    <span class="coin-bonus" id="go-coins-stoppie">(+0)</span>
+                    <img src="coin.png" class="coin-bonus-icon" onerror="this.style.display='none'">
+                </span>
             </div>
             <div class="score-row">
                 <span>Max Wheelie</span>
-                <span id="go-wheelie">0s</span>
+                <span>
+                    <span id="go-wheelie">0.0s</span> 
+                    <span class="coin-bonus" id="go-coins-wheelie">(+0)</span>
+                    <img src="coin.png" class="coin-bonus-icon" onerror="this.style.display='none'">
+                </span>
             </div>
             <div class="score-row">
-                <span>Frontflips</span>
-                <span id="go-frontflips">0</span>
-            </div>
-            <div class="score-row">
-                <span>Backflips</span>
-                <span id="go-backflips">0</span>
-            </div>
-            <div class="score-row">
-                <span>Score</span>
-                <span id="go-totalscore">0</span>
+                <span>Total Flips</span>
+                <span>
+                    <span id="go-flips">0</span> 
+                    <span class="coin-bonus" id="go-coins-flips">(+0)</span>
+                    <img src="coin.png" class="coin-bonus-icon" onerror="this.style.display='none'">
+                </span>
             </div>
             
             <div class="score-row high-score">
@@ -296,7 +329,6 @@
     const SCALE = 30; 
     const DEBUG_POINTS = false; 
 
-    // ИСПРАВЛЕНО: Объявляем groundY в самом начале, до вызова resizeCanvas
     let groundY = 0; 
 
     const BIKE_CATALOG = {
@@ -362,7 +394,6 @@
     let cameraY = 0; 
     const zoom = 1.1; 
 
-    // ИДЕАЛЬНАЯ ЗЕМЛЯ
     function getTerrainY(x) {
         let y = groundY;
         
@@ -600,19 +631,34 @@
         window.isGas = false; 
         
         let dist = Math.max(0, Math.floor(((chassis.getPosition().x * SCALE) - startX) / 10));
-        let earnedCoins = Math.floor(dist / 100) + ((frontflipCount + backflipCount) * 10);
+        
+        // РАСЧЕТ МОНЕТ
+        let coinsDist = Math.floor(dist / 100);
+        let coinsAir = Math.floor(maxAirTime);
+        let coinsStoppie = Math.floor(maxStoppieTime) * 2;
+        let coinsWheelie = Math.floor(maxWheelieTime) * 2;
+        let coinsFlips = (frontflipCount + backflipCount) * 10;
+        
+        let earnedCoins = coinsDist + coinsAir + coinsStoppie + coinsWheelie + coinsFlips;
         
         totalCoins += earnedCoins;
         localStorage.setItem('totalCoins', totalCoins);
         
+        // ВЫВОД СТАТИСТИКИ
         document.getElementById('go-distance').innerText = dist + "m";
-        document.getElementById('go-stoppie').innerText = maxStoppieTime.toFixed(1) + "s";
-        document.getElementById('go-wheelie').innerText = maxWheelieTime.toFixed(1) + "s";
-        document.getElementById('go-frontflips').innerText = frontflipCount;
-        document.getElementById('go-backflips').innerText = backflipCount;
+        document.getElementById('go-coins-dist').innerText = "(+" + coinsDist + ")";
         
-        let totalScore = Math.max(0, dist + (frontflipCount * 100) + (backflipCount * 100));
-        document.getElementById('go-totalscore').innerText = totalScore;
+        document.getElementById('go-airtime').innerText = maxAirTime.toFixed(1) + "s";
+        document.getElementById('go-coins-air').innerText = "(+" + coinsAir + ")";
+
+        document.getElementById('go-stoppie').innerText = maxStoppieTime.toFixed(1) + "s";
+        document.getElementById('go-coins-stoppie').innerText = "(+" + coinsStoppie + ")";
+
+        document.getElementById('go-wheelie').innerText = maxWheelieTime.toFixed(1) + "s";
+        document.getElementById('go-coins-wheelie').innerText = "(+" + coinsWheelie + ")";
+
+        document.getElementById('go-flips').innerText = (frontflipCount + backflipCount);
+        document.getElementById('go-coins-flips').innerText = "(+" + coinsFlips + ")";
         
         document.getElementById('go-highscore').innerText = maxDistance + "m";
         document.getElementById('go-coins').innerText = earnedCoins;
@@ -735,7 +781,7 @@
                 accumulatedRotation += deltaAngle;
                 lastAngle = angle;
 
-                if (Math.abs(accumulatedRotation) >= Math.PI * 1.8) {
+                if (Math.abs(accumulatedRotation) >= Math.PI * 1.5) {
                     if (accumulatedRotation > 0) backflipCount++; 
                     else frontflipCount++; 
                     accumulatedRotation = 0; 
@@ -820,7 +866,7 @@
 
             let targetCameraX = (chassis.getPosition().x * SCALE) - ((canvas.width * 0.3) / zoom);
             cameraX += (targetCameraX - cameraX) * 0.1; 
-            let targetCameraY = (groundY - 200) - (chassis.getPosition().y * SCALE);
+            let targetCameraY = (canvas.height * 0.5) - (chassis.getPosition().y * SCALE);
             cameraY += (targetCameraY - cameraY) * 0.1;
             
             generateTerrain(); cleanupTerrain();
@@ -856,7 +902,7 @@
 
         ctx.save(); 
         ctx.scale(zoom, zoom); 
-        ctx.translate(-cameraX, 0); 
+        ctx.translate(-cameraX, cameraY); 
         drawMountainLayer(200, 60, '#3a2354', cameraX * 0.2); 
         drawMountainLayer(100, 100, '#1e1129', cameraX * 0.5);
         ctx.restore();
