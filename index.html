@@ -352,24 +352,31 @@
     let cameraY = 0; 
     const zoom = 1.1; 
 
-    // ИДЕАЛЬНО ПЛАВНАЯ ЗЕМЛЯ (БЕЗ СТЕН)
     function getTerrainY(x) {
-        let y = groundY;
-        
-        // Чистые синусоиды
-        let mathY = y - Math.sin((x + terrainOffset) * 0.0005) * 160
-                      - Math.sin((x + terrainOffset) * 0.002) * 40
-                      - Math.sin((x + terrainOffset) * 0.008) * 10;
+    let y = groundY;
+    
+    // 1. Трамплины (Кикеры). 
+    // Math.pow в 3-й степени делает подъем крутым, но плавным у основания.
+    let rampWave = Math.sin((x + terrainOffset) * 0.0015);
+    let ramp = Math.pow(Math.max(0, rampWave), 3) * 180;
 
-        // Плавный переход от безопасного старта к холмам
-        let distFromStart = x - startX;
-        if (distFromStart < 1000) {
-            let factor = Math.max(0, distFromStart / 1000); // 0 в начале, 1 через 1000 пикселей
-            let flatY = groundY - (distFromStart * 0.02);   // Ровный старт
-            return flatY * (1 - factor) + mathY * factor;   // Смешивание
-        }
-        
-        return mathY;
+    // 2. Средние волны
+    let hills = Math.sin((x + terrainOffset) * 0.003) * 40;
+    
+    // 3. Мелкие кочки
+    let micro = Math.sin((x + terrainOffset) * 0.01) * 8;
+
+    let mathY = y - ramp - hills - micro;
+
+    // 4. Плавный старт
+    let distFromStart = x - startX;
+    if (distFromStart < 1000) {
+        let factor = Math.max(0, distFromStart / 1000); 
+        let flatY = groundY - (distFromStart * 0.02);   
+        return flatY * (1 - factor) + mathY * factor;   
+    }
+    
+    return mathY;
     }
 
     let terrainBodies = [];
