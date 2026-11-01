@@ -367,27 +367,35 @@
     function getTerrainY(x) {
     let y = groundY;
     
-    // 1. Базовые холмы (плавные, как ты любишь)
-    let baseHill = Math.sin((x + terrainOffset) * 0.001) * 80;
+    // 1. Базовые холмы (ровно как было)
+    let baseHill = (noise((x + terrainOffset) * 0.001) - 0.5) * 120;
 
-    // 2. ОБЫЧНЫЕ ТРАМПЛИНЫ (Раз в ~500 метров)
-    // Медленная волна-маска (включает трамплин)
-    let kMask = Math.pow(Math.max(0, Math.sin((x + terrainOffset) * 0.0012)), 6);
-    // Быстрая волна (создает короткий крутой подъем)
-    let kShape = Math.pow(Math.max(0, Math.sin((x + terrainOffset) * 0.005)), 4);
-    let kicker = kShape * 200 * kMask; 
+    // 2. ОБЫЧНЫЕ ТРАМПЛИНЫ (Раз в 500 метров)
+    // Ворота: медленная синусоида с периодом 5000 пикселей (500 метров)
+    let kGate = Math.sin((x + terrainOffset) * 0.001256); 
+    let kMask = Math.max(0, (kGate - 0.5) * 2); // Открываем ворота только на пике
+    kMask = kMask * kMask * (3 - 2 * kMask); // Делаем открытие плавным (без стен)
 
-    // 3. МЕГА-ТРАМПЛИНЫ (Раз в ~2000 метров)
-    let mMask = Math.pow(Math.max(0, Math.sin((x + terrainOffset) * 0.0003)), 4);
-    let mShape = Math.pow(Math.max(0, Math.sin((x + terrainOffset) * 0.003)), 3);
-    let mega = mShape * 300 * mMask;
+    // Форма: быстрая волна (та самая, что тебе нравилась)
+    let kShape = Math.sin((x + terrainOffset) * 0.003); 
+    let kicker = Math.pow(Math.max(0, kShape), 3) * 180 * kMask; 
 
-    // 4. Микро-кочки
-    let micro = Math.sin((x + terrainOffset) * 0.015) * 5;
+    // 3. МЕГА-ТРАМПЛИНЫ (Раз в 2000 метров)
+    // Ворота: очень медленная волна (20000 пикселей = 2000 метров)
+    let mGate = Math.sin((x + terrainOffset) * 0.000314);
+    let mMask = Math.max(0, (mGate - 0.6) * 2.5); 
+    mMask = mMask * mMask * (3 - 2 * mMask);
+    
+    // Форма мега-трамплина
+    let mShape = Math.sin((x + terrainOffset) * 0.0015);
+    let mega = Math.pow(Math.max(0, mShape), 2) * 250 * mMask;
+
+    // 4. Микро-кочки (как было)
+    let micro = (noise((x + terrainOffset) * 0.01) - 0.5) * 8;
 
     let mathY = y - baseHill - kicker - mega - micro;
 
-    // 5. Плавный старт
+    // 5. Плавный старт (как было)
     let distFromStart = x - startX;
     if (distFromStart < 1000) {
         let factor = Math.max(0, distFromStart / 1000); 
