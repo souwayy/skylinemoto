@@ -367,25 +367,22 @@
     function getTerrainY(x) {
     let y = groundY;
     
-    // 1. Базовые холмы
-    let baseHill = (noise((x + terrainOffset) * 0.001) - 0.5) * 120;
+    // 1. Базовые холмы (плавные, как раньше)
+    let baseHill = Math.sin((x + terrainOffset) * 0.001) * 80;
 
-    // 2. ОБЫЧНЫЕ ТРАМПЛИНЫ (Раз в ~500 метров)
-    // Частота 0.0012 дает период ~5000 пикселей (500 метров)
-    let jumpPhase = (x + terrainOffset) * 0.0012 + noise((x + terrainOffset) * 0.0005) * 50;
-    let kickerWave = Math.sin(jumpPhase);
-    // Степень 4 делает трамплин крутым и узким (нужен разгон)
-    let kicker = Math.pow(Math.max(0, kickerWave), 4) * 180; 
+    // 2. Обычные трамплины (раз в ~500 метров). 
+    // Частота 0.0012 дает длину волны около 5000 пикселей (500 метров).
+    // Степень 3 делает подъем плавным, но крутым.
+    let kickerWave = Math.sin((x + terrainOffset) * 0.0012);
+    let kicker = Math.pow(Math.max(0, kickerWave), 3) * 150; 
 
-    // 3. МЕГА-ТРАМПЛИНЫ (Раз в ~2000 метров)
-    // Частота 0.0003 дает период ~20000 пикселей
-    let megaPhase = (x + terrainOffset) * 0.0003 + noise((x + terrainOffset) * 0.0001) * 100;
-    let megaWave = Math.sin(megaPhase);
-    // Делаем мега-трамплин еще выше для двойного сальто
-    let mega = Math.pow(Math.max(0, megaWave), 3) * 300;
+    // 3. МЕГА-ТРАМПЛИНЫ (раз в ~2000 метров).
+    // Частота 0.0003 дает длину волны около 20000 пикселей (2000 метров).
+    let megaWave = Math.sin((x + terrainOffset) * 0.0003);
+    let mega = Math.pow(Math.max(0, megaWave), 2) * 200;
 
     // 4. Микро-кочки
-    let micro = (noise((x + terrainOffset) * 0.01) - 0.5) * 8;
+    let micro = Math.sin((x + terrainOffset) * 0.015) * 6;
 
     let mathY = y - baseHill - kicker - mega - micro;
 
