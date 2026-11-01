@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (Perfect Terrain)</title>
+    <title>Skyline Moto (Pits & Sensor)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -329,7 +329,6 @@
     const pl = planck;
     const world = new pl.World({ gravity: pl.Vec2(0, 10) });
 
-    // СМЕРТЬ ТОЛЬКО ОТ ФИЗИЧЕСКОГО СЕНСОРА
     world.on('begin-contact', (contact) => {
         if (gameState !== 'playing') return;
         const fixA = contact.getFixtureA();
@@ -353,37 +352,34 @@
     let cameraY = 0; 
     const zoom = 1.1; 
 
+    // ЗЕМЛЯ С ХОЛМАМИ И ЯМАМИ (БЕЗ СТЕН)
     function getTerrainY(x) {
-    let y = groundY;
-    
-    // 1. Базовые волны (плавные, для обычной езды)
-    let wave = Math.sin((x + terrainOffset) * 0.001) * 80;
+        let y = groundY;
+        
+        // 1. Базовые волны (создают плавные спуски и подъемы)
+        let baseHill = Math.sin((x + terrainOffset) * 0.001) * 100;
 
-    // 2. Трамплины для сальто (высокие и крутые, но без разрывов)
-    let kickerWave = Math.sin((x + terrainOffset) * 0.0025);
-    let kicker = Math.pow(kickerWave, 3) * 160;
+        // 2. Трамплины (короткие волны для прыжков)
+        let kicker = Math.sin((x + terrainOffset) * 0.003) * 50;
 
-    // 3. РЕДКИЕ МЕГА-ТРАМПЛИНЫ (для двойного сальто)
-    // Очень низкая частота (0.00015) означает, что они будут попадаться редко
-    // Высокая амплитуда (250) даст огромный разгон и время в воздухе
-    let megaRamp = Math.sin((x + terrainOffset) * 0.00015) * 250;
+        // 3. Мега-трамплины (редкие, для двойного сальто)
+        let mega = Math.sin((x + terrainOffset) * 0.0002) * 200;
 
-    // 4. Микро-кочки
-    let micro = Math.sin((x + terrainOffset) * 0.015) * 6;
+        // 4. Микро-кочки
+        let micro = Math.sin((x + terrainOffset) * 0.01) * 5;
 
-    let mathY = y - wave - kicker - micro - megaRamp;
+        let mathY = y - baseHill - kicker - mega - micro;
 
-    // 5. Плавный переход от старта
-    let distFromStart = x - startX;
-    if (distFromStart < 1000) {
-        let factor = Math.max(0, distFromStart / 1000); 
-        let flatY = groundY - (distFromStart * 0.02);   
-        return flatY * (1 - factor) + mathY * factor;   
+        // Плавный переход от старта
+        let distFromStart = x - startX;
+        if (distFromStart < 1000) {
+            let factor = Math.max(0, distFromStart / 1000); 
+            let flatY = groundY - (distFromStart * 0.02);   
+            return flatY * (1 - factor) + mathY * factor;   
+        }
+        
+        return mathY;
     }
-    
-    return mathY;
-}
-    
 
     let terrainBodies = [];
     let lastGeneratedX = startX - 1500; 
@@ -434,6 +430,7 @@
         chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic', bullet: true });
         chassis.createFixture(pl.Box(53 / SCALE / 2, 6 / SCALE / 2, pl.Vec2(0, -18 / SCALE)), { density: currentBike.density, friction: 0.3 });
 
+        // ВОЗВРАЩАЕМ ТВОЙ ИДЕАЛЬНЫЙ СЕНСОР (8 / -35)
         let headShape = pl.Circle(8 / SCALE);
         headShape.m_p.set(0 / SCALE, -35 / SCALE);
         let headFixture = chassis.createFixture(headShape, { isSensor: true });
@@ -872,4 +869,4 @@
     update();
 </script>
 </body>
-                    </html>
+    </html>
