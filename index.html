@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (v4.0)</title>
+    <title>Skyline Moto (v6.0)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -200,7 +200,7 @@
 <body>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v4.0</div>
+<div class="version-text">v6.0</div>
 
 <div class="ui-layer">
     <div class="top-bar">
@@ -328,6 +328,7 @@
     function resizeCanvas() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
+        groundY = canvas.height - 80; // Исправлено: обновляем землю при повороте экрана
     }
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
@@ -359,45 +360,30 @@
     let cameraY = 0; 
     const zoom = 1.1; 
 
-    function noise(x) {
-        let i = Math.floor(x);
-        let f = x - i;
-        let u = f * f * (3.0 - 2.0 * f);
-        let r1 = Math.sin(i * 12.9898) * 43758.5453;
-        let r2 = Math.sin((i + 1) * 12.9898) * 43758.5453;
-        r1 = r1 - Math.floor(r1);
-        r2 = r2 - Math.floor(r2);
-        return r1 * (1 - u) + r2 * u;
-    }
-
+    // ВОЗВРАЩЕННАЯ ИДЕАЛЬНАЯ ЗЕМЛЯ (БЕЗ МЕГА-ТРАМПЛИНОВ)
     function getTerrainY(x) {
-    let y = groundY;
-    
-    // 1. Базовые холмы (плавные)
-    let baseHill = Math.sin((x + terrainOffset) * 0.001) * 80;
-    let micro = Math.sin((x + terrainOffset) * 0.015) * 6;
+        let y = groundY;
+        
+        // 1. Базовые холмы (плавные)
+        let baseHill = Math.sin((x + terrainOffset) * 0.001) * 80;
+        let micro = Math.sin((x + terrainOffset) * 0.015) * 6;
 
-    // 2. ОБЫЧНЫЕ ТРАМПЛИНЫ (раз в ~500м, высота 180)
-    let shape = Math.pow(Math.sin((x + terrainOffset) * 0.003), 3) * 180;
-    let gate = Math.pow(Math.max(0, Math.sin((x + terrainOffset) * 0.00125)), 6);
-    let kicker = shape * gate;
+        // 2. ОБЫЧНЫЕ ТРАМПЛИНЫ (раз в ~500 метров, форма с ямами)
+        let shape = Math.pow(Math.sin((x + terrainOffset) * 0.003), 3) * 180;
+        let gate = Math.pow(Math.max(0, Math.sin((x + terrainOffset) * 0.00125)), 6);
+        let kicker = shape * gate;
 
-    // 3. МЕГА-ТРАМПЛИНЫ ДЛЯ ДВОЙНОГО САЛЬТО (Огромная волна раз в ~1500м)
-    // Частота 0.0004 = раз в 15700 пикселей (1570 метров).
-    // Высота 450 пикселей.
-    let mega = Math.pow(Math.sin((x + terrainOffset) * 0.0004), 3) * 450;
+        let mathY = y - baseHill - kicker - micro;
 
-    let mathY = y - baseHill - kicker - mega - micro;
-
-    // Плавный старт
-    let distFromStart = x - startX;
-    if (distFromStart < 1000) {
-        let factor = Math.max(0, distFromStart / 1000); 
-        let flatY = groundY - (distFromStart * 0.02);   
-        return flatY * (1 - factor) + mathY * factor;   
-    }
-    
-    return mathY;
+        // Плавный старт
+        let distFromStart = x - startX;
+        if (distFromStart < 1000) {
+            let factor = Math.max(0, distFromStart / 1000); 
+            let flatY = groundY - (distFromStart * 0.02);   
+            return flatY * (1 - factor) + mathY * factor;   
+        }
+        
+        return mathY;
     }
 
     let terrainBodies = [];
@@ -670,17 +656,22 @@
         }
     });
 
+    // ИСПРАВЛЕННЫЙ ФОН (горы привязаны к земле, не улетают при падении)
     function drawMountainLayer(yOffset, height, color, parallaxOffset) {
         ctx.fillStyle = color;
         ctx.beginPath();
-        let startDrawX = Math.floor(cameraX) - 100; let endDrawX = Math.floor(cameraX) + (canvas.width / zoom) + 100;
-        ctx.moveTo(startDrawX, canvas.height * 2);
+        let startDrawX = Math.floor(cameraX) - 100; 
+        let endDrawX = Math.floor(cameraX) + (canvas.width / zoom) + 100;
+        
+        ctx.moveTo(startDrawX, groundY + 2000);
         for (let x = startDrawX; x <= endDrawX; x += 10) {
             let worldX = x + parallaxOffset;
-            let y = (canvas.height - yOffset) - Math.sin(worldX * 0.005) * height - Math.cos(worldX * 0.01) * (height / 2);
+            let y = groundY - yOffset - Math.sin(worldX * 0.005) * height - Math.cos(worldX * 0.01) * (height / 2);
             ctx.lineTo(x, y);
         }
-        ctx.lineTo(endDrawX, canvas.height * 2); ctx.closePath(); ctx.fill();
+        ctx.lineTo(endDrawX, groundY + 2000); 
+        ctx.closePath(); 
+        ctx.fill();
     }
 
     function drawTerrain() {
@@ -689,7 +680,7 @@
         ctx.lineWidth = 4; 
         
         ctx.beginPath(); 
-        ctx.moveTo(cameraX - 100, canvas.height + 2000);
+        ctx.moveTo(cameraX - 100, groundY + 2000);
         
         let startDrawX = Math.floor(cameraX) - 100;
         let endDrawX = Math.floor(cameraX) + (canvas.width / zoom) + 100;
@@ -698,7 +689,7 @@
             ctx.lineTo(x, getTerrainY(x));
         }
         
-        ctx.lineTo(endDrawX, canvas.height + 2000); 
+        ctx.lineTo(endDrawX, groundY + 2000); 
         ctx.closePath(); 
         ctx.fill(); 
         ctx.stroke();
@@ -825,13 +816,13 @@
                 }
             }
 
-            if (chassis.getPosition().y > canvas.height / SCALE + 10) {
+            if (chassis.getPosition().y > groundY + 1000) {
                 triggerGameOver();
             }
 
             let targetCameraX = (chassis.getPosition().x * SCALE) - ((canvas.width * 0.3) / zoom);
             cameraX += (targetCameraX - cameraX) * 0.1; 
-            let targetCameraY = (canvas.height * 0.5) - (chassis.getPosition().y * SCALE);
+            let targetCameraY = (groundY - 200) - (chassis.getPosition().y * SCALE);
             cameraY += (targetCameraY - cameraY) * 0.1;
             
             generateTerrain(); cleanupTerrain();
@@ -865,8 +856,19 @@
         ctx.fillStyle = sunGlow; ctx.beginPath(); ctx.arc(sunX, sunY, 150, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = '#fff3d4'; ctx.beginPath(); ctx.arc(sunX, sunY, 45, 0, Math.PI * 2); ctx.fill();
 
-        ctx.save(); ctx.scale(zoom, zoom); ctx.translate(0, cameraY); ctx.translate(-cameraX, 0);
-        drawMountainLayer(120, 60, '#3a2354', cameraX * 0.2); drawMountainLayer(60, 100, '#1e1129', cameraX * 0.5);
+        // Отрисовка гор (двигаются только по X, привязаны к земле)
+        ctx.save(); 
+        ctx.scale(zoom, zoom); 
+        ctx.translate(-cameraX, 0); 
+        drawMountainLayer(200, 60, '#3a2354', cameraX * 0.2); 
+        drawMountainLayer(100, 100, '#1e1129', cameraX * 0.5);
+        ctx.restore();
+
+        // Отрисовка земли и байка
+        ctx.save(); 
+        ctx.scale(zoom, zoom); 
+        ctx.translate(0, cameraY); 
+        ctx.translate(-cameraX, 0);
         
         drawTerrain();
 
