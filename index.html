@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (v8.3)</title>
+    <title>Skyline Moto (v9.0)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -140,7 +140,6 @@
             border-bottom: 1px solid rgba(255,255,255,0.15);
         }
 
-        /* Стили для бонусных монет в статистике */
         .coin-bonus {
             color: #a6ff00; 
             font-size: 13px;
@@ -182,7 +181,6 @@
             border-radius: 50%;
         }
 
-        /* Контейнер для кнопок внизу экрана Game Over */
         .gameover-buttons {
             display: flex;
             justify-content: center;
@@ -222,7 +220,7 @@
 <body>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v8.3</div>
+<div class="version-text">v9.0</div>
 
 <div class="ui-layer">
     <div class="top-bar">
@@ -319,7 +317,6 @@
             </div>
         </div>
 
-        <!-- Кнопки перенесены сюда -->
         <div class="gameover-buttons">
             <div class="icon-btn" id="btnHome">
                 <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
@@ -353,14 +350,22 @@
     
     let frontflipCount = 0;
     let backflipCount = 0;
-    let accumulatedRotation = 0; 
-    let lastAngle = 0;
+    
+    let startAirAngle = 0;
+    let flipCounted = false;
+    let wasAirborne = false;
 
     let maxWheelieTime = 0; 
     let currentWheelieTime = 0;
     
     let maxStoppieTime = 0; 
     let currentStoppieTime = 0;
+
+    // Системы пыли и камней
+    let particles = [];
+    let dustTimer = 0;
+    let rocks = [];
+    let lastRockX = 50000;
 
     document.addEventListener('touchmove', function(e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
 
@@ -453,6 +458,93 @@
                 world.destroyBody(terrainBodies[i].body);
                 terrainBodies.splice(i, 1);
             }
+        }
+    }
+
+    // СПАВН КАМНЕЙ
+    function spawnRocks() {
+        while (lastRockX < cameraX + (canvas.width / zoom) + 1000) {
+            let rx = lastRockX;
+            let ry = getTerrainY(rx);
+            let radius = (8 + Math.random() * 7) / SCALE; // Мелкие камни (8-15 пикселей)
+
+            let rockBody = world.createBody({ position: pl.Vec2(rx / SCALE, ry / SCALE - radius), type: 'static' });
+            rockBody.createFixture(pl.Circle(radius), { friction: 0.5 });
+
+            rocks.push({ body: rockBody, radius: radius * SCALE });
+            
+            // Следующий камень раз в 1500-3000 пикселей (150-300 метров)
+            lastRockX += 1500 + Math.random() * 1500; 
+        }
+
+        // Очистка старых камней
+        for (let i = rocks.length - 1; i >= 0; i--) {
+            if (rocks[i].body.getPosition().x * SCALE < cameraX - 1500) {
+                world.destroyBody(rocks[i].body);
+                rocks.splice(i, 1);
+            }
+        }
+    }
+
+    // СПАВН ПЫЛИ (Реалистичной)
+    function spawnDust(x, y, speedX, isSkid) {
+        if (particles.length > 120) return; 
+        let count = isSkid ? 3 : 1; 
+        
+        for (let i = 0; i < count; i++) {
+            particles.push({
+                x: x + (Math.random() - 0.5) * 15, 
+                y: y - (Math.random() * 5),
+                vx: -speedX * 0.3 - Math.random() * 8, 
+                vy: -Math.random() * 4 - 0.5, 
+                radius: Math.random() * 4 + 3, 
+                growth: Math.random() * 1.5 + 1.0, // Быстрое раздувание
+                alpha: 0.5 + Math.random() * 0.3, 
+                decay: 0.01 + Math.random() * 0.02 
+            });
+        }
+    }
+
+    function updateParticles() {
+        for (let i = particles.length - 1; i >= 0; i--) {
+            let p = particles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.1; 
+            p.vx *= 0.94; 
+            p.radius += p.growth; 
+            p.alpha -= p.decay;
+            
+            if (p.alpha <= 0) particles.splice(i, 1);
+        }
+    }
+
+    function drawParticles() {
+        for (let p of particles) {
+            let grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius);
+            grad.addColorStop(0, `rgba(200, 195, 185, ${p.alpha})`);
+            grad.addColorStop(1, 'rgba(200, 195, 185, 0)');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    function drawRocks() {
+        ctx.fillStyle = '#050505'; // Чуть светлее земли, чтобы выделялись
+        for (let r of rocks) {
+            let pos = r.body.getPosition();
+            ctx.save();
+            ctx.translate(pos.x * SCALE, pos.y * SCALE);
+            ctx.beginPath();
+            ctx.arc(0, 0, r.radius, 0, Math.PI * 2);
+            ctx.fill();
+            // Легкий контур для объема
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.restore();
         }
     }
 
@@ -605,7 +697,14 @@
     function resetGame() {
         terrainOffset = Math.random() * 10000;
         for (let i = 0; i < terrainBodies.length; i++) world.destroyBody(terrainBodies[i].body);
-        terrainBodies = []; lastGeneratedX = startX - 1500; cameraX = startX - (canvas.width * 0.3);
+        terrainBodies = []; 
+        
+        for (let i = 0; i < rocks.length; i++) world.destroyBody(rocks[i].body);
+        rocks = [];
+        
+        lastGeneratedX = startX - 1500; 
+        lastRockX = startX;
+        cameraX = startX - (canvas.width * 0.3);
         
         let startHillY = getTerrainY(startX);
         let startY = startHillY - 60; 
@@ -617,9 +716,13 @@
         
         maxAirTime = 0; currentAirTime = 0; 
         frontflipCount = 0; backflipCount = 0;
-        accumulatedRotation = 0; lastAngle = 0;
+        flipCounted = false;
+        wasAirborne = false;
+        startAirAngle = chassis.getAngle();
         maxWheelieTime = 0; currentWheelieTime = 0;
         maxStoppieTime = 0; currentStoppieTime = 0;
+        particles = [];
+        dustTimer = 0;
         popTimer = 0;
         sessionCoins = 0;
         
@@ -639,7 +742,6 @@
         
         let dist = Math.max(0, Math.floor(((chassis.getPosition().x * SCALE) - startX) / 10));
         
-        // РАСЧЕТ МОНЕТ
         let coinsDist = Math.floor(dist / 100);
         let coinsAir = Math.floor(maxAirTime);
         let coinsStoppie = Math.floor(maxStoppieTime) * 2;
@@ -651,7 +753,6 @@
         totalCoins += earnedCoins;
         localStorage.setItem('totalCoins', totalCoins);
         
-        // ВЫВОД СТАТИСТИКИ
         document.getElementById('go-distance').innerText = dist + "m";
         document.getElementById('go-coins-dist').innerText = "(+" + coinsDist + ")";
         
@@ -775,29 +876,30 @@
             
             let isAirborne = Math.abs(chassis.getLinearVelocity().y) > 1.0; 
             
-            let angle = chassis.getAngle();
-            
             if (isAirborne) {
+                if (!wasAirborne) {
+                    startAirAngle = chassis.getAngle();
+                    flipCounted = false;
+                }
+                
                 currentAirTime += dt;
                 if (currentAirTime > maxAirTime) maxAirTime = currentAirTime;
 
-                // ИСПРАВЛЕНО: Убрана ошибочная нормализация угла.
-                // В Planck.js угол идет по кругу (не ограничивается 360), поэтому мы просто складываем разницу.
-                let deltaAngle = angle - lastAngle;
-                accumulatedRotation += deltaAngle;
-                lastAngle = angle;
-
-                // Порог срабатывания 1.8 (324 градуса) - почти полный оборот.
-                if (Math.abs(accumulatedRotation) >= Math.PI * 1.8) {
-                    if (accumulatedRotation > 0) backflipCount++; 
-                    else frontflipCount++; 
-                    accumulatedRotation = 0; 
+                if (!flipCounted) {
+                    let diff = Math.abs(chassis.getAngle() - startAirAngle);
+                    if (diff >= Math.PI * 1.5) {
+                        if (chassis.getAngle() > startAirAngle) backflipCount++;
+                        else frontflipCount++;
+                        flipCounted = true;
+                    }
                 }
             } else {
+                if (wasAirborne) {
+                    startAirAngle = chassis.getAngle();
+                }
                 currentAirTime = 0;
-                accumulatedRotation = 0;
-                lastAngle = angle; 
 
+                let angle = chassis.getAngle();
                 if (angle < -0.3 && linearSpeed > 5) {
                     currentWheelieTime += dt;
                     if (currentWheelieTime > maxWheelieTime) maxWheelieTime = currentWheelieTime;
@@ -811,7 +913,29 @@
                 } else {
                     currentStoppieTime = 0;
                 }
+
+                // СПАВН ПЫЛИ
+                if (linearSpeed > 5) {
+                    dustTimer += dt;
+                    if (dustTimer > 0.03) {
+                        let wheelPos = wheelRear.getPosition();
+                        let dustX = wheelPos.x * SCALE;
+                        let dustY = wheelPos.y * SCALE + (wheelRadius * SCALE);
+                        
+                        if (window.isBrake && linearSpeed > 10) {
+                            spawnDust(dustX, dustY, chassis.getLinearVelocity().x * SCALE, true); 
+                        } else if (window.isGas) {
+                            spawnDust(dustX, dustY, chassis.getLinearVelocity().x * SCALE, false); 
+                        } else if (linearSpeed > 15) {
+                            spawnDust(dustX, dustY, chassis.getLinearVelocity().x * SCALE, false); 
+                        }
+                        dustTimer = 0;
+                    }
+                } else {
+                    dustTimer = 0.05;
+                }
             }
+            wasAirborne = isAirborne;
 
             if (window.isGas) {
                 jointRear.setMotorSpeed(currentBike.motor.speed); jointFront.setMotorSpeed(currentBike.motor.speed);
@@ -823,7 +947,6 @@
                 jointRear.setMaxMotorTorque(0); jointFront.setMaxMotorTorque(0);
             }
 
-            // Возвращены изначальные настройки силы вращения
             let tiltPower = 20; let maxTiltSpeed = 2.5;  
             if (window.isLeanBack) { if (chassis.getAngularVelocity() > -maxTiltSpeed) chassis.applyTorque(-tiltPower, true); } 
             else if (window.isLeanForward) { if (chassis.getAngularVelocity() < maxTiltSpeed) chassis.applyTorque(tiltPower, true); }
@@ -877,7 +1000,7 @@
             let targetCameraY = (canvas.height * 0.5) - (chassis.getPosition().y * SCALE);
             cameraY += (targetCameraY - cameraY) * 0.1;
             
-            generateTerrain(); cleanupTerrain();
+            generateTerrain(); cleanupTerrain(); spawnRocks(); updateParticles();
 
             let currentDistance = Math.max(0, Math.floor(((chassis.getPosition().x * SCALE) - startX) / 10));
             
@@ -921,8 +1044,11 @@
         ctx.translate(-cameraX, 0);
         
         drawTerrain();
+        drawRocks();
 
         if (gameState !== 'gameover' && chassis) {
+            drawParticles(); // Пыль под байком
+
             ctx.save();
             ctx.translate(chassis.getPosition().x * SCALE, chassis.getPosition().y * SCALE);
             ctx.rotate(chassis.getAngle());
