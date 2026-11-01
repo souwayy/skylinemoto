@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (Ideal Terrain & Sensor)</title>
+    <title>Skyline Moto (Final Terrain)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -329,7 +329,7 @@
     const pl = planck;
     const world = new pl.World({ gravity: pl.Vec2(0, 10) });
 
-    // СМЕРТЬ СТРОГО ОТ СЕНСОРА (БЕЗ МАТЕМАТИКИ)
+    // СМЕРТЬ СТРОГО ОТ СЕНСОРА
     world.on('begin-contact', (contact) => {
         if (gameState !== 'playing') return;
         const fixA = contact.getFixtureA();
@@ -353,39 +353,49 @@
     let cameraY = 0; 
     const zoom = 1.1; 
 
-function getTerrainY(x) {
-    let y = groundY;
-    
-    // 1. Базовые холмы (используем шум для уникальности)
-    let baseHill = (noise((x + terrainOffset) * 0.001) - 0.5) * 120;
-
-    // 2. Трамплины (обычные, для одинарного сальто)
-    // Смещаем фазу синуса с помощью шума, чтобы они никогда не повторялись
-    let jumpPhase = (x + terrainOffset) * 0.003 + noise((x + terrainOffset) * 0.0005) * 15;
-    let kickerWave = Math.sin(jumpPhase);
-    let kicker = Math.pow(Math.max(0, kickerWave), 3) * 180; 
-
-    // 3. РЕДКИЕ МЕГА-ТРАМПЛИНЫ (для двойного сальто)
-    let megaPhase = (x + terrainOffset) * 0.0008 + noise((x + terrainOffset) * 0.0001) * 30;
-    let megaWave = Math.sin(megaPhase);
-    let mega = Math.pow(Math.max(0, megaWave), 2) * 250;
-
-    // 4. Микро-кочки
-    let micro = (noise((x + terrainOffset) * 0.01) - 0.5) * 8;
-
-    let mathY = y - baseHill - kicker - mega - micro;
-
-    // 5. Плавный старт
-    let distFromStart = x - startX;
-    if (distFromStart < 1000) {
-        let factor = Math.max(0, distFromStart / 1000); 
-        let flatY = groundY - (distFromStart * 0.02);   
-        return flatY * (1 - factor) + mathY * factor;   
+    function noise(x) {
+        let i = Math.floor(x);
+        let f = x - i;
+        let u = f * f * (3.0 - 2.0 * f);
+        let r1 = Math.sin(i * 12.9898) * 43758.5453;
+        let r2 = Math.sin((i + 1) * 12.9898) * 43758.5453;
+        r1 = r1 - Math.floor(r1);
+        r2 = r2 - Math.floor(r2);
+        return r1 * (1 - u) + r2 * u;
     }
-    
-    return mathY;
-}
-    
+
+    // ГЕНЕРАЦИЯ ЗЕМЛИ БЕЗ ПОВТОРЕНИЙ (ШУМ СДВИГАЕТ ФАЗУ СИНУСА)
+    function getTerrainY(x) {
+        let y = groundY;
+        
+        // 1. Базовые холмы (используем шум для уникальности)
+        let baseHill = (noise((x + terrainOffset) * 0.001) - 0.5) * 120;
+
+        // 2. Трамплины (обычные, для одинарного сальто)
+        let jumpPhase = (x + terrainOffset) * 0.003 + noise((x + terrainOffset) * 0.0005) * 15;
+        let kickerWave = Math.sin(jumpPhase);
+        let kicker = Math.pow(Math.max(0, kickerWave), 3) * 180; 
+
+        // 3. РЕДКИЕ МЕГА-ТРАМПЛИНЫ (для двойного сальто)
+        let megaPhase = (x + terrainOffset) * 0.0008 + noise((x + terrainOffset) * 0.0001) * 30;
+        let megaWave = Math.sin(megaPhase);
+        let mega = Math.pow(Math.max(0, megaWave), 2) * 250;
+
+        // 4. Микро-кочки
+        let micro = (noise((x + terrainOffset) * 0.01) - 0.5) * 8;
+
+        let mathY = y - baseHill - kicker - mega - micro;
+
+        // 5. Плавный старт
+        let distFromStart = x - startX;
+        if (distFromStart < 1000) {
+            let factor = Math.max(0, distFromStart / 1000); 
+            let flatY = groundY - (distFromStart * 0.02);   
+            return flatY * (1 - factor) + mathY * factor;   
+        }
+        
+        return mathY;
+    }
 
     let terrainBodies = [];
     let lastGeneratedX = startX - 1500; 
@@ -434,9 +444,10 @@ function getTerrainY(x) {
         }
 
         chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic', bullet: true });
+        // РАМА 53 / -18
         chassis.createFixture(pl.Box(53 / SCALE / 2, 6 / SCALE / 2, pl.Vec2(0, -18 / SCALE)), { density: currentBike.density, friction: 0.3 });
 
-        // ТВОЙ ИДЕАЛЬНЫЙ СЕНСОР (8 / -35)
+        // СЕНСОР ГОЛОВЫ (8 / -35)
         let headShape = pl.Circle(8 / SCALE);
         headShape.m_p.set(0 / SCALE, -35 / SCALE);
         let headFixture = chassis.createFixture(headShape, { isSensor: true });
@@ -813,7 +824,6 @@ function getTerrainY(x) {
                 }
             }
 
-            // УБРАЛИ МАТЕМАТИЧЕСКУЮ СМЕРТЬ
             if (chassis.getPosition().y > canvas.height / SCALE + 10) {
                 triggerGameOver();
             }
