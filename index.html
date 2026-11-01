@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (No Walls)</title>
+    <title>Skyline Moto (Terrain Fixed)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -352,26 +352,30 @@
     let cameraY = 0; 
     const zoom = 1.1; 
 
-    // ЧИСТЫЕ СИНУСОИДЫ (100% БЕЗ СТЕН)
+    // ИДЕАЛЬНО ПЛАВНАЯ ЗЕМЛЯ (БЕЗ СТЕН)
     function getTerrainY(x) {
-        if (x - startX < 1200) {
-            return groundY - ((x - startX) * 0.02); 
-        }
-
         let y = groundY;
         
-        // Наложение трех волн. Они всегда плавные, без резких обрывов.
-        y -= Math.sin((x + terrainOffset) * 0.0005) * 160; // Большие холмы/трамплины
-        y -= Math.sin((x + terrainOffset) * 0.002) * 40;   // Средние кочки
-        y -= Math.sin((x + terrainOffset) * 0.008) * 10;   // Мелкая текстура
+        // Чистые синусоиды
+        let mathY = y - Math.sin((x + terrainOffset) * 0.0005) * 160
+                      - Math.sin((x + terrainOffset) * 0.002) * 40
+                      - Math.sin((x + terrainOffset) * 0.008) * 10;
 
-        return y;
+        // Плавный переход от безопасного старта к холмам
+        let distFromStart = x - startX;
+        if (distFromStart < 1000) {
+            let factor = Math.max(0, distFromStart / 1000); // 0 в начале, 1 через 1000 пикселей
+            let flatY = groundY - (distFromStart * 0.02);   // Ровный старт
+            return flatY * (1 - factor) + mathY * factor;   // Смешивание
+        }
+        
+        return mathY;
     }
 
     let terrainBodies = [];
     let lastGeneratedX = startX - 1500; 
-    const chunkWidth = 1; 
-    const chunkSize = 200; 
+    const chunkWidth = 5; // Вернули нормальный шаг для физики
+    const chunkSize = 100; 
 
     function generateTerrain() {
         while (lastGeneratedX < cameraX + (canvas.width / zoom) + 1000) {
@@ -855,4 +859,4 @@
     update();
 </script>
 </body>
-</html>
+    </html>
