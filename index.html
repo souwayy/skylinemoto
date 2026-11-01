@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (Final Terrain)</title>
+    <title>Skyline Moto (Release Version)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -329,7 +329,7 @@
     const pl = planck;
     const world = new pl.World({ gravity: pl.Vec2(0, 10) });
 
-    // СМЕРТЬ СТРОГО ОТ СЕНСОРА
+    // СМЕРТЬ ТОЛЬКО ОТ СЕНСОРА
     world.on('begin-contact', (contact) => {
         if (gameState !== 'playing') return;
         const fixA = contact.getFixtureA();
@@ -364,41 +364,50 @@
         return r1 * (1 - u) + r2 * u;
     }
 
+    // ИДЕАЛЬНАЯ ГЕНЕРАЦИЯ ЗЕМЛИ (ПЛАВНЫЕ ХОЛМЫ + РЕДКИЕ ТРАМПЛИНЫ)
     function getTerrainY(x) {
-    let y = groundY;
-    
-    // 1. Базовые холмы (плавные)
-    let baseHill = Math.sin((x + terrainOffset) * 0.001) * 80;
+        let y = groundY;
+        
+        // 1. Базовые холмы (шум, без повторений)
+        let baseHill = (noise((x + terrainOffset) * 0.001) - 0.5) * 100;
 
-    // 2. ОБЫЧНЫЕ ТРАМПЛИНЫ (короткие и крутые, но редкие)
-    let kickerWave = Math.sin((x + terrainOffset) * 0.003); // Частая волна для крутизны
-    let kNoise = noise((x + terrainOffset) * 0.00015); // Медленный шум для редкости
-    let kMask = Math.max(0, Math.min(1, (kNoise - 0.5) * 5)); // Включатель (0 или 1)
-    kMask = kMask * kMask * (3 - 2 * kMask); // Сглаживаем включение, чтобы не было стен
-    let kicker = Math.pow(Math.max(0, kickerWave), 3) * 200 * kMask; 
+        // 2. ОБЫЧНЫЕ ТРАМПЛИНЫ (Раз в ~500 метров)
+        let jumpPhase = (x + terrainOffset) * 0.003;
+        let kickerWave = Math.sin(jumpPhase);
+        
+        // Маска редкости (медленный шум)
+        let kNoise = noise((x + terrainOffset) * 0.00015);
+        let kMask = Math.max(0, Math.min(1, (kNoise - 0.45) * 5)); 
+        kMask = kMask * kMask * (3 - 2 * kMask); // Сглаживание маски
+        
+        let kicker = Math.pow(Math.max(0, kickerWave), 3) * 180 * kMask; 
 
-    // 3. МЕГА-ТРАМПЛИНЫ (очень редкие и высокие)
-    let megaWave = Math.sin((x + terrainOffset) * 0.0015); // Волна покрупнее
-    let mNoise = noise((x + terrainOffset) * 0.00004); // Очень медленный шум
-    let mMask = Math.max(0, Math.min(1, (mNoise - 0.6) * 5)); // Включатель
-    mMask = mMask * mMask * (3 - 2 * mMask);
-    let mega = Math.pow(Math.max(0, megaWave), 2) * 300 * mMask;
+        // 3. РЕДКИЕ МЕГА-ТРАМПЛИНЫ (Раз в ~2000 метров)
+        let megaPhase = (x + terrainOffset) * 0.0015;
+        let megaWave = Math.sin(megaPhase);
+        
+        let mNoise = noise((x + terrainOffset) * 0.00004);
+        let mMask = Math.max(0, Math.min(1, (mNoise - 0.5) * 5));
+        mMask = mMask * mMask * (3 - 2 * mMask);
+        
+        let mega = Math.pow(Math.max(0, megaWave), 2) * 300 * mMask;
 
-    // 4. Микро-кочки
-    let micro = Math.sin((x + terrainOffset) * 0.015) * 6;
+        // 4. Микро-кочки (плавные)
+        let micro = Math.sin((x + terrainOffset) * 0.015) * 5;
 
-    let mathY = y - baseHill - kicker - mega - micro;
+        let mathY = y - baseHill - kicker - mega - micro;
 
-    // 5. Плавный старт
-    let distFromStart = x - startX;
-    if (distFromStart < 1000) {
-        let factor = Math.max(0, distFromStart / 1000); 
-        let flatY = groundY - (distFromStart * 0.02);   
-        return flatY * (1 - factor) + mathY * factor;   
+        // Плавный старт
+        let distFromStart = x - startX;
+        if (distFromStart < 1000) {
+            let factor = Math.max(0, distFromStart / 1000); 
+            let flatY = groundY - (distFromStart * 0.02);   
+            return flatY * (1 - factor) + mathY * factor;   
+        }
+        
+        return mathY;
     }
-    
-    return mathY;
-    }
+
     let terrainBodies = [];
     let lastGeneratedX = startX - 1500; 
     const chunkWidth = 1; 
@@ -446,10 +455,8 @@
         }
 
         chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic', bullet: true });
-        // РАМА 53 / -18
         chassis.createFixture(pl.Box(53 / SCALE / 2, 6 / SCALE / 2, pl.Vec2(0, -18 / SCALE)), { density: currentBike.density, friction: 0.3 });
 
-        // СЕНСОР ГОЛОВЫ (8 / -35)
         let headShape = pl.Circle(8 / SCALE);
         headShape.m_p.set(0 / SCALE, -35 / SCALE);
         let headFixture = chassis.createFixture(headShape, { isSensor: true });
@@ -888,4 +895,4 @@
     update();
 </script>
 </body>
-</html>
+    </html>
