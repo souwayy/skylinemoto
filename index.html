@@ -353,22 +353,32 @@
     const zoom = 1.1; 
 
     function getTerrainY(x) {
+    function getTerrainY(x) {
     let y = groundY;
     
-    // 1. Трамплины (Кикеры). 
-    // Math.pow в 3-й степени делает подъем крутым, но плавным у основания.
-    let rampWave = Math.sin((x + terrainOffset) * 0.0015);
-    let ramp = Math.pow(Math.max(0, rampWave), 3) * 180;
+    // 1. Зона Волн (плавные холмы для разгона и езды)
+    let wave1 = (Math.cos((x + terrainOffset) * 0.0015) + 1) * 50; 
+    let wave2 = Math.sin((x + terrainOffset) * 0.006) * 15; 
+    let waveTerrain = y - wave1 - wave2;
 
-    // 2. Средние волны
-    let hills = Math.sin((x + terrainOffset) * 0.003) * 40;
+    // 2. Зона Кикеров (Короткие и крутые трамплины)
+    let kickerWave = Math.sin((x + terrainOffset) * 0.0025);
+    // Степень 3 делает подъем плавным у основания, но резким на пике.
+    // Высота 250 дает отличный вылет для сальто.
+    let kickerTerrain = y - (Math.pow(Math.max(0, kickerWave), 3) * 250);
+
+    // 3. Плавное смешивание зон (Smoothstep)
+    // Медленный шум (0.0003) определяет, где мы находимся: на волнах или на кикере
+    let zone = noise((x + terrainOffset) * 0.0003); 
     
-    // 3. Мелкие кочки
-    let micro = Math.sin((x + terrainOffset) * 0.01) * 8;
+    // Вычисляем коэффициент перехода от 0 до 1
+    let t = Math.max(0, Math.min(1, (zone - 0.35) / 0.3)); 
+    t = t * t * (3 - 2 * t); // Сглаживание (Smoothstep)
 
-    let mathY = y - ramp - hills - micro;
+    // Плавно смешиваем два типа рельефа
+    let mathY = (waveTerrain * (1 - t)) + (kickerTerrain * t);
 
-    // 4. Плавный старт
+    // 4. Безопасный старт
     let distFromStart = x - startX;
     if (distFromStart < 1000) {
         let factor = Math.max(0, distFromStart / 1000); 
@@ -378,7 +388,6 @@
     
     return mathY;
     }
-
     let terrainBodies = [];
     let lastGeneratedX = startX - 1500; 
     const chunkWidth = 5; // Вернули нормальный шаг для физики
