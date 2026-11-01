@@ -367,19 +367,22 @@
     function getTerrainY(x) {
     let y = groundY;
     
-    // 1. Базовые холмы (плавные, как раньше)
+    // 1. Базовые холмы (плавные)
     let baseHill = Math.sin((x + terrainOffset) * 0.001) * 80;
 
-    // 2. Обычные трамплины (раз в ~500 метров). 
-    // Частота 0.0012 дает длину волны около 5000 пикселей (500 метров).
-    // Степень 3 делает подъем плавным, но крутым.
-    let kickerWave = Math.sin((x + terrainOffset) * 0.0012);
-    let kicker = Math.pow(Math.max(0, kickerWave), 3) * 150; 
+    // 2. ОБЫЧНЫЕ ТРАМПЛИНЫ (короткие и крутые, но редкие)
+    let kickerWave = Math.sin((x + terrainOffset) * 0.003); // Частая волна для крутизны
+    let kNoise = noise((x + terrainOffset) * 0.00015); // Медленный шум для редкости
+    let kMask = Math.max(0, Math.min(1, (kNoise - 0.5) * 5)); // Включатель (0 или 1)
+    kMask = kMask * kMask * (3 - 2 * kMask); // Сглаживаем включение, чтобы не было стен
+    let kicker = Math.pow(Math.max(0, kickerWave), 3) * 200 * kMask; 
 
-    // 3. МЕГА-ТРАМПЛИНЫ (раз в ~2000 метров).
-    // Частота 0.0003 дает длину волны около 20000 пикселей (2000 метров).
-    let megaWave = Math.sin((x + terrainOffset) * 0.0003);
-    let mega = Math.pow(Math.max(0, megaWave), 2) * 200;
+    // 3. МЕГА-ТРАМПЛИНЫ (очень редкие и высокие)
+    let megaWave = Math.sin((x + terrainOffset) * 0.0015); // Волна покрупнее
+    let mNoise = noise((x + terrainOffset) * 0.00004); // Очень медленный шум
+    let mMask = Math.max(0, Math.min(1, (mNoise - 0.6) * 5)); // Включатель
+    mMask = mMask * mMask * (3 - 2 * mMask);
+    let mega = Math.pow(Math.max(0, megaWave), 2) * 300 * mMask;
 
     // 4. Микро-кочки
     let micro = Math.sin((x + terrainOffset) * 0.015) * 6;
@@ -396,7 +399,6 @@
     
     return mathY;
     }
-
     let terrainBodies = [];
     let lastGeneratedX = startX - 1500; 
     const chunkWidth = 1; 
