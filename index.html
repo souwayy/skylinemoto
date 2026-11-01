@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (v3.0)</title>
+    <title>Skyline Moto (v4.0)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -200,7 +200,7 @@
 <body>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v3.0</div>
+<div class="version-text">v4.0</div>
 
 <div class="ui-layer">
     <div class="top-bar">
@@ -370,23 +370,30 @@
         return r1 * (1 - u) + r2 * u;
     }
 
-    // ГЕНЕРАЦИЯ (v3.0) - ЧИСТЫЙ СИНУС С РЕДКИМИ ТРАМПЛИНАМИ
+    // ИДЕАЛЬНАЯ ФОРМА (С ЯМАМИ) + РЕДКОСТЬ (v4.0)
     function getTerrainY(x) {
         let y = groundY;
         
-        // 1. Базовые холмы (постоянные)
+        // 1. Базовые холмы (как было)
         let baseHill = Math.sin((x + terrainOffset) * 0.001) * 80;
         let micro = Math.sin((x + terrainOffset) * 0.015) * 6;
 
-        // 2. ОБЫЧНЫЕ ТРАМПЛИНЫ (раз в ~500м)
-        // Частота 0.00125 дает период 5000 пикселей (500 метров)
-        let jumpWave = Math.sin((x + terrainOffset) * 0.00125);
-        // Степень 3 делает крутой подъем и обрыв
-        let kicker = Math.pow(Math.max(0, jumpWave), 3) * 220; 
+        // 2. ОБЫЧНЫЕ ТРАМПЛИНЫ (ОСТРАЯ ФОРМА С ЯМАМИ)
+        // Берем ту самую быструю волну. Никакого Math.max, чтобы были ямы.
+        let shape = Math.pow(Math.sin((x + terrainOffset) * 0.003), 3) * 180;
 
-        // 3. МЕГА-ТРАМПЛИНЫ (раз в ~2000м)
-        let megaWave = Math.sin((x + terrainOffset) * 0.0003);
-        let mega = Math.pow(Math.max(0, megaWave), 2) * 300;
+        // Делаем "шторку" (раз в ~500 метров)
+        // 0.00125 = 5000 пикселей = 500 метров.
+        // Степень 6 делает так, что шторка открыта только на коротком участке.
+        let gate = Math.pow(Math.max(0, Math.sin((x + terrainOffset) * 0.00125)), 6);
+
+        // Трамплин = форма * шторка
+        let kicker = shape * gate;
+
+        // 3. МЕГА-ТРАМПЛИНЫ (раз в ~2000 метров)
+        let megaShape = Math.pow(Math.sin((x + terrainOffset) * 0.0015), 3) * 250;
+        let megaGate = Math.pow(Math.max(0, Math.sin((x + terrainOffset) * 0.0003)), 8);
+        let mega = megaShape * megaGate;
 
         let mathY = y - baseHill - kicker - mega - micro;
 
@@ -888,4 +895,4 @@
     update();
 </script>
 </body>
-    </html>
+</html>
