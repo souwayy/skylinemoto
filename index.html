@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (v9.0)</title>
+    <title>Skyline Moto (v9.1)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -220,7 +220,7 @@
 <body>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v9.0</div>
+<div class="version-text">v9.1</div>
 
 <div class="ui-layer">
     <div class="top-bar">
@@ -361,7 +361,6 @@
     let maxStoppieTime = 0; 
     let currentStoppieTime = 0;
 
-    // Системы пыли и камней
     let particles = [];
     let dustTimer = 0;
     let rocks = [];
@@ -461,23 +460,33 @@
         }
     }
 
-    // СПАВН КАМНЕЙ
+    // ГЕНЕРАЦИЯ КАМНЕЙ (Полигоны)
     function spawnRocks() {
         while (lastRockX < cameraX + (canvas.width / zoom) + 1000) {
             let rx = lastRockX;
             let ry = getTerrainY(rx);
-            let radius = (8 + Math.random() * 7) / SCALE; // Мелкие камни (8-15 пикселей)
-
-            let rockBody = world.createBody({ position: pl.Vec2(rx / SCALE, ry / SCALE - radius), type: 'static' });
-            rockBody.createFixture(pl.Circle(radius), { friction: 0.5 });
-
-            rocks.push({ body: rockBody, radius: radius * SCALE });
             
-            // Следующий камень раз в 1500-3000 пикселей (150-300 метров)
+            // Радиус от 3 до 7 пикселей (колесо 10)
+            let visualRadius = 3 + Math.random() * 4; 
+            let physicsRadius = visualRadius / SCALE;
+
+            let rockBody = world.createBody({ position: pl.Vec2(rx / SCALE, ry / SCALE - physicsRadius), type: 'static' });
+            rockBody.createFixture(pl.Circle(physicsRadius), { friction: 0.5 });
+
+            // Генерация полигона для отрисовки
+            let points = [];
+            let numVertices = 6 + Math.floor(Math.random() * 3);
+            for (let j = 0; j < numVertices; j++) {
+                let angle = (j / numVertices) * Math.PI * 2;
+                let dist = visualRadius * (0.7 + Math.random() * 0.3);
+                points.push({ x: Math.cos(angle) * dist, y: Math.sin(angle) * dist });
+            }
+
+            rocks.push({ body: rockBody, points: points });
+            
             lastRockX += 1500 + Math.random() * 1500; 
         }
 
-        // Очистка старых камней
         for (let i = rocks.length - 1; i >= 0; i--) {
             if (rocks[i].body.getPosition().x * SCALE < cameraX - 1500) {
                 world.destroyBody(rocks[i].body);
@@ -486,7 +495,6 @@
         }
     }
 
-    // СПАВН ПЫЛИ (Реалистичной)
     function spawnDust(x, y, speedX, isSkid) {
         if (particles.length > 120) return; 
         let count = isSkid ? 3 : 1; 
@@ -498,7 +506,7 @@
                 vx: -speedX * 0.3 - Math.random() * 8, 
                 vy: -Math.random() * 4 - 0.5, 
                 radius: Math.random() * 4 + 3, 
-                growth: Math.random() * 1.5 + 1.0, // Быстрое раздувание
+                growth: Math.random() * 1.5 + 1.0, 
                 alpha: 0.5 + Math.random() * 0.3, 
                 decay: 0.01 + Math.random() * 0.02 
             });
@@ -531,19 +539,26 @@
         }
     }
 
+    // ОТРИСОВКА КАМНЕЙ (Полигоны)
     function drawRocks() {
-        ctx.fillStyle = '#050505'; // Чуть светлее земли, чтобы выделялись
         for (let r of rocks) {
             let pos = r.body.getPosition();
             ctx.save();
             ctx.translate(pos.x * SCALE, pos.y * SCALE);
+            
             ctx.beginPath();
-            ctx.arc(0, 0, r.radius, 0, Math.PI * 2);
+            ctx.moveTo(r.points[0].x, r.points[0].y);
+            for (let i = 1; i < r.points.length; i++) {
+                ctx.lineTo(r.points[i].x, r.points[i].y);
+            }
+            ctx.closePath();
+            
+            ctx.fillStyle = '#0a0a0a'; 
             ctx.fill();
-            // Легкий контур для объема
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
-            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#1a1a1a';
+            ctx.lineWidth = 1.5;
             ctx.stroke();
+            
             ctx.restore();
         }
     }
@@ -847,12 +862,65 @@
         ctx.stroke();
     }
 
+    // НОВАЯ ОТРИСОВКА КОЛЕС
     function drawWheel(wheel) {
         ctx.save();
         ctx.translate(wheel.getPosition().x * SCALE, wheel.getPosition().y * SCALE);
         ctx.rotate(wheel.getAngle());
-        ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(0, 0, wheelRadius * SCALE, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = '#333'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, wheelRadius * SCALE - 2, 0, Math.PI * 2); ctx.stroke();
+        
+        let r = wheelRadius * SCALE;
+
+        // 1. Шина (основной круг)
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.fillStyle = '#000';
+        ctx.fill();
+
+        // 2. Протектор (для внедорожника CTM)
+        if (currentBike.name === "CTM 300 EXC") {
+            ctx.strokeStyle = '#222'; 
+            ctx.lineWidth = 2;
+            for (let i = 0; i < 16; i++) {
+                let angle = (i / 16) * Math.PI * 2;
+                ctx.beginPath();
+                ctx.moveTo(Math.cos(angle) * (r - 2), Math.sin(angle) * (r - 2));
+                ctx.lineTo(Math.cos(angle) * (r + 1), Math.sin(angle) * (r + 1));
+                ctx.stroke();
+            }
+        }
+
+        // 3. Обод (внутренний круг)
+        ctx.beginPath();
+        ctx.arc(0, 0, r - 3, 0, Math.PI * 2);
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // 4. Спицы
+        ctx.strokeStyle = '#444';
+        ctx.lineWidth = 1;
+        let spokes = currentBike.name === "CTM 300 EXC" ? 6 : 8;
+        for (let i = 0; i < spokes; i++) {
+            let angle = (i / spokes) * Math.PI * 2;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(Math.cos(angle) * (r - 3), Math.sin(angle) * (r - 3));
+            ctx.stroke();
+        }
+
+        // 5. Ступица
+        ctx.beginPath();
+        ctx.arc(0, 0, 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#555';
+        ctx.fill();
+
+        // 6. Блик (эффект металла)
+        ctx.beginPath();
+        ctx.arc(0, 0, r - 1.5, -Math.PI * 0.8, -Math.PI * 0.2);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
         ctx.restore();
     }
 
@@ -1047,7 +1115,7 @@
         drawRocks();
 
         if (gameState !== 'gameover' && chassis) {
-            drawParticles(); // Пыль под байком
+            drawParticles(); 
 
             ctx.save();
             ctx.translate(chassis.getPosition().x * SCALE, chassis.getPosition().y * SCALE);
@@ -1056,7 +1124,9 @@
             if (isImageLoaded) ctx.drawImage(bikeImage, -45, -45, 90, 54); 
             
             ctx.restore();
-            drawWheel(wheelRear); drawWheel(wheelFront);
+            
+            drawWheel(wheelRear); 
+            drawWheel(wheelFront);
         }
 
         ctx.restore(); 
