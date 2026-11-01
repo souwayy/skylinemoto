@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (v6.0)</title>
+    <title>Skyline Moto (v6.1)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -200,7 +200,7 @@
 <body>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v6.0</div>
+<div class="version-text">v6.1</div>
 
 <div class="ui-layer">
     <div class="top-bar">
@@ -296,6 +296,9 @@
     const SCALE = 30; 
     const DEBUG_POINTS = false; 
 
+    // ИСПРАВЛЕНО: Объявляем groundY в самом начале, до вызова resizeCanvas
+    let groundY = 0; 
+
     const BIKE_CATALOG = {
         cayo_125: { name: "CAYO 125 TRAIL", density: 2.2, suspension: { freq: 3.5, damp: 0.8 }, motor: { speed: 35, torque: 40, brake: 50 } },
         ctm_300_exc: { name: "CTM 300 EXC", density: 1.2, suspension: { freq: 4.5, damp: 0.7 }, motor: { speed: 50, torque: 60, brake: 100 } }
@@ -328,7 +331,7 @@
     function resizeCanvas() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
-        groundY = canvas.height - 80; // Исправлено: обновляем землю при повороте экрана
+        groundY = canvas.height - 80; 
     }
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
@@ -350,7 +353,6 @@
     });
 
     const startX = 50000;
-    let groundY = canvas.height - 80; 
     let terrainOffset = 0; 
     let gameState = 'start';
     let maxDistance = parseInt(localStorage.getItem('bestDistance')) || 0;
@@ -360,22 +362,19 @@
     let cameraY = 0; 
     const zoom = 1.1; 
 
-    // ВОЗВРАЩЕННАЯ ИДЕАЛЬНАЯ ЗЕМЛЯ (БЕЗ МЕГА-ТРАМПЛИНОВ)
+    // ИДЕАЛЬНАЯ ЗЕМЛЯ
     function getTerrainY(x) {
         let y = groundY;
         
-        // 1. Базовые холмы (плавные)
         let baseHill = Math.sin((x + terrainOffset) * 0.001) * 80;
         let micro = Math.sin((x + terrainOffset) * 0.015) * 6;
 
-        // 2. ОБЫЧНЫЕ ТРАМПЛИНЫ (раз в ~500 метров, форма с ямами)
         let shape = Math.pow(Math.sin((x + terrainOffset) * 0.003), 3) * 180;
         let gate = Math.pow(Math.max(0, Math.sin((x + terrainOffset) * 0.00125)), 6);
         let kicker = shape * gate;
 
         let mathY = y - baseHill - kicker - micro;
 
-        // Плавный старт
         let distFromStart = x - startX;
         if (distFromStart < 1000) {
             let factor = Math.max(0, distFromStart / 1000); 
@@ -656,7 +655,6 @@
         }
     });
 
-    // ИСПРАВЛЕННЫЙ ФОН (горы привязаны к земле, не улетают при падении)
     function drawMountainLayer(yOffset, height, color, parallaxOffset) {
         ctx.fillStyle = color;
         ctx.beginPath();
@@ -856,7 +854,6 @@
         ctx.fillStyle = sunGlow; ctx.beginPath(); ctx.arc(sunX, sunY, 150, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = '#fff3d4'; ctx.beginPath(); ctx.arc(sunX, sunY, 45, 0, Math.PI * 2); ctx.fill();
 
-        // Отрисовка гор (двигаются только по X, привязаны к земле)
         ctx.save(); 
         ctx.scale(zoom, zoom); 
         ctx.translate(-cameraX, 0); 
@@ -864,7 +861,6 @@
         drawMountainLayer(100, 100, '#1e1129', cameraX * 0.5);
         ctx.restore();
 
-        // Отрисовка земли и байка
         ctx.save(); 
         ctx.scale(zoom, zoom); 
         ctx.translate(0, cameraY); 
