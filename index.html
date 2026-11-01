@@ -353,33 +353,37 @@
     let cameraY = 0; 
     const zoom = 1.1; 
 
-    // ЧИСТАЯ МАТЕМАТИКА (БЕЗ СТЕН И РАЗРЫВОВ)
     function getTerrainY(x) {
-        let y = groundY;
-        
-        // 1. Базовые волны (плавные)
-        let wave = Math.sin((x + terrainOffset) * 0.001) * 80;
+    let y = groundY;
+    
+    // 1. Базовые волны (плавные, для обычной езды)
+    let wave = Math.sin((x + terrainOffset) * 0.001) * 80;
 
-        // 2. Трамплины для сальто (высокие и крутые, но без разрывов)
-        let kickerWave = Math.sin((x + terrainOffset) * 0.0025);
-        // Чистый синус в 3-й степени создает плавный, но крутой подъем
-        let kicker = Math.pow(kickerWave, 3) * 160;
+    // 2. Трамплины для сальто (высокие и крутые, но без разрывов)
+    let kickerWave = Math.sin((x + terrainOffset) * 0.0025);
+    let kicker = Math.pow(kickerWave, 3) * 160;
 
-        // 3. Микро-кочки
-        let micro = Math.sin((x + terrainOffset) * 0.015) * 6;
+    // 3. РЕДКИЕ МЕГА-ТРАМПЛИНЫ (для двойного сальто)
+    // Очень низкая частота (0.00015) означает, что они будут попадаться редко
+    // Высокая амплитуда (250) даст огромный разгон и время в воздухе
+    let megaRamp = Math.sin((x + terrainOffset) * 0.00015) * 250;
 
-        let mathY = y - wave - kicker - micro;
+    // 4. Микро-кочки
+    let micro = Math.sin((x + terrainOffset) * 0.015) * 6;
 
-        // 4. Плавный переход от старта
-        let distFromStart = x - startX;
-        if (distFromStart < 1000) {
-            let factor = Math.max(0, distFromStart / 1000); 
-            let flatY = groundY - (distFromStart * 0.02);   
-            return flatY * (1 - factor) + mathY * factor;   
-        }
-        
-        return mathY;
+    let mathY = y - wave - kicker - micro - megaRamp;
+
+    // 5. Плавный переход от старта
+    let distFromStart = x - startX;
+    if (distFromStart < 1000) {
+        let factor = Math.max(0, distFromStart / 1000); 
+        let flatY = groundY - (distFromStart * 0.02);   
+        return flatY * (1 - factor) + mathY * factor;   
     }
+    
+    return mathY;
+}
+    
 
     let terrainBodies = [];
     let lastGeneratedX = startX - 1500; 
