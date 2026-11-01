@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (Terrain Fixed)</title>
+    <title>Skyline Moto (Perfect Terrain)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -329,6 +329,7 @@
     const pl = planck;
     const world = new pl.World({ gravity: pl.Vec2(0, 10) });
 
+    // СМЕРТЬ ТОЛЬКО ОТ ФИЗИЧЕСКОГО СЕНСОРА
     world.on('begin-contact', (contact) => {
         if (gameState !== 'playing') return;
         const fixA = contact.getFixtureA();
@@ -352,46 +353,38 @@
     let cameraY = 0; 
     const zoom = 1.1; 
 
+    // ЧИСТАЯ МАТЕМАТИКА (БЕЗ СТЕН И РАЗРЫВОВ)
     function getTerrainY(x) {
-    function getTerrainY(x) {
-    let y = groundY;
-    
-    // 1. Зона Волн (плавные холмы для разгона и езды)
-    let wave1 = (Math.cos((x + terrainOffset) * 0.0015) + 1) * 50; 
-    let wave2 = Math.sin((x + terrainOffset) * 0.006) * 15; 
-    let waveTerrain = y - wave1 - wave2;
+        let y = groundY;
+        
+        // 1. Базовые волны (плавные)
+        let wave = Math.sin((x + terrainOffset) * 0.001) * 80;
 
-    // 2. Зона Кикеров (Короткие и крутые трамплины)
-    let kickerWave = Math.sin((x + terrainOffset) * 0.0025);
-    // Степень 3 делает подъем плавным у основания, но резким на пике.
-    // Высота 250 дает отличный вылет для сальто.
-    let kickerTerrain = y - (Math.pow(Math.max(0, kickerWave), 3) * 250);
+        // 2. Трамплины для сальто (высокие и крутые, но без разрывов)
+        let kickerWave = Math.sin((x + terrainOffset) * 0.0025);
+        // Чистый синус в 3-й степени создает плавный, но крутой подъем
+        let kicker = Math.pow(kickerWave, 3) * 160;
 
-    // 3. Плавное смешивание зон (Smoothstep)
-    // Медленный шум (0.0003) определяет, где мы находимся: на волнах или на кикере
-    let zone = noise((x + terrainOffset) * 0.0003); 
-    
-    // Вычисляем коэффициент перехода от 0 до 1
-    let t = Math.max(0, Math.min(1, (zone - 0.35) / 0.3)); 
-    t = t * t * (3 - 2 * t); // Сглаживание (Smoothstep)
+        // 3. Микро-кочки
+        let micro = Math.sin((x + terrainOffset) * 0.015) * 6;
 
-    // Плавно смешиваем два типа рельефа
-    let mathY = (waveTerrain * (1 - t)) + (kickerTerrain * t);
+        let mathY = y - wave - kicker - micro;
 
-    // 4. Безопасный старт
-    let distFromStart = x - startX;
-    if (distFromStart < 1000) {
-        let factor = Math.max(0, distFromStart / 1000); 
-        let flatY = groundY - (distFromStart * 0.02);   
-        return flatY * (1 - factor) + mathY * factor;   
+        // 4. Плавный переход от старта
+        let distFromStart = x - startX;
+        if (distFromStart < 1000) {
+            let factor = Math.max(0, distFromStart / 1000); 
+            let flatY = groundY - (distFromStart * 0.02);   
+            return flatY * (1 - factor) + mathY * factor;   
+        }
+        
+        return mathY;
     }
-    
-    return mathY;
-    }
+
     let terrainBodies = [];
     let lastGeneratedX = startX - 1500; 
-    const chunkWidth = 5; // Вернули нормальный шаг для физики
-    const chunkSize = 100; 
+    const chunkWidth = 1; 
+    const chunkSize = 200; 
 
     function generateTerrain() {
         while (lastGeneratedX < cameraX + (canvas.width / zoom) + 1000) {
@@ -875,4 +868,4 @@
     update();
 </script>
 </body>
-    </html>
+                    </html>
