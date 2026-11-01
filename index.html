@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (Perfect Terrain)</title>
+    <title>Skyline Moto (v3.0)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -188,12 +188,19 @@
             width: 28px; height: 28px; fill: none; stroke: #fff;
             stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;
         }
+        
+        .version-text {
+            position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+            color: rgba(255,255,255,0.3); font-size: 12px; font-family: monospace;
+            z-index: 100; pointer-events: none;
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/planck-js@0.3/dist/planck.min.js"></script>
 </head>
 <body>
 
 <canvas id="gameCanvas"></canvas>
+<div class="version-text">v3.0</div>
 
 <div class="ui-layer">
     <div class="top-bar">
@@ -363,29 +370,25 @@
         return r1 * (1 - u) + r2 * u;
     }
 
-    // ТВОЯ ИДЕАЛЬНАЯ ЗЕМЛЯ (С ЯМАМИ, НО РЕДКАЯ)
+    // ГЕНЕРАЦИЯ (v3.0) - ЧИСТЫЙ СИНУС С РЕДКИМИ ТРАМПЛИНАМИ
     function getTerrainY(x) {
         let y = groundY;
         
-        // Сдвиг фазы для уникальности
-        let phaseShift = (noise((x + terrainOffset) * 0.0001) - 0.5) * 200;
-
-        // 1. Базовые волны
-        let wave = Math.sin((x + terrainOffset + phaseShift) * 0.001) * 80;
-
-        // 2. Трамплины (форма сохранена ровно как ты любишь, с ямами)
-        // Частота 0.0012 = раз в 500 метров
-        let kickerWave = Math.sin((x + terrainOffset + phaseShift) * 0.0012);
-        let kicker = Math.pow(kickerWave, 3) * 180; 
-
-        // 3. РЕДКИЕ МЕГА-ТРАМПЛИНЫ (раз в 2000 метров, только вверх)
-        let megaWave = Math.sin((x + terrainOffset + phaseShift) * 0.0003);
-        let mega = Math.pow(Math.max(0, megaWave), 2) * 250;
-
-        // 4. Микро-кочки
+        // 1. Базовые холмы (постоянные)
+        let baseHill = Math.sin((x + terrainOffset) * 0.001) * 80;
         let micro = Math.sin((x + terrainOffset) * 0.015) * 6;
 
-        let mathY = y - wave - kicker - mega - micro;
+        // 2. ОБЫЧНЫЕ ТРАМПЛИНЫ (раз в ~500м)
+        // Частота 0.00125 дает период 5000 пикселей (500 метров)
+        let jumpWave = Math.sin((x + terrainOffset) * 0.00125);
+        // Степень 3 делает крутой подъем и обрыв
+        let kicker = Math.pow(Math.max(0, jumpWave), 3) * 220; 
+
+        // 3. МЕГА-ТРАМПЛИНЫ (раз в ~2000м)
+        let megaWave = Math.sin((x + terrainOffset) * 0.0003);
+        let mega = Math.pow(Math.max(0, megaWave), 2) * 300;
+
+        let mathY = y - baseHill - kicker - mega - micro;
 
         // Плавный старт
         let distFromStart = x - startX;
@@ -885,4 +888,4 @@
     update();
 </script>
 </body>
-                </html>
+    </html>
