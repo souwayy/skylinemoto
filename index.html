@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (v8.1)</title>
+    <title>Skyline Moto (v8.3)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -182,11 +182,19 @@
             border-radius: 50%;
         }
 
+        /* Контейнер для кнопок внизу экрана Game Over */
+        .gameover-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 20px;
+            width: 100%;
+        }
+
         .icon-btn {
-            position: absolute;
             cursor: pointer;
             pointer-events: auto;
-            width: 50px; height: 50px; border-radius: 50%;
+            width: 55px; height: 55px; border-radius: 50%;
             background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(0,0,0,0.4) 100%);
             border: 2px solid rgba(255, 255, 255, 0.3);
             box-shadow: 0 0 10px rgba(0,0,0,0.5), inset 0 0 8px rgba(255,255,255,0.1);
@@ -197,9 +205,6 @@
             transform: scale(0.95);
             background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, rgba(0,0,0,0.5) 100%);
         }
-
-        .home-btn { top: 15px; right: 20px; }
-        .restart-btn { bottom: 15px; right: 20px; }
 
         .icon-btn svg {
             width: 28px; height: 28px; fill: none; stroke: #fff;
@@ -217,7 +222,7 @@
 <body>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v8.1</div>
+<div class="version-text">v8.3</div>
 
 <div class="ui-layer">
     <div class="top-bar">
@@ -256,10 +261,6 @@
     </div>
 
     <div class="overlay" id="gameOverScreen">
-        <div class="icon-btn home-btn" id="btnHome">
-            <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-        </div>
-
         <div class="score-header">SCORE</div>
         
         <div class="score-list">
@@ -318,8 +319,14 @@
             </div>
         </div>
 
-        <div class="icon-btn restart-btn" id="btnRestart">
-            <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+        <!-- Кнопки перенесены сюда -->
+        <div class="gameover-buttons">
+            <div class="icon-btn" id="btnHome">
+                <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            </div>
+            <div class="icon-btn" id="btnRestart">
+                <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+            </div>
         </div>
     </div>
 </div>
@@ -774,14 +781,14 @@
                 currentAirTime += dt;
                 if (currentAirTime > maxAirTime) maxAirTime = currentAirTime;
 
+                // ИСПРАВЛЕНО: Убрана ошибочная нормализация угла.
+                // В Planck.js угол идет по кругу (не ограничивается 360), поэтому мы просто складываем разницу.
                 let deltaAngle = angle - lastAngle;
-                if (deltaAngle > Math.PI) deltaAngle -= 2 * Math.PI;
-                if (deltaAngle < -Math.PI) deltaAngle += 2 * Math.PI;
-                
                 accumulatedRotation += deltaAngle;
                 lastAngle = angle;
 
-                if (Math.abs(accumulatedRotation) >= Math.PI * 1.5) {
+                // Порог срабатывания 1.8 (324 градуса) - почти полный оборот.
+                if (Math.abs(accumulatedRotation) >= Math.PI * 1.8) {
                     if (accumulatedRotation > 0) backflipCount++; 
                     else frontflipCount++; 
                     accumulatedRotation = 0; 
@@ -816,6 +823,7 @@
                 jointRear.setMaxMotorTorque(0); jointFront.setMaxMotorTorque(0);
             }
 
+            // Возвращены изначальные настройки силы вращения
             let tiltPower = 20; let maxTiltSpeed = 2.5;  
             if (window.isLeanBack) { if (chassis.getAngularVelocity() > -maxTiltSpeed) chassis.applyTorque(-tiltPower, true); } 
             else if (window.isLeanForward) { if (chassis.getAngularVelocity() < maxTiltSpeed) chassis.applyTorque(tiltPower, true); }
@@ -931,4 +939,4 @@
     update();
 </script>
 </body>
-</html>
+    </html>
