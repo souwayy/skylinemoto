@@ -364,48 +364,40 @@
         return r1 * (1 - u) + r2 * u;
     }
 
-    // ИДЕАЛЬНАЯ ГЕНЕРАЦИЯ ЗЕМЛИ (ПЛАВНЫЕ ХОЛМЫ + РЕДКИЕ ТРАМПЛИНЫ)
     function getTerrainY(x) {
-        let y = groundY;
-        
-        // 1. Базовые холмы (шум, без повторений)
-        let baseHill = (noise((x + terrainOffset) * 0.001) - 0.5) * 100;
+    let y = groundY;
+    
+    // 1. Базовые холмы (плавные, как ты любишь)
+    let baseHill = Math.sin((x + terrainOffset) * 0.001) * 80;
 
-        // 2. ОБЫЧНЫЕ ТРАМПЛИНЫ (Раз в ~500 метров)
-        let jumpPhase = (x + terrainOffset) * 0.003;
-        let kickerWave = Math.sin(jumpPhase);
-        
-        // Маска редкости (медленный шум)
-        let kNoise = noise((x + terrainOffset) * 0.00015);
-        let kMask = Math.max(0, Math.min(1, (kNoise - 0.45) * 5)); 
-        kMask = kMask * kMask * (3 - 2 * kMask); // Сглаживание маски
-        
-        let kicker = Math.pow(Math.max(0, kickerWave), 3) * 180 * kMask; 
+    // 2. ОБЫЧНЫЕ ТРАМПЛИНЫ (Раз в ~500 метров)
+    // Частота 0.0012 дает длину волны 5236 пикселей (523 метра).
+    let jumpPhase = (x + terrainOffset) * 0.0012;
+    let kickerWave = Math.sin(jumpPhase);
+    // Степень 4 делает подъем крутым, но плавным у основания
+    let kicker = Math.pow(Math.max(0, kickerWave), 4) * 220; 
 
-        // 3. РЕДКИЕ МЕГА-ТРАМПЛИНЫ (Раз в ~2000 метров)
-        let megaPhase = (x + terrainOffset) * 0.0015;
-        let megaWave = Math.sin(megaPhase);
-        
-        let mNoise = noise((x + terrainOffset) * 0.00004);
-        let mMask = Math.max(0, Math.min(1, (mNoise - 0.5) * 5));
-        mMask = mMask * mMask * (3 - 2 * mMask);
-        
-        let mega = Math.pow(Math.max(0, megaWave), 2) * 300 * mMask;
+    // 3. МЕГА-ТРАМПЛИНЫ (Раз в ~2000 метров)
+    // Частота 0.0003 дает длину волны 20943 пикселя (2094 метра).
+    let megaPhase = (x + terrainOffset) * 0.0003;
+    let megaWave = Math.sin(megaPhase);
+    // Степень 2 делает его широким и очень высоким
+    let mega = Math.pow(Math.max(0, megaWave), 2) * 350;
 
-        // 4. Микро-кочки (плавные)
-        let micro = Math.sin((x + terrainOffset) * 0.015) * 5;
+    // 4. Микро-кочки
+    let micro = Math.sin((x + terrainOffset) * 0.015) * 5;
 
-        let mathY = y - baseHill - kicker - mega - micro;
+    let mathY = y - baseHill - kicker - mega - micro;
 
-        // Плавный старт
-        let distFromStart = x - startX;
-        if (distFromStart < 1000) {
-            let factor = Math.max(0, distFromStart / 1000); 
-            let flatY = groundY - (distFromStart * 0.02);   
-            return flatY * (1 - factor) + mathY * factor;   
-        }
-        
-        return mathY;
+    // 5. Плавный старт
+    let distFromStart = x - startX;
+    if (distFromStart < 1000) {
+        let factor = Math.max(0, distFromStart / 1000); 
+        let flatY = groundY - (distFromStart * 0.02);   
+        return flatY * (1 - factor) + mathY * factor;   
+    }
+    
+    return mathY;
     }
 
     let terrainBodies = [];
