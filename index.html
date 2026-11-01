@@ -371,18 +371,16 @@
     let baseHill = Math.sin((x + terrainOffset) * 0.001) * 80;
 
     // 2. ОБЫЧНЫЕ ТРАМПЛИНЫ (Раз в ~500 метров)
-    // Частота 0.0012 дает длину волны 5236 пикселей (523 метра).
-    let jumpPhase = (x + terrainOffset) * 0.0012;
-    let kickerWave = Math.sin(jumpPhase);
-    // Степень 4 делает подъем крутым, но плавным у основания
-    let kicker = Math.pow(Math.max(0, kickerWave), 4) * 220; 
+    // Медленная волна-маска (включает трамплин)
+    let kMask = Math.pow(Math.max(0, Math.sin((x + terrainOffset) * 0.0012)), 6);
+    // Быстрая волна (создает короткий крутой подъем)
+    let kShape = Math.pow(Math.max(0, Math.sin((x + terrainOffset) * 0.005)), 4);
+    let kicker = kShape * 200 * kMask; 
 
     // 3. МЕГА-ТРАМПЛИНЫ (Раз в ~2000 метров)
-    // Частота 0.0003 дает длину волны 20943 пикселя (2094 метра).
-    let megaPhase = (x + terrainOffset) * 0.0003;
-    let megaWave = Math.sin(megaPhase);
-    // Степень 2 делает его широким и очень высоким
-    let mega = Math.pow(Math.max(0, megaWave), 2) * 350;
+    let mMask = Math.pow(Math.max(0, Math.sin((x + terrainOffset) * 0.0003)), 4);
+    let mShape = Math.pow(Math.max(0, Math.sin((x + terrainOffset) * 0.003)), 3);
+    let mega = mShape * 300 * mMask;
 
     // 4. Микро-кочки
     let micro = Math.sin((x + terrainOffset) * 0.015) * 5;
