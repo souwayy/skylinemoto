@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (Pits & Sensor)</title>
+    <title>Skyline Moto (Ideal Terrain & Sensor)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -329,6 +329,7 @@
     const pl = planck;
     const world = new pl.World({ gravity: pl.Vec2(0, 10) });
 
+    // СМЕРТЬ СТРОГО ОТ СЕНСОРА (БЕЗ МАТЕМАТИКИ)
     world.on('begin-contact', (contact) => {
         if (gameState !== 'playing') return;
         const fixA = contact.getFixtureA();
@@ -352,23 +353,25 @@
     let cameraY = 0; 
     const zoom = 1.1; 
 
-    // ЗЕМЛЯ С ХОЛМАМИ И ЯМАМИ (БЕЗ СТЕН)
+    // ТА САМАЯ ИДЕАЛЬНАЯ ЗЕМЛЯ
     function getTerrainY(x) {
         let y = groundY;
         
-        // 1. Базовые волны (создают плавные спуски и подъемы)
-        let baseHill = Math.sin((x + terrainOffset) * 0.001) * 100;
+        // 1. Базовые волны
+        let wave = Math.sin((x + terrainOffset) * 0.001) * 80;
 
-        // 2. Трамплины (короткие волны для прыжков)
-        let kicker = Math.sin((x + terrainOffset) * 0.003) * 50;
+        // 2. Трамплины (высота 200 для уверенного одинарного сальто)
+        let kickerWave = Math.sin((x + terrainOffset) * 0.0025);
+        let kicker = Math.pow(Math.max(0, kickerWave), 3) * 200;
 
-        // 3. Мега-трамплины (редкие, для двойного сальто)
-        let mega = Math.sin((x + terrainOffset) * 0.0002) * 200;
+        // 3. РЕДКИЕ МЕГА-ТРАМПЛИНЫ (для двойного сальто)
+        let megaWave = Math.sin((x + terrainOffset) * 0.00015);
+        let megaRamp = Math.pow(Math.max(0, megaWave), 2) * 250;
 
         // 4. Микро-кочки
-        let micro = Math.sin((x + terrainOffset) * 0.01) * 5;
+        let micro = Math.sin((x + terrainOffset) * 0.015) * 6;
 
-        let mathY = y - baseHill - kicker - mega - micro;
+        let mathY = y - wave - kicker - micro - megaRamp;
 
         // Плавный переход от старта
         let distFromStart = x - startX;
@@ -430,7 +433,7 @@
         chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic', bullet: true });
         chassis.createFixture(pl.Box(53 / SCALE / 2, 6 / SCALE / 2, pl.Vec2(0, -18 / SCALE)), { density: currentBike.density, friction: 0.3 });
 
-        // ВОЗВРАЩАЕМ ТВОЙ ИДЕАЛЬНЫЙ СЕНСОР (8 / -35)
+        // ТВОЙ ИДЕАЛЬНЫЙ СЕНСОР (8 / -35)
         let headShape = pl.Circle(8 / SCALE);
         headShape.m_p.set(0 / SCALE, -35 / SCALE);
         let headFixture = chassis.createFixture(headShape, { isSensor: true });
@@ -807,6 +810,7 @@
                 }
             }
 
+            // УБРАЛИ МАТЕМАТИЧЕСКУЮ СМЕРТЬ
             if (chassis.getPosition().y > canvas.height / SCALE + 10) {
                 triggerGameOver();
             }
@@ -869,4 +873,4 @@
     update();
 </script>
 </body>
-    </html>
+</html>
