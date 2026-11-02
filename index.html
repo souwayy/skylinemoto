@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (v9.3)</title>
+    <title>Skyline Moto (v9.4)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -220,7 +220,7 @@
 <body>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v9.3</div>
+<div class="version-text">v9.4</div>
 
 <div class="ui-layer">
     <div class="top-bar">
@@ -354,7 +354,6 @@
     let accumulatedRotation = 0;
     let lastAngle = 0;
     let flipCounted = false;
-    let wasAirborne = false;
 
     let maxWheelieTime = 0; 
     let currentWheelieTime = 0;
@@ -461,29 +460,43 @@
         }
     }
 
-    // КАМНИ (Квадратная физика, закопаны)
+    // НОВЫЕ КАМНИ (Низкополигональные, плоское дно, кучки)
     function spawnRocks() {
         while (lastRockX < cameraX + (canvas.width / zoom) + 1000) {
             let rx = lastRockX;
             let ry = getTerrainY(rx);
             
-            let visualRadius = 4 + Math.random() * 4; 
+            // Одиночный камень или кучка (50/50)
+            let isPile = Math.random() > 0.5;
+            
+            let visualRadius = isPile ? 12 : 8; 
             let physicsRadius = visualRadius / SCALE;
 
-            let rockBody = world.createBody({ position: pl.Vec2(rx / SCALE, (ry - physicsRadius * 0.5 * SCALE) / SCALE), type: 'static' });
-            
-            rockBody.setAngle(Math.random() * Math.PI);
-            rockBody.createFixture(pl.Box(physicsRadius, physicsRadius * 0.8), { friction: 0.8 });
+            let rockBody = world.createBody({ position: pl.Vec2(rx / SCALE, (ry - physicsRadius * 0.4 * SCALE) / SCALE), type: 'static' });
+            rockBody.createFixture(pl.Box(physicsRadius, physicsRadius * 0.6), { friction: 0.8 });
 
-            let points = [];
-            let numVertices = 5 + Math.floor(Math.random() * 3);
-            for (let j = 0; j < numVertices; j++) {
-                let angle = (j / numVertices) * Math.PI * 2;
-                let dist = visualRadius * (0.7 + Math.random() * 0.3);
-                points.push({ x: Math.cos(angle) * dist, y: Math.sin(angle) * dist });
+            // Генерация полигонов для отрисовки (плоское дно, острые грани сверху)
+            let rocksToDraw = [];
+            let count = isPile ? 3 : 1;
+            for (let i = 0; i < count; i++) {
+                let offsetX = (Math.random() - 0.5) * (visualRadius * 0.8);
+                let offsetY = (Math.random() - 0.5) * (visualRadius * 0.4);
+                let rSize = visualRadius * (isPile ? (0.6 + Math.random() * 0.4) : 1);
+                
+                let points = [];
+                // Плоское основание
+                points.push({x: -rSize, y: rSize * 0.5});
+                points.push({x: rSize, y: rSize * 0.5});
+                // Острые грани сверху
+                points.push({x: rSize * 0.8, y: -rSize * 0.2});
+                points.push({x: rSize * 0.2, y: -rSize * 0.9});
+                points.push({x: -rSize * 0.4, y: -rSize * 0.6});
+                points.push({x: -rSize * 0.9, y: -rSize * 0.1});
+                
+                rocksToDraw.push({ points: points, offsetX: offsetX, offsetY: offsetY });
             }
 
-            rocks.push({ body: rockBody, points: points });
+            rocks.push({ body: rockBody, rocks: rocksToDraw });
             
             lastRockX += 1500 + Math.random() * 1500; 
         }
@@ -547,18 +560,24 @@
             ctx.translate(pos.x * SCALE, pos.y * SCALE);
             ctx.rotate(r.body.getAngle());
             
-            ctx.beginPath();
-            ctx.moveTo(r.points[0].x, r.points[0].y);
-            for (let i = 1; i < r.points.length; i++) {
-                ctx.lineTo(r.points[i].x, r.points[i].y);
+            for (let rock of r.rocks) {
+                ctx.save();
+                ctx.translate(rock.offsetX, rock.offsetY);
+                ctx.beginPath();
+                ctx.moveTo(rock.points[0].x, rock.points[0].y);
+                for (let i = 1; i < rock.points.length; i++) {
+                    ctx.lineTo(rock.points[i].x, rock.points[i].y);
+                }
+                ctx.closePath();
+                
+                // Темный камень с легкой обводкой граней
+                ctx.fillStyle = '#0a0a0a'; 
+                ctx.fill();
+                ctx.strokeStyle = '#222'; 
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+                ctx.restore();
             }
-            ctx.closePath();
-            
-            ctx.fillStyle = '#0a0a0a'; 
-            ctx.fill();
-            ctx.strokeStyle = '#1a1a1a';
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
             
             ctx.restore();
         }
@@ -733,7 +752,6 @@
         maxAirTime = 0; currentAirTime = 0; 
         frontflipCount = 0; backflipCount = 0;
         flipCounted = false;
-        wasAirborne = false;
         accumulatedRotation = 0;
         lastAngle = chassis.getAngle();
         maxWheelieTime = 0; currentWheelieTime = 0;
@@ -864,7 +882,6 @@
         ctx.stroke();
     }
 
-    // КОЛЕСА (Без серого блика на шине)
     function drawWheel(wheel) {
         ctx.save();
         ctx.translate(wheel.getPosition().x * SCALE, wheel.getPosition().y * SCALE);
@@ -872,13 +889,13 @@
         
         let r = wheelRadius * SCALE;
 
-        // 1. Шина (чисто черная)
+        // Шина (чисто черная)
         ctx.beginPath();
         ctx.arc(0, 0, r, 0, Math.PI * 2);
         ctx.fillStyle = '#000';
         ctx.fill();
 
-        // 2. Протектор (зубцы для эндуро)
+        // Протектор (для внедорожника)
         if (currentBike.name === "CTM 300 EXC") {
             ctx.strokeStyle = '#111'; 
             ctx.lineWidth = 2;
@@ -891,14 +908,14 @@
             }
         }
 
-        // 3. Обод (темно-серый)
+        // Обод (темно-серый)
         ctx.beginPath();
         ctx.arc(0, 0, r - 3.5, 0, Math.PI * 2);
         ctx.strokeStyle = '#222';
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        // 4. Спицы (светло-серые)
+        // Спицы (светло-серые)
         ctx.strokeStyle = '#555';
         ctx.lineWidth = 1;
         let spokes = currentBike.name === "CTM 300 EXC" ? 6 : 8;
@@ -910,7 +927,7 @@
             ctx.stroke();
         }
 
-        // 5. Ступица
+        // Ступица
         ctx.beginPath();
         ctx.arc(0, 0, 2, 0, Math.PI * 2);
         ctx.fillStyle = '#444';
@@ -937,7 +954,11 @@
             let wheelSpeed = Math.abs(wheelRear.getAngularVelocity());
             let linearSpeed = Math.abs(chassis.getLinearVelocity().x) * SCALE; 
             
-            let isAirborne = Math.abs(chassis.getLinearVelocity().y) > 1.5; 
+            // ЖЕЛЕЗОБЕТОННАЯ ПРОВЕРКА ПОЛЕТА (По расстоянию до земли)
+            let chassisX = chassis.getPosition().x * SCALE;
+            let chassisY = chassis.getPosition().y * SCALE;
+            let groundUnder = getTerrainY(chassisX);
+            let isAirborne = (chassisY < groundUnder - 15); 
             
             let angle = chassis.getAngle();
             let deltaAngle = angle - lastAngle;
@@ -949,9 +970,10 @@
                 currentAirTime += dt;
                 if (currentAirTime > maxAirTime) maxAirTime = currentAirTime;
 
-                if (!flipCounted && Math.abs(accumulatedRotation) >= Math.PI * 1.3) { // Порог 234 градуса
-                    if (accumulatedRotation > 0) backflipCount++; 
-                    else frontflipCount++; 
+                if (!flipCounted && Math.abs(accumulatedRotation) >= Math.PI * 1.1) { // 198 градусов
+                    // Box2D: положительный угол - против часовой (переднее сальто)
+                    if (accumulatedRotation > 0) frontflipCount++; 
+                    else backflipCount++; 
                     flipCounted = true;
                 }
             } else {
