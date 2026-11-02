@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (v10.9)</title>
+    <title>Skyline Moto (v11.0)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -19,8 +19,18 @@
             color: white; text-align: center; padding: 20px; box-sizing: border-box;
         }
         #rotateDevice svg {
-            width: 80px; height: 80px; fill: none; stroke: white; stroke-width: 2;
-            margin-bottom: 20px; stroke-linecap: round; stroke-linejoin: round;
+            width: 100px; height: 100px; fill: none; stroke: white; stroke-width: 3;
+            margin-bottom: 24px; stroke-linecap: round; stroke-linejoin: round;
+            filter: drop-shadow(0 0 12px rgba(255,255,255,0.25));
+        }
+        .phone-group {
+            transform-box: fill-box;
+            transform-origin: center;
+            animation: rotatePhone 2s ease-in-out infinite alternate;
+        }
+        @keyframes rotatePhone {
+            0%   { transform: rotate(0deg); }
+            100% { transform: rotate(90deg); }
         }
         #rotateDevice h2 { font-size: 24px; font-weight: 600; margin: 0; }
 
@@ -100,10 +110,14 @@
 
 <div id="rotateDevice">
     <svg viewBox="0 0 24 24">
-        <rect x="7" y="3" width="10" height="18" rx="2" ry="2"></rect>
-        <line x1="12" y1="18" x2="12.01" y2="18" stroke-width="3"></line>
-        <path d="M21 12a9 9 0 0 0-9-9" stroke-dasharray="4"></path>
-        <polyline points="21 3 21 9 15 9"></polyline>
+        <g class="phone-group">
+            <rect x="7" y="3" width="10" height="18" rx="2" ry="2"></rect>
+            <line x1="12" y1="18" x2="12.01" y2="18" stroke-width="3"></line>
+        </g>
+        <g class="arrow-group">
+            <path d="M21 12a9 9 0 0 0-9-9" stroke-dasharray="4"></path>
+            <polyline points="21 3 21 9 15 9"></polyline>
+        </g>
     </svg>
     <h2>Пожалуйста, поверните устройство</h2>
 </div>
@@ -215,7 +229,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v10.9</div>
+<div class="version-text">v11.0</div>
 
 <script>
     let isGameRunning = false;
@@ -305,7 +319,7 @@
     const zoom = 1.1; 
 
     // -----------------------------------------------------
-    //  УНИКАЛЬНОСТЬ ЗАЕЗДА, ПРОМОИНЫ И WHOOPS
+    //  ХЭШ И КЭШ ЗОН
     // -----------------------------------------------------
 
     function hash32(a, b, c) {
@@ -317,16 +331,21 @@
     }
 
     let sessionSeed = 0;
-    const zoneCache = new Map();
+    const zoneCache = new Map();  // chunkIndex -> Array<zone>
 
+    // Пороги сложности по дистанции (в метрах)
     function getDepthForDist(distM) {
         if (distM < 800)   return null;
         if (distM < 1500)  return { min: 12, max: 15 };
         if (distM < 3000)  return { min: 16, max: 22 };
         if (distM < 5000)  return { min: 22, max: 28 };
-        return { min: 28, max: 30 };
+        if (distM < 10000) return { min: 28, max: 32 };   // 5-10 км
+        if (distM < 15000) return { min: 32, max: 35 };   // 10-15 км
+        if (distM < 20000) return { min: 34, max: 36 };   // 15-20 км
+        return { min: 35, max: 38 };                       // 20+ км
     }
 
+    // Профиль промоины (глубина положительная)
     function erosionProfile(localX, entryW, floorW, exitW, depth, slope) {
         let total = entryW + floorW + exitW;
         if (localX < 0 || localX > total) return 0;
@@ -342,25 +361,29 @@
         return (depth + slope) * (1 - t * t * (3 - 2 * t));
     }
 
-    // Возвращает положительное значение — глубина впадины. Отрицательное — бугор.
-    // Для whoops знак меняется через caller.
+    // Профиль оврага (линейный step-down + flat + step-up)
+    function ravineProfile(localX, dropW, floorW, riseW, depth) {
+        let total = dropW + floorW + riseW;
+        if (localX < 0 || localX > total) return 0;
+        if (localX < dropW) {
+            return depth * (localX / dropW);
+        }
+        if (localX < dropW + floorW) {
+            return depth;
+        }
+        let t = (localX - dropW - floorW) / riseW;
+        return depth * (1 - t);
+    }
+
+    // Whoops — визуальная гребёнка, не наказание
     function whoopsProfile(localX, totalWidth, step, amplitude) {
         if (localX < 0 || localX > totalWidth) return 0;
         let progress = localX / totalWidth;
-
-        // Огибающая на краях: плавный вход/выход (10-15% длины)
         let envelope = 1;
         if (progress < 0.15) envelope = progress / 0.15;
         else if (progress > 0.85) envelope = (1 - progress) / 0.15;
-
-        // Асимметрия амплитуды: 0.7 → 1.0 от первого к последнему
-        let ampMul = 0.7 + progress * 0.3;
-
         let phase = (localX * Math.PI) / step;
-        let shape = Math.sin(phase);
-
-        // Возвращаем отрицательное значение (вверх), caller прибавит к mathY
-        return -amplitude * ampMul * envelope * shape;
+        return Math.sin(phase) * amplitude * envelope;
     }
 
     function getTerrainYNoErosion(x) {
@@ -385,7 +408,6 @@
         return mathY;
     }
 
-    // Проверка: попадает ли точка на участок с активным трамплином
     function isOnKicker(x) {
         let u = x + terrainOffset;
         let shape = Math.pow(Math.sin(u * 0.003), 3) * 180;
@@ -393,128 +415,249 @@
         return Math.abs(shape * gate) > 50;
     }
 
-    function computeZone(chunkIndex) {
-        let chunkStart = chunkIndex * 10000;
-        let chunkDistM = chunkStart / 10;
+    // -----------------------------------------------------
+    //  БИЛДЕРЫ ЗОН
+    // -----------------------------------------------------
 
-        let depthRange = getDepthForDist(chunkDistM);
-        if (!depthRange) return null;
+    function buildErosionZone(chunkStart, chunkIndex, zoneIdx, depthRange, widthTier) {
+        let entryMin, entryMax, gapMin, gapMax, countMin, countMax;
+        if (widthTier === 1) {
+            entryMin = 40; entryMax = 60;
+            gapMin = 15; gapMax = 40;
+            countMin = 1; countMax = 4;
+        } else if (widthTier === 2) {
+            entryMin = 60; entryMax = 90;
+            gapMin = 10; gapMax = 25;
+            countMin = 2; countMax = 5;
+        } else {
+            entryMin = 70; entryMax = 100;
+            gapMin = 8; gapMax = 20;
+            countMin = 3; countMax = 6;
+        }
 
-        let zoneStartRel = 3000 + hash32(sessionSeed, chunkIndex, 1) * 4000;
-        let zoneLength   = 600  + hash32(sessionSeed, chunkIndex, 2) * 600;
-        let zoneStart = chunkStart + zoneStartRel;
+        let zoneLength = 600 + hash32(sessionSeed, chunkIndex, 2 + zoneIdx * 10) * 600;
+        let zoneStart = chunkStart + 1000 + hash32(sessionSeed, chunkIndex, 1 + zoneIdx * 10) * (8000 / (chunkIndex === -1 ? 1 : 1));
 
-        // Сдвиг от трамплина
+        // Упрощённо: позиция внутри чанка
+        zoneStart = chunkStart + 1500 + hash32(sessionSeed, chunkIndex, 1 + zoneIdx * 10) * 6000;
+
         let attempts = 0;
         while (attempts < 3 && (isOnKicker(zoneStart) || isOnKicker(zoneStart + zoneLength))) {
             zoneStart += 500;
             attempts++;
         }
-        if (zoneStart + zoneLength > chunkStart + 9700) return null;
+        if (zoneStart + zoneLength > chunkStart + 9900) return null;
 
-        // Выбор типа зоны
-        let whoopsChance = 0;
-        if (chunkDistM >= 7000)      whoopsChance = 0.4;
-        else if (chunkDistM >= 6000) whoopsChance = 0.2;
-
-        let typeHash = hash32(sessionSeed, chunkIndex, 50);
-        let zoneType = (typeHash < whoopsChance) ? 'whoops' : 'erosion';
-
-        if (zoneType === 'whoops') {
-            let whoopsWidth = 150 + hash32(sessionSeed, chunkIndex, 60) * 200;
-            let whoopsStep  = 30  + hash32(sessionSeed, chunkIndex, 61) * 20;
-            let whoopsAmp   = 10  + hash32(sessionSeed, chunkIndex, 62) * 5;
-
-            // Пересчёт end под реальную ширину whoops
-            let zoneEnd = zoneStart + whoopsWidth;
-            if (zoneEnd > chunkStart + 9700) return null;
-
-            return {
-                type: 'whoops',
-                start: zoneStart,
-                end: zoneEnd,
-                whoops: { width: whoopsWidth, step: whoopsStep, amplitude: whoopsAmp },
-                pebbles: []
-            };
-        }
-
-        // Erosion (как в v10.8)
-        let zoneEnd = zoneStart + zoneLength;
-        let count = 1 + Math.floor(hash32(sessionSeed, chunkIndex, 3) * 4);
+        let count = countMin + Math.floor(hash32(sessionSeed, chunkIndex, 3 + zoneIdx * 10) * (countMax - countMin + 1));
         let holes = [];
         let cursor = 0;
 
         for (let i = 0; i < count; i++) {
             if (i > 0) {
-                let gap = 15 + hash32(sessionSeed, chunkIndex, 100 + i) * 25;
+                let gap = gapMin + hash32(sessionSeed, chunkIndex, 100 + i + zoneIdx * 20) * (gapMax - gapMin);
                 cursor += gap;
             }
-            let entryW = 40 + hash32(sessionSeed, chunkIndex, 200 + i) * 20;
-            let floorW = 10 + hash32(sessionSeed, chunkIndex, 300 + i) * 15;
-            let exitW  = 15 + hash32(sessionSeed, chunkIndex, 400 + i) * 15;
+            let entryW = entryMin + hash32(sessionSeed, chunkIndex, 200 + i + zoneIdx * 20) * (entryMax - entryMin);
+            let floorW = 10 + hash32(sessionSeed, chunkIndex, 300 + i + zoneIdx * 20) * 15;
+            let exitW  = 15 + hash32(sessionSeed, chunkIndex, 400 + i + zoneIdx * 20) * 15;
             let totalW = entryW + floorW + exitW;
             if (cursor + totalW > zoneLength) break;
 
-            let depthRnd = hash32(sessionSeed, chunkIndex, 500 + i);
+            let depthRnd = hash32(sessionSeed, chunkIndex, 500 + i + zoneIdx * 20);
             let depth = depthRange.min + depthRnd * (depthRange.max - depthRange.min);
-            let slope = (hash32(sessionSeed, chunkIndex, 600 + i) - 0.5) * 6;
+            let slope = (hash32(sessionSeed, chunkIndex, 600 + i + zoneIdx * 20) - 0.5) * 6;
 
             holes.push({
                 x: zoneStart + cursor,
-                entryW: entryW,
-                floorW: floorW,
-                exitW: exitW,
-                depth: depth,
-                slope: slope
+                entryW: entryW, floorW: floorW, exitW: exitW,
+                depth: depth, slope: slope
             });
-
             cursor += totalW;
         }
 
         if (holes.length === 0) return null;
 
         let pebbles = [];
-        let pebbleCount = 3 + Math.floor(hash32(sessionSeed, chunkIndex, 700) * 6);
+        let pebbleCount = 3 + Math.floor(hash32(sessionSeed, chunkIndex, 700 + zoneIdx * 10) * 6);
         let firstHole = holes[0];
         for (let i = 0; i < pebbleCount; i++) {
-            let pxOff = -25 + hash32(sessionSeed, chunkIndex, 800 + i) * 20;
+            let pxOff = -25 + hash32(sessionSeed, chunkIndex, 800 + i + zoneIdx * 10) * 20;
             let px = firstHole.x + pxOff;
             let py = getTerrainYNoErosion(px) - 1;
-            let r  = 1 + hash32(sessionSeed, chunkIndex, 900 + i) * 1.5;
-            let shade = 20 + Math.floor(hash32(sessionSeed, chunkIndex, 1000 + i) * 40);
+            let r  = 1 + hash32(sessionSeed, chunkIndex, 900 + i + zoneIdx * 10) * 1.5;
+            let shade = 20 + Math.floor(hash32(sessionSeed, chunkIndex, 1000 + i + zoneIdx * 10) * 40);
             pebbles.push({ x: px, y: py, r: r, shade: shade });
         }
 
-        return { type: 'erosion', start: zoneStart, end: zoneEnd, holes: holes, pebbles: pebbles };
+        return { type: 'erosion', start: zoneStart, end: zoneStart + zoneLength, holes: holes, pebbles: pebbles };
     }
 
-    function getZoneCached(chunkIndex) {
+    function buildRavineZone(chunkStart, chunkIndex, zoneIdx) {
+        let dropW  = 50 + hash32(sessionSeed, chunkIndex, 20 + zoneIdx * 10) * 20;
+        let floorW = 120 + hash32(sessionSeed, chunkIndex, 21 + zoneIdx * 10) * 80;
+        let riseW  = 50 + hash32(sessionSeed, chunkIndex, 22 + zoneIdx * 10) * 20;
+        let depth  = 20 + hash32(sessionSeed, chunkIndex, 23 + zoneIdx * 10) * 10;
+        let totalW = dropW + floorW + riseW;
+
+        let zoneStart = chunkStart + 1500 + hash32(sessionSeed, chunkIndex, 24 + zoneIdx * 10) * 6000;
+        let attempts = 0;
+        while (attempts < 3 && (isOnKicker(zoneStart) || isOnKicker(zoneStart + totalW))) {
+            zoneStart += 500;
+            attempts++;
+        }
+        if (zoneStart + totalW > chunkStart + 9900) return null;
+
+        return {
+            type: 'ravine',
+            start: zoneStart,
+            end: zoneStart + totalW,
+            ravine: { dropW: dropW, floorW: floorW, riseW: riseW, depth: depth }
+        };
+    }
+
+    function buildWhoopsZone(chunkStart, chunkIndex, zoneIdx) {
+        let width = 100 + hash32(sessionSeed, chunkIndex, 30 + zoneIdx * 10) * 150;
+        let step  = 40 + hash32(sessionSeed, chunkIndex, 31 + zoneIdx * 10) * 20;
+        let amp   = 6 + hash32(sessionSeed, chunkIndex, 32 + zoneIdx * 10) * 2;
+
+        let zoneStart = chunkStart + 1500 + hash32(sessionSeed, chunkIndex, 33 + zoneIdx * 10) * 6000;
+        let attempts = 0;
+        while (attempts < 3 && (isOnKicker(zoneStart) || isOnKicker(zoneStart + width))) {
+            zoneStart += 500;
+            attempts++;
+        }
+        if (zoneStart + width > chunkStart + 9900) return null;
+
+        return { type: 'whoops', start: zoneStart, end: zoneStart + width, whoops: { width: width, step: step, amplitude: amp } };
+    }
+
+    function buildComboZone(chunkStart, chunkIndex, zoneIdx, depthRange) {
+        let dropW  = 50 + hash32(sessionSeed, chunkIndex, 40 + zoneIdx * 10) * 20;
+        let floorW = 120 + hash32(sessionSeed, chunkIndex, 41 + zoneIdx * 10) * 80;
+        let riseW  = 50 + hash32(sessionSeed, chunkIndex, 42 + zoneIdx * 10) * 20;
+        let depth  = 20 + hash32(sessionSeed, chunkIndex, 43 + zoneIdx * 10) * 10;
+        let ravineW = dropW + floorW + riseW;
+
+        let gap = 80 + hash32(sessionSeed, chunkIndex, 44 + zoneIdx * 10) * 70;
+        let entryW = 60 + hash32(sessionSeed, chunkIndex, 45 + zoneIdx * 10) * 20;
+        let holeFloorW = 15 + hash32(sessionSeed, chunkIndex, 46 + zoneIdx * 10) * 15;
+        let exitW = 20 + hash32(sessionSeed, chunkIndex, 47 + zoneIdx * 10) * 15;
+        let holeW = entryW + holeFloorW + exitW;
+        let holeDepth = depthRange.min + hash32(sessionSeed, chunkIndex, 48 + zoneIdx * 10) * (depthRange.max - depthRange.min);
+        let holeSlope = (hash32(sessionSeed, chunkIndex, 49 + zoneIdx * 10) - 0.5) * 6;
+
+        let totalW = ravineW + gap + holeW;
+        let zoneStart = chunkStart + 1500 + hash32(sessionSeed, chunkIndex, 51 + zoneIdx * 10) * 6000;
+
+        let attempts = 0;
+        while (attempts < 3 && (isOnKicker(zoneStart) || isOnKicker(zoneStart + totalW))) {
+            zoneStart += 500;
+            attempts++;
+        }
+        if (zoneStart + totalW > chunkStart + 9900) return null;
+
+        return {
+            type: 'combo',
+            start: zoneStart,
+            end: zoneStart + totalW,
+            ravine: { dropW: dropW, floorW: floorW, riseW: riseW, depth: depth },
+            hole: {
+                x: zoneStart + ravineW + gap,
+                entryW: entryW, floorW: holeFloorW, exitW: exitW,
+                depth: holeDepth, slope: holeSlope
+            }
+        };
+    }
+
+    function computeZones(chunkIndex) {
+        let chunkStart = chunkIndex * 10000;
+        let chunkDistM = chunkStart / 10;
+
+        let depthRange = getDepthForDist(chunkDistM);
+        if (!depthRange) return [];
+
+        let zoneCount = 1;
+        if (chunkDistM >= 20000) zoneCount = 3;
+        else if (chunkDistM >= 15000) zoneCount = 2;
+
+        let widthTier = 1;
+        if (chunkDistM >= 10000) widthTier = 3;
+        else if (chunkDistM >= 5000) widthTier = 2;
+
+        let whoopsChance = 0;
+        if (chunkDistM >= 7000) whoopsChance = 0.15;
+
+        let ravineChance = 0;
+        if (chunkDistM >= 20000)      ravineChance = 0.35;
+        else if (chunkDistM >= 15000) ravineChance = 0.30;
+        else if (chunkDistM >= 10000) ravineChance = 0.25;
+        else if (chunkDistM >= 7000)  ravineChance = 0.15;
+
+        let comboChance = 0;
+        if (chunkDistM >= 15000)      comboChance = 0.20;
+        else if (chunkDistM >= 10000) comboChance = 0.10;
+
+        let zones = [];
+        for (let i = 0; i < zoneCount; i++) {
+            let typeHash = hash32(sessionSeed, chunkIndex, 60 + i * 5);
+            let zone = null;
+
+            if (typeHash < comboChance) {
+                zone = buildComboZone(chunkStart, chunkIndex, i, depthRange);
+            } else if (typeHash < comboChance + ravineChance) {
+                zone = buildRavineZone(chunkStart, chunkIndex, i);
+            } else if (typeHash < comboChance + ravineChance + whoopsChance) {
+                zone = buildWhoopsZone(chunkStart, chunkIndex, i);
+            } else {
+                zone = buildErosionZone(chunkStart, chunkIndex, i, depthRange, widthTier);
+            }
+
+            if (zone) zones.push(zone);
+        }
+
+        return zones;
+    }
+
+    function getZonesCached(chunkIndex) {
         if (!zoneCache.has(chunkIndex)) {
-            zoneCache.set(chunkIndex, computeZone(chunkIndex));
+            zoneCache.set(chunkIndex, computeZones(chunkIndex));
         }
         return zoneCache.get(chunkIndex);
     }
 
     function getTerrainY(x) {
         let mathY = getTerrainYNoErosion(x);
-
         let chunkIndex = Math.floor(x / 10000);
-        let zone = getZoneCached(chunkIndex);
+        let zones = getZonesCached(chunkIndex);
 
-        if (zone && x >= zone.start && x <= zone.end) {
+        for (let z = 0; z < zones.length; z++) {
+            let zone = zones[z];
+            if (x < zone.start || x > zone.end) continue;
+
             if (zone.type === 'erosion') {
-                let erosion = 0;
                 for (let i = 0; i < zone.holes.length; i++) {
                     let h = zone.holes[i];
                     let lx = x - h.x;
                     if (lx >= 0 && lx <= h.entryW + h.floorW + h.exitW) {
-                        erosion += erosionProfile(lx, h.entryW, h.floorW, h.exitW, h.depth, h.slope);
+                        mathY += erosionProfile(lx, h.entryW, h.floorW, h.exitW, h.depth, h.slope);
                     }
                 }
-                mathY += erosion;
             } else if (zone.type === 'whoops') {
                 let lx = x - zone.start;
                 mathY += whoopsProfile(lx, zone.whoops.width, zone.whoops.step, zone.whoops.amplitude);
+            } else if (zone.type === 'ravine') {
+                let lx = x - zone.start;
+                mathY += ravineProfile(lx, zone.ravine.dropW, zone.ravine.floorW, zone.ravine.riseW, zone.ravine.depth);
+            } else if (zone.type === 'combo') {
+                let ravineW = zone.ravine.dropW + zone.ravine.floorW + zone.ravine.riseW;
+                let lx = x - zone.start;
+                if (lx >= 0 && lx < ravineW) {
+                    mathY += ravineProfile(lx, zone.ravine.dropW, zone.ravine.floorW, zone.ravine.riseW, zone.ravine.depth);
+                }
+                let holeLx = x - zone.hole.x;
+                if (holeLx >= 0 && holeLx <= zone.hole.entryW + zone.hole.floorW + zone.hole.exitW) {
+                    mathY += erosionProfile(holeLx, zone.hole.entryW, zone.hole.floorW, zone.hole.exitW, zone.hole.depth, zone.hole.slope);
+                }
             }
         }
         return mathY;
@@ -527,15 +670,18 @@
         let endChunk   = Math.floor(viewEnd / 10000);
 
         for (let ci = startChunk; ci <= endChunk; ci++) {
-            let zone = getZoneCached(ci);
-            if (!zone || zone.type !== 'erosion') continue;
-            for (let i = 0; i < zone.pebbles.length; i++) {
-                let p = zone.pebbles[i];
-                if (p.x < viewStart || p.x > viewEnd) continue;
-                ctx.fillStyle = 'rgb(' + p.shade + ',' + p.shade + ',' + p.shade + ')';
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-                ctx.fill();
+            let zones = getZonesCached(ci);
+            for (let z = 0; z < zones.length; z++) {
+                let zone = zones[z];
+                if (zone.type !== 'erosion' || !zone.pebbles) continue;
+                for (let i = 0; i < zone.pebbles.length; i++) {
+                    let p = zone.pebbles[i];
+                    if (p.x < viewStart || p.x > viewEnd) continue;
+                    ctx.fillStyle = 'rgb(' + p.shade + ',' + p.shade + ',' + p.shade + ')';
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                    ctx.fill();
+                }
             }
         }
     }
@@ -588,7 +734,7 @@
 
         if (type === 'brake') {
             count = 3 + Math.floor(Math.random() * 2);
-            baseVx = -Math.abs(speedX) * 0.4 - 5;
+            baseVx = -1 - Math.random() * 3;
             baseVy = -Math.random() * 8 - 3;
             baseRadius = 4 + Math.random() * 5;
             baseGrowth = 2 + Math.random() * 2;
@@ -596,7 +742,7 @@
             lifeMin = 0.8; lifeMax = 1.4;
         } else if (type === 'gas') {
             count = 2;
-            baseVx = -Math.abs(speedX) * 0.2 - 3;
+            baseVx = -1 - Math.random() * 2;
             baseVy = -Math.random() * 2 - 1;
             baseRadius = 5 + Math.random() * 6;
             baseGrowth = 1.5 + Math.random() * 1.5;
@@ -604,7 +750,7 @@
             lifeMin = 1.2; lifeMax = 2.0;
         } else {
             count = 1;
-            baseVx = -Math.abs(speedX) * 0.1 - 2;
+            baseVx = -1 - Math.random() * 1;
             baseVy = -Math.random() * 1;
             baseRadius = 3 + Math.random() * 3;
             baseGrowth = 1 + Math.random() * 1;
@@ -614,7 +760,7 @@
 
         for (let i = 0; i < count; i++) {
             particles.push({
-                x: x + (Math.random() - 0.5) * 12,
+                x: x + (Math.random() - 0.5) * 8,
                 y: y - Math.random() * 4,
                 baseVx: baseVx * (0.7 + Math.random() * 0.6),
                 vy: baseVy * (0.7 + Math.random() * 0.6),
@@ -632,22 +778,13 @@
         for (let i = particles.length - 1; i >= 0; i--) {
             let p = particles[i];
             p.age += dt;
-
             let progress = p.age / p.maxAge;
             if (progress >= 1) { particles.splice(i, 1); continue; }
-
-            // Снос нарастает с возрастом — конус назад
-            p.x += p.baseVx * (1 + progress * 2);
-
-            // Гравитация: к концу жизни частица падает
+            p.x += p.baseVx * (1 + progress * 1.2);
             p.vy += 0.15;
             p.y += p.vy;
-
             p.radius += p.growth;
-
-            // Нелинейное затухание: быстро в начале, медленно в конце
             p.alpha = p.alphaMax * Math.pow(1 - progress, 1.5);
-
             if (p.alpha <= 0.01) particles.splice(i, 1);
         }
     }
@@ -655,9 +792,9 @@
     function drawParticles() {
         for (let p of particles) {
             let grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius);
-            grad.addColorStop(0, `rgba(50, 30, 15, ${p.alpha})`);
-            grad.addColorStop(0.5, `rgba(110, 65, 35, ${p.alpha * 0.7})`);
-            grad.addColorStop(1, 'rgba(180, 100, 60, 0)');
+            grad.addColorStop(0, `rgba(140, 105, 75, ${p.alpha})`);
+            grad.addColorStop(0.6, `rgba(180, 140, 100, ${p.alpha * 0.5})`);
+            grad.addColorStop(1, 'rgba(200, 160, 120, 0)');
             ctx.fillStyle = grad;
             ctx.beginPath();
             ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
@@ -1238,4 +1375,4 @@
     update();
 </script>
 </body>
-                                         </html>
+    </html>
