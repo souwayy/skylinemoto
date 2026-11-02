@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v15.2)</title>
+    <title>Nyxride (v15.5)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -15,18 +15,36 @@
         /* --- ОБЩИЕ СТИЛИ UI --- */
         .hidden { display: none !important; }
         .overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
             display: flex; flex-direction: column; pointer-events: auto; z-index: 50;
         }
 
+        /* --- ЭКРАН ПОВОРОТА (САМЫЙ ВЫСОКИЙ Z-INDEX) --- */
+        #rotateDevice { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: #000; z-index: 10000;
+            display: none; flex-direction: column; align-items: center; justify-content: center; 
+            color: white; text-align: center; 
+        }
+        #rotateDevice svg {
+            width: 100px; height: 100px; fill: none; stroke: white; stroke-width: 4;
+            margin-bottom: 30px; stroke-linecap: round; stroke-linejoin: round;
+            filter: drop-shadow(0 0 15px rgba(255,255,255,0.3));
+        }
+        #rotateDevice h2 { font-size: 24px; font-weight: 600; margin: 0; line-height: 1.4; padding: 0 20px; }
+
         /* --- ЗАСТАВКА (SPLASH SCREEN) --- */
         #splashScreen {
-            position: fixed; inset: 0; background: #000; z-index: 9999;
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
+            background-color: #000; z-index: 9999;
             display: flex; align-items: center; justify-content: center;
             transition: opacity 0.8s ease-in-out;
         }
         #splashScreen img {
-            width: 70%; max-width: 600px;
+            /* Сохраняем пропорции и не даем логотипу растянуться */
+            width: auto; height: auto;
+            max-width: 85vw; max-height: 85vh; 
+            object-fit: contain;
             animation: pulseLogo 2s ease-in-out infinite;
         }
         @keyframes pulseLogo { 
@@ -38,16 +56,18 @@
         #mainMenu {
             background: url('menu_bg.jpg') no-repeat center center;
             background-size: cover;
-            justify-content: space-between;
         }
+        
         .menu-logo {
-            position: absolute; top: 8%; left: 50%; transform: translateX(-50%);
+            position: absolute; top: 10%; left: 50%; transform: translateX(-50%);
             font-size: 52px; font-weight: 900; color: #fff; letter-spacing: 6px;
             text-shadow: 0 0 20px rgba(255,100,0,0.8), 0 5px 15px rgba(0,0,0,0.9);
             text-transform: uppercase; pointer-events: none; font-style: italic;
+            z-index: 10;
         }
+
         .menu-header {
-            display: flex; justify-content: space-between; padding: 20px; pointer-events: none;
+            display: flex; justify-content: space-between; padding: 20px; pointer-events: none; z-index: 10;
         }
         .coin-display {
             display: flex; align-items: center; background: rgba(0,0,0,0.7);
@@ -56,52 +76,48 @@
         }
         .coin-display img { height: 24px; margin-right: 8px; }
 
-        /* Кнопки (Спрайт-лист) */
         .sprite-btn {
             background-image: url('ui_buttons.png');
-            background-size: 500% 200%; /* 5 колонок, 2 строки */
+            background-size: 500% 200%;
             border: none; pointer-events: auto; cursor: pointer;
             transition: transform 0.1s, filter 0.2s;
             background-color: transparent;
         }
         .sprite-btn:active { transform: scale(0.9); filter: brightness(1.5); }
 
-        /* Позиции в спрайт-листе */
         .btn-shop { background-position: 0% 100%; width: 70px; height: 70px; }
         .btn-settings { background-position: 25% 100%; width: 60px; height: 60px; }
         .btn-quests { background-position: 50% 100%; width: 60px; height: 60px; }
         .btn-left { background-position: 75% 100%; width: 50px; height: 50px; }
         .btn-right { background-position: 100% 100%; width: 50px; height: 50px; }
+        
         .btn-play { 
             background-position: 0% 0%; background-size: 100% 200%; 
-            width: 260px; height: 90px; position: absolute; bottom: 40px; right: 40px;
+            width: 220px; height: 75px; position: absolute; bottom: 40px; right: 40px;
+            z-index: 20;
         }
 
-        .menu-center {
-            position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%);
-            display: flex; flex-direction: column; align-items: center; width: 100%; pointer-events: none;
-        }
-        .bike-carousel {
-            display: flex; align-items: center; justify-content: center; gap: 30px; pointer-events: auto;
-        }
-        
-        /* Место для байка (canvas вместо img) */
-        #menuBikeCanvas { 
-            width: 200px; height: 120px; 
-            filter: drop-shadow(0 15px 15px rgba(0,0,0,0.8)); 
-        }
-        
-        /* Статистика */
         .bike-stats {
-            margin-top: 25px; width: 300px; pointer-events: none;
-            background: rgba(0,0,0,0.6); padding: 15px 20px; border-radius: 10px;
-            border: 1px solid rgba(255,255,255,0.1);
+            position: absolute; top: 50%; left: 5%; transform: translateY(-50%);
+            width: 280px; pointer-events: none;
+            background: rgba(0,0,0,0.7); padding: 20px; border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.1); z-index: 10;
+            backdrop-filter: blur(5px);
         }
         .bike-name { color: #fff; font-size: 20px; font-weight: bold; text-align: center; margin-bottom: 15px; text-transform: uppercase; letter-spacing: 2px; }
         .stat-row { display: flex; align-items: center; margin-bottom: 10px; }
-        .stat-label { color: #aaa; font-size: 13px; width: 90px; font-weight: bold; }
+        .stat-label { color: #aaa; font-size: 13px; width: 100px; font-weight: bold; }
         .stat-bar-bg { flex-grow: 1; height: 10px; background: #222; border-radius: 5px; overflow: hidden; border: 1px solid #000; }
         .stat-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #ff3333, #ffcc00, #33ff33); transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+
+        .bike-carousel {
+            position: absolute; top: 55%; left: 55%; transform: translate(-50%, -50%);
+            display: flex; align-items: center; gap: 20px; pointer-events: auto; z-index: 10;
+        }
+        #menuBikeCanvas { 
+            width: 220px; height: 130px; 
+            filter: drop-shadow(0 15px 15px rgba(0,0,0,0.8)); 
+        }
 
         /* --- ИГРОВОЙ ИНТЕРФЕЙС --- */
         .ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
@@ -111,8 +127,8 @@
         .stats-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
         .score { font-size: 32px; font-weight: bold; color: white; text-shadow: 0 2px 5px #000; }
         
-        .btn { position: absolute; width: 60px; height: 60px; border-radius: 50%; background: rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.2); pointer-events: auto; color: white; display: flex; align-items: center; justify-content: center; }
-        .btn svg { width: 30px; height: 30px; stroke: white; stroke-width: 2.5; }
+        .btn-game { position: absolute; width: 60px; height: 60px; border-radius: 50%; background: rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.2); pointer-events: auto; color: white; display: flex; align-items: center; justify-content: center; }
+        .btn-game svg { width: 30px; height: 30px; stroke: white; stroke-width: 2.5; }
         #btnLeanBack { bottom: 140px; left: 20px; } #btnLeanForward { bottom: 60px; left: 60px; }
         #btnGas { bottom: 140px; right: 20px; } #btnBrake { bottom: 60px; right: 60px; }
 
@@ -147,24 +163,44 @@
         .icon-btn svg { width: 35px; height: 35px; stroke: #fff; stroke-width: 2.5; }
 
         .version-text { position: absolute; bottom: 5px; left: 5px; color: rgba(255,255,255,0.3); font-size: 12px; z-index: 100; }
-        
-        #rotateDevice { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 1000; display: none; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/planck-js@0.3/dist/planck.min.js"></script>
 </head>
 <body>
 
-<!-- Экран поворота -->
+<!-- ЭКРАН ПОВОРОТА (Самый высокий z-index) -->
 <div id="rotateDevice">
+    <svg viewBox="0 0 100 100">
+        <g fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="35" y="20" width="30" height="60" rx="4" ry="4">
+                <animateTransform attributeName="transform" type="rotate"
+                    values="0 50 50; 90 50 50; 90 50 50; 0 50 50"
+                    keyTimes="0; 0.4; 0.6; 1"
+                    dur="3s" repeatCount="indefinite" />
+            </rect>
+            <circle cx="50" cy="72" r="2">
+                <animateTransform attributeName="transform" type="rotate"
+                    values="0 50 50; 90 50 50; 90 50 50; 0 50 50"
+                    keyTimes="0; 0.4; 0.6; 1"
+                    dur="3s" repeatCount="indefinite" />
+            </circle>
+            <line x1="45" y1="26" x2="55" y2="26">
+                <animateTransform attributeName="transform" type="rotate"
+                    values="0 50 50; 90 50 50; 90 50 50; 0 50 50"
+                    keyTimes="0; 0.4; 0.6; 1"
+                    dur="3s" repeatCount="indefinite" />
+            </line>
+        </g>
+    </svg>
     <h2>Пожалуйста, поверните устройство</h2>
 </div>
 
-<!-- ================= ЗАСТАВКА ================= -->
+<!-- ЗАСТАВКА -->
 <div id="splashScreen">
     <img src="splash.png" alt="Souway Games" onerror="this.src='moto.png'; this.style.width='200px';">
 </div>
 
-<!-- ================= ГЛАВНОЕ МЕНЮ ================= -->
+<!-- ГЛАВНОЕ МЕНЮ -->
 <div class="overlay hidden" id="mainMenu">
     <div class="menu-logo">NYXRIDE</div>
     
@@ -182,29 +218,24 @@
         </div>
     </div>
 
-    <div class="menu-center">
-        <div class="bike-carousel">
-            <button class="sprite-btn btn-left" id="btnPrevBike"></button>
-            
-            <!-- Заменили img на canvas -->
-            <canvas id="menuBikeCanvas" width="200" height="120"></canvas>
-            
-            <button class="sprite-btn btn-right" id="btnNextBike"></button>
-        </div>
-        
-        <div class="bike-stats">
-            <div class="bike-name" id="menuBikeName">CTM 300 EXC</div>
-            <div class="stat-row"><div class="stat-label">SPEED</div><div class="stat-bar-bg"><div class="stat-bar-fill" id="statSpeed"></div></div></div>
-            <div class="stat-row"><div class="stat-label">ACCEL</div><div class="stat-bar-bg"><div class="stat-bar-fill" id="statAccel"></div></div></div>
-            <div class="stat-row"><div class="stat-label">SUSPENSION</div><div class="stat-bar-bg"><div class="stat-bar-fill" id="statSusp"></div></div></div>
-            <div class="stat-row"><div class="stat-label">STABILITY</div><div class="stat-bar-bg"><div class="stat-bar-fill" id="statStabil"></div></div></div>
-        </div>
+    <div class="bike-stats">
+        <div class="bike-name" id="menuBikeName">CTM 300 EXC</div>
+        <div class="stat-row"><div class="stat-label">SPEED</div><div class="stat-bar-bg"><div class="stat-bar-fill" id="statSpeed"></div></div></div>
+        <div class="stat-row"><div class="stat-label">ACCEL</div><div class="stat-bar-bg"><div class="stat-bar-fill" id="statAccel"></div></div></div>
+        <div class="stat-row"><div class="stat-label">SUSPENSION</div><div class="stat-bar-bg"><div class="stat-bar-fill" id="statSusp"></div></div></div>
+        <div class="stat-row"><div class="stat-label">STABILITY</div><div class="stat-bar-bg"><div class="stat-bar-fill" id="statStabil"></div></div></div>
+    </div>
+
+    <div class="bike-carousel">
+        <button class="sprite-btn btn-left" id="btnPrevBike"></button>
+        <canvas id="menuBikeCanvas" width="220" height="130"></canvas>
+        <button class="sprite-btn btn-right" id="btnNextBike"></button>
     </div>
 
     <button class="sprite-btn btn-play" id="btnMenuPlay"></button>
 </div>
 
-<!-- ================= ИГРОВОЙ ИНТЕРФЕЙС ================= -->
+<!-- ИГРОВОЙ ИНТЕРФЕЙС -->
 <div class="ui-layer hidden" id="gameUI">
     <div class="top-bar">
         <div class="stats-left">
@@ -224,14 +255,14 @@
     </button>
 
     <div class="controls" id="controls">
-        <div class="btn" id="btnLeanBack"><svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg></div>
-        <div class="btn" id="btnLeanForward"><svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/></svg></div>
-        <div class="btn" id="btnGas"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>
-        <div class="btn" id="btnBrake"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" /></svg></div>
+        <div class="btn-game" id="btnLeanBack"><svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg></div>
+        <div class="btn-game" id="btnLeanForward"><svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/></svg></div>
+        <div class="btn-game" id="btnGas"><svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>
+        <div class="btn-game" id="btnBrake"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" /></svg></div>
     </div>
 </div>
 
-<!-- ================= ЭКРАН ПАУЗЫ ================= -->
+<!-- ЭКРАН ПАУЗЫ -->
 <div class="overlay hidden" id="pauseScreen">
     <div class="pause-title">PAUSED</div>
     <button class="pause-btn" id="btnResume">CONTINUE</button>
@@ -239,7 +270,7 @@
     <button class="pause-btn" id="btnHomePause">MAIN MENU</button>
 </div>
 
-<!-- ================= ЭКРАН СМЕРТИ ================= -->
+<!-- ЭКРАН СМЕРТИ -->
 <div class="overlay" id="gameOverScreen">
     <div class="score-header">SCORE</div>
     <div class="score-list">
@@ -261,13 +292,12 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v15.2</div>
+<div class="version-text">v15.5</div>
 
 <script>
-    // --- ПЕРЕМЕННЫЕ СОСТОЯНИЯ ---
     let gameState = 'splash'; 
+    let splashStarted = false;
     
-    // --- ХАРАКТЕРИСТИКИ БАЙКОВ ---
     const BIKE_CATALOG = [
         { id: 'cayo', name: "CAYO 125 TRAIL", density: 2.2, suspension: { freq: 4.5, damp: 0.8 }, motor: { speed: 35, torque: 40, brake: 50 } },
         { id: 'ctm', name: "CTM 300 EXC", density: 1.2, suspension: { freq: 5.5, damp: 0.7 }, motor: { speed: 50, torque: 60, brake: 100 } }
@@ -275,7 +305,6 @@
     let currentBikeIndex = 1; 
     let currentBike = BIKE_CATALOG[currentBikeIndex];
 
-    // --- ДАННЫЕ ИГРЫ ---
     let totalCoins = parseInt(localStorage.getItem('totalCoins')) || 0;
     let maxDistance = parseInt(localStorage.getItem('bestDistance')) || 0;
     
@@ -286,7 +315,6 @@
     let maxStoppieTime = 0, currentStoppieTime = 0;
     let particles = [], dustTimer = 0;
 
-    // --- НАСТРОЙКИ МИРА ---
     const SCALE = 30; 
     let groundY = 0; 
     const startX = 50000;
@@ -303,21 +331,12 @@
         canvas.height = window.innerHeight;
         groundY = canvas.height - 80; 
     }
-    window.addEventListener('resize', () => { checkOrientation(); resizeCanvas(); });
 
-    function checkOrientation() {
-        const rotate = document.getElementById('rotateDevice');
-        if (window.innerHeight > window.innerWidth) {
-            rotate.style.display = 'flex';
-            canvas.style.display = 'none';
-        } else {
-            rotate.style.display = 'none';
-            canvas.style.display = 'block';
-        }
-    }
-
-    // --- ЛОГИКА ЗАСТАВКИ ---
-    window.addEventListener('load', () => {
+    // Запуск заставки (только когда игрок в горизонтальном положении)
+    function startSplashSequence() {
+        if (splashStarted) return;
+        splashStarted = true;
+        
         setTimeout(() => {
             const splash = document.getElementById('splashScreen');
             splash.style.opacity = '0';
@@ -328,9 +347,117 @@
                 updateMenuUI();
             }, 800);
         }, 2000);
-    });
+    }
 
-    // --- ОТРИСОВКА БАЙКА В МЕНЮ (С КОЛЕСАМИ) ---
+    function checkOrientation() {
+        const rotate = document.getElementById('rotateDevice');
+        if (window.innerHeight > window.innerWidth) {
+            // Портретный режим
+            rotate.style.display = 'flex';
+        } else {
+            // Ландшафтный режим
+            rotate.style.display = 'none';
+            
+            // Если мы на экране заставки и телефон только что повернули - запускаем её
+            if (gameState === 'splash') {
+                startSplashSequence();
+            }
+        }
+    }
+    
+    window.addEventListener('resize', () => { checkOrientation(); resizeCanvas(); });
+    window.addEventListener('orientationchange', () => setTimeout(() => { checkOrientation(); resizeCanvas(); }, 200));
+
+    // --- АУДИО СИСТЕМА ---
+    let audioCtx, idleBuffer, popBuffer, windBuffer, revBuffer;
+    let idleSource, windSource, revSource;
+    let idleGain, revGain, windGain, revFilter, revTremoloGain, revLfoTone, revLfoToneGain, revLfoVol, revLfoVolGain;
+    let isAudioInitialized = false, previousGasState = false;
+    let popTimer = 0; 
+
+    async function loadAudio(url) {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) return null;
+            const arrayBuffer = await response.arrayBuffer();
+            return await audioCtx.decodeAudioData(arrayBuffer);
+        } catch (e) { return null; }
+    }
+
+    function createSeamlessBuffer(buffer, crossfadeTime = 2.0) {
+        const sampleRate = buffer.sampleRate;
+        const crossfadeSamples = Math.floor(crossfadeTime * sampleRate);
+        const originalLength = buffer.length;
+        const newLength = originalLength - crossfadeSamples;
+        if (newLength <= 0) return buffer;
+        const newBuffer = audioCtx.createBuffer(buffer.numberOfChannels, newLength, sampleRate);
+        for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+            const originalData = buffer.getChannelData(channel);
+            const newData = newBuffer.getChannelData(channel);
+            for (let i = 0; i < newLength - crossfadeSamples; i++) newData[i] = originalData[i];
+            for (let i = 0; i < crossfadeSamples; i++) {
+                const ratio = i / crossfadeSamples;
+                newData[newLength - crossfadeSamples + i] = (originalData[newLength - crossfadeSamples + i] * Math.cos(ratio * 0.5 * Math.PI)) + (originalData[i] * Math.sin(ratio * 0.5 * Math.PI));
+            }
+        }
+        return newBuffer;
+    }
+
+    async function initAudio() {
+        if (isAudioInitialized) return;
+        try {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            idleBuffer = await loadAudio('engine_idle.mp3');
+            popBuffer = await loadAudio('engine_pop.mp3');
+            windBuffer = await loadAudio('wind.mp3');
+            let rawRevBuffer = await loadAudio('engine_rev.mp3');
+            if (rawRevBuffer) revBuffer = createSeamlessBuffer(rawRevBuffer, 2.0);
+
+            idleGain = audioCtx.createGain(); revGain = audioCtx.createGain(); windGain = audioCtx.createGain(); revTremoloGain = audioCtx.createGain();
+            idleGain.gain.value = 0; revGain.gain.value = 0; windGain.gain.value = 0; revTremoloGain.gain.value = 0.9; 
+            revFilter = audioCtx.createBiquadFilter(); revFilter.type = 'lowpass'; revFilter.frequency.value = 2500; 
+            idleGain.connect(audioCtx.destination); revFilter.connect(revTremoloGain); revTremoloGain.connect(revGain); revGain.connect(audioCtx.destination); windGain.connect(audioCtx.destination);
+
+            revLfoTone = audioCtx.createOscillator(); revLfoTone.type = 'sine'; revLfoTone.frequency.value = 0.3; 
+            revLfoToneGain = audioCtx.createGain(); revLfoToneGain.gain.value = 0.01; 
+            revLfoTone.connect(revLfoToneGain); revLfoTone.start();
+            revLfoVol = audioCtx.createOscillator(); revLfoVol.type = 'sine'; revLfoVol.frequency.value = 0.2; 
+            revLfoVolGain = audioCtx.createGain(); revLfoVolGain.gain.value = 0.1; 
+            revLfoVol.connect(revLfoVolGain); revLfoVolGain.connect(revTremoloGain.gain); revLfoVol.start();
+
+            if (idleBuffer) { idleSource = audioCtx.createBufferSource(); idleSource.buffer = idleBuffer; idleSource.loop = true; idleSource.connect(idleGain); idleSource.start(); }
+            if (revBuffer) { revSource = audioCtx.createBufferSource(); revSource.buffer = revBuffer; revSource.loop = true; revSource.connect(revFilter); revLfoToneGain.connect(revSource.playbackRate); revSource.start(0); }
+            
+            if (windBuffer) { windSource = audioCtx.createBufferSource(); windSource.buffer = windBuffer; windSource.loop = true; windSource.connect(windGain); windSource.start(); }
+            else {
+                const bufferSize = audioCtx.sampleRate * 2; const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate); const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1; 
+                windSource = audioCtx.createBufferSource(); windSource.buffer = buffer; windSource.loop = true;
+                const windFilter = audioCtx.createBiquadFilter(); windFilter.type = 'lowpass'; windFilter.frequency.value = 600; 
+                windSource.connect(windFilter); windFilter.connect(windGain); windSource.start();
+            }
+            isAudioInitialized = true;
+        } catch (e) { console.log("Ошибка аудио: ", e); }
+    }
+
+    function startRevSound() {
+        if (!isAudioInitialized || !revBuffer) return;
+        if (revSource) { try { revSource.stop(); revLfoToneGain.disconnect(revSource.playbackRate); } catch(e){} }
+        revSource = audioCtx.createBufferSource(); revSource.buffer = revBuffer; revSource.loop = true;
+        revLfoToneGain.connect(revSource.playbackRate); revSource.connect(revFilter);
+        const randomOffset = Math.random() * (revBuffer.duration - 1); revSource.start(0, randomOffset);
+    }
+
+    function playPop() {
+        if (!popBuffer || !audioCtx) return;
+        const popSource = audioCtx.createBufferSource(); const popGain = audioCtx.createGain();
+        popSource.buffer = popBuffer; popSource.connect(popGain); popGain.connect(audioCtx.destination); popGain.gain.value = 1.0; popSource.start();
+    }
+
+    // --- ОТРИСОВКА БАЙКА В МЕНЮ ---
     const bikeImage = new Image(); 
     bikeImage.src = 'moto.png';
     const menuCanvas = document.getElementById('menuBikeCanvas');
@@ -339,44 +466,28 @@
     function drawMenuBike() {
         menuCtx.clearRect(0, 0, menuCanvas.width, menuCanvas.height);
         menuCtx.save();
-        
-        // Центр канваса
         menuCtx.translate(menuCanvas.width / 2, menuCanvas.height / 2);
         
-        // Рисуем раму (moto.png)
         if (bikeImage.complete && bikeImage.naturalWidth !== 0) {
             menuCtx.drawImage(bikeImage, -45, -45, 90, 54);
         }
         
-        // Рисуем колеса (копируем логику из игры)
-        let r = 10;
-        let wheelBase = 23;
+        let r = 10; let wheelBase = 23;
         
-        // Заднее колесо (левое)
         menuCtx.beginPath(); menuCtx.arc(-wheelBase, 0, r, 0, Math.PI * 2); menuCtx.fillStyle = '#000'; menuCtx.fill();
         menuCtx.beginPath(); menuCtx.arc(-wheelBase, 0, r - 3.5, 0, Math.PI * 2); menuCtx.strokeStyle = '#222'; menuCtx.lineWidth = 2; menuCtx.stroke();
         menuCtx.strokeStyle = '#555'; menuCtx.lineWidth = 1;
-        for (let i = 0; i < 6; i++) {
-            let a = (i / 6) * Math.PI * 2;
-            menuCtx.beginPath(); menuCtx.moveTo(-wheelBase, 0); menuCtx.lineTo(-wheelBase + Math.cos(a) * (r - 3.5), Math.sin(a) * (r - 3.5)); menuCtx.stroke();
-        }
+        for (let i = 0; i < 6; i++) { let a = (i / 6) * Math.PI * 2; menuCtx.beginPath(); menuCtx.moveTo(-wheelBase, 0); menuCtx.lineTo(-wheelBase + Math.cos(a) * (r - 3.5), Math.sin(a) * (r - 3.5)); menuCtx.stroke(); }
         
-        // Переднее колесо (правое)
         menuCtx.beginPath(); menuCtx.arc(wheelBase, 0, r, 0, Math.PI * 2); menuCtx.fillStyle = '#000'; menuCtx.fill();
         menuCtx.beginPath(); menuCtx.arc(wheelBase, 0, r - 3.5, 0, Math.PI * 2); menuCtx.strokeStyle = '#222'; menuCtx.lineWidth = 2; menuCtx.stroke();
         menuCtx.strokeStyle = '#555'; menuCtx.lineWidth = 1;
-        for (let i = 0; i < 6; i++) {
-            let a = (i / 6) * Math.PI * 2;
-            menuCtx.beginPath(); menuCtx.moveTo(wheelBase, 0); menuCtx.lineTo(wheelBase + Math.cos(a) * (r - 3.5), Math.sin(a) * (r - 3.5)); menuCtx.stroke();
-        }
+        for (let i = 0; i < 6; i++) { let a = (i / 6) * Math.PI * 2; menuCtx.beginPath(); menuCtx.moveTo(wheelBase, 0); menuCtx.lineTo(wheelBase + Math.cos(a) * (r - 3.5), Math.sin(a) * (r - 3.5)); menuCtx.stroke(); }
         
         menuCtx.restore();
     }
-
-    // Вызываем отрисовку байка, когда картинка загрузится
     bikeImage.onload = () => { drawMenuBike(); };
 
-    // --- ОБНОВЛЕНИЕ UI МЕНЮ ---
     function updateMenuUI() {
         currentBike = BIKE_CATALOG[currentBikeIndex];
         document.getElementById('menuBikeName').innerText = currentBike.name;
@@ -392,23 +503,18 @@
         document.getElementById('statSusp').style.width = Math.min(100, suspPct) + '%';
         document.getElementById('statStabil').style.width = Math.min(100, stabilPct) + '%';
         
-        drawMenuBike(); // Перерисовываем байк при смене
+        drawMenuBike();
     }
 
-    // --- ФИЗИКА ---
+    // --- ФИЗИКА И МИР ---
     const pl = planck;
     const world = new pl.World({ gravity: pl.Vec2(0, 10) });
 
     world.on('begin-contact', (contact) => {
         if (gameState !== 'playing') return;
-        const fixA = contact.getFixtureA();
-        const fixB = contact.getFixtureB();
-        const dataA = fixA.getUserData();
-        const dataB = fixB.getUserData();
-
-        if ((dataA === 'head' && dataB === 'terrain') || (dataB === 'head' && dataA === 'terrain')) {
-            triggerGameOver();
-        }
+        const fixA = contact.getFixtureA(); const fixB = contact.getFixtureB();
+        const dataA = fixA.getUserData(); const dataB = fixB.getUserData();
+        if ((dataA === 'head' && dataB === 'terrain') || (dataB === 'head' && dataA === 'terrain')) triggerGameOver();
     });
 
     function hash32(a, b, c) {
@@ -419,9 +525,7 @@
         return (h >>> 0) / 4294967296;
     }
 
-    let sessionSeed = 0;
-    const zoneCache = new Map(); 
-
+    let sessionSeed = 0; const zoneCache = new Map(); 
     function getDepthForDist(distM) {
         if (distM < 800)   return null;
         if (distM < 2000)  return { min: 15, max: 20 };
@@ -429,38 +533,22 @@
         if (distM < 10000) return { min: 35, max: 45 };   
         return { min: 45, max: 60 };                       
     }
-
     function erosionProfile(localX, entryW, floorW, exitW, depth, slope) {
         let total = entryW + floorW + exitW;
         if (localX < 0 || localX > total) return 0;
-        if (localX < entryW) {
-            let t = localX / entryW;
-            return depth * t * t * (3 - 2 * t);
-        }
-        if (localX < entryW + floorW) {
-            let t = (localX - entryW) / floorW;
-            return depth + slope * t;
-        }
-        let t = (localX - entryW - floorW) / exitW;
-        return (depth + slope) * (1 - t * t * (3 - 2 * t));
+        if (localX < entryW) { let t = localX / entryW; return depth * t * t * (3 - 2 * t); }
+        if (localX < entryW + floorW) { let t = (localX - entryW) / floorW; return depth + slope * t; }
+        let t = (localX - entryW - floorW) / exitW; return (depth + slope) * (1 - t * t * (3 - 2 * t));
     }
-
     function getTerrainYNoErosion(x) {
-        let y = groundY;
-        let u = x + terrainOffset;
-        let distFromStart = x - startX;
-
+        let y = groundY; let u = x + terrainOffset; let distFromStart = x - startX;
         let hillScale = Math.min(2.0, 1.0 + (Math.max(0, distFromStart) / 20000));
         let baseHill = Math.sin(u * 0.001) * 80 * hillScale;
-        
         let micro = Math.sin(u * 0.015) * 2; 
-
         let shape = Math.pow(Math.sin(u * 0.003), 3) * 180;
         let gate = Math.pow(Math.max(0, Math.sin(u * 0.00125)), 6);
         let kicker = shape * gate;
-
         let mathY = y - baseHill - kicker - micro;
-
         if (distFromStart < 1000) {
             let factor = Math.max(0, distFromStart / 1000);
             let flatY = groundY - (distFromStart * 0.02);
@@ -468,94 +556,56 @@
         }
         return mathY;
     }
-
     function isOnKicker(x) {
-        let u = x + terrainOffset;
-        let shape = Math.pow(Math.sin(u * 0.003), 3) * 180;
-        let gate = Math.pow(Math.max(0, Math.sin(u * 0.00125)), 6);
+        let u = x + terrainOffset; let shape = Math.pow(Math.sin(u * 0.003), 3) * 180; let gate = Math.pow(Math.max(0, Math.sin(u * 0.00125)), 6);
         return Math.abs(shape * gate) > 50;
     }
-
     function buildErosionZone(chunkStart, chunkIndex, zoneIdx, depthRange, widthTier) {
-        let entryMin = depthRange.min * 1.5;
-        let entryMax = depthRange.max * 2.5;
-        let exitMin = depthRange.min * 1.2;
-        let exitMax = depthRange.max * 2.0;
-        
+        let entryMin = depthRange.min * 1.5; let entryMax = depthRange.max * 2.5; let exitMin = depthRange.min * 1.2; let exitMax = depthRange.max * 2.0;
         let gapMin, gapMax, countMin, countMax;
-        if (widthTier === 1) { gapMin = 15; gapMax = 35; countMin = 1; countMax = 3; } 
-        else if (widthTier === 2) { gapMin = 10; gapMax = 25; countMin = 2; countMax = 4; } 
-        else { gapMin = 8; gapMax = 20; countMin = 3; countMax = 5; }
-
+        if (widthTier === 1) { gapMin = 15; gapMax = 35; countMin = 1; countMax = 3; } else if (widthTier === 2) { gapMin = 10; gapMax = 25; countMin = 2; countMax = 4; } else { gapMin = 8; gapMax = 20; countMin = 3; countMax = 5; }
         let zoneLength = 600 + hash32(sessionSeed, chunkIndex, 2 + zoneIdx * 10) * 600;
         let zoneStart = chunkStart + 1500 + hash32(sessionSeed, chunkIndex, 1 + zoneIdx * 10) * 6000;
-
         let attempts = 0;
-        while (attempts < 3 && (isOnKicker(zoneStart) || isOnKicker(zoneStart + zoneLength))) {
-            zoneStart += 500; attempts++;
-        }
+        while (attempts < 3 && (isOnKicker(zoneStart) || isOnKicker(zoneStart + zoneLength))) { zoneStart += 500; attempts++; }
         if (zoneStart + zoneLength > chunkStart + 9900) return null;
-
         let count = countMin + Math.floor(hash32(sessionSeed, chunkIndex, 3 + zoneIdx * 10) * (countMax - countMin + 1));
         let holes = [], cursor = 0;
-
         for (let i = 0; i < count; i++) {
             if (i > 0) cursor += gapMin + hash32(sessionSeed, chunkIndex, 100 + i + zoneIdx * 20) * (gapMax - gapMin);
-            
             let entryW = entryMin + hash32(sessionSeed, chunkIndex, 200 + i + zoneIdx * 20) * (entryMax - entryMin);
             let floorW = 15 + hash32(sessionSeed, chunkIndex, 300 + i + zoneIdx * 20) * 15;
             let exitW  = exitMin + hash32(sessionSeed, chunkIndex, 400 + i + zoneIdx * 20) * (exitMax - exitMin);
             let totalW = entryW + floorW + exitW;
             if (cursor + totalW > zoneLength) break;
-
             let depth = depthRange.min + hash32(sessionSeed, chunkIndex, 500 + i + zoneIdx * 20) * (depthRange.max - depthRange.min);
             let slope = (hash32(sessionSeed, chunkIndex, 600 + i + zoneIdx * 20) - 0.5) * 6;
-
             holes.push({ x: zoneStart + cursor, entryW, floorW, exitW, depth, slope });
             cursor += totalW;
         }
-
         if (holes.length === 0) return null;
-        return { type: 'erosion', start: zoneStart, end: zoneStart + zoneLength, holes: holes, pebbles: [] };
+        return { type: 'erosion', start: zoneStart, end: zoneStart + zoneLength, holes: holes };
     }
-
     function computeZones(chunkIndex) {
-        let chunkStart = chunkIndex * 10000;
-        let chunkDistM = chunkStart / 10;
-        let depthRange = getDepthForDist(chunkDistM);
-        if (!depthRange) return [];
-
-        let zoneCount = 1;
-        if (chunkDistM >= 12000) zoneCount = 3;
-        else if (chunkDistM >= 6000) zoneCount = 2;
-
-        let widthTier = 1;
-        if (chunkDistM >= 10000) widthTier = 3;
-        else if (chunkDistM >= 5000) widthTier = 2;
-
+        let chunkStart = chunkIndex * 10000; let chunkDistM = chunkStart / 10;
+        let depthRange = getDepthForDist(chunkDistM); if (!depthRange) return [];
+        let zoneCount = 1; if (chunkDistM >= 12000) zoneCount = 3; else if (chunkDistM >= 6000) zoneCount = 2;
+        let widthTier = 1; if (chunkDistM >= 10000) widthTier = 3; else if (chunkDistM >= 5000) widthTier = 2;
         let zones = [];
-        for (let i = 0; i < zoneCount; i++) {
-            let zone = buildErosionZone(chunkStart, chunkIndex, i, depthRange, widthTier);
-            if (zone) zones.push(zone);
-        }
+        for (let i = 0; i < zoneCount; i++) { let zone = buildErosionZone(chunkStart, chunkIndex, i, depthRange, widthTier); if (zone) zones.push(zone); }
         return zones;
     }
-
     function getZonesCached(chunkIndex) {
         if (!zoneCache.has(chunkIndex)) zoneCache.set(chunkIndex, computeZones(chunkIndex));
         return zoneCache.get(chunkIndex);
     }
-
     function getTerrainY(x) {
-        let mathY = getTerrainYNoErosion(x);
-        let zones = getZonesCached(Math.floor(x / 10000));
+        let mathY = getTerrainYNoErosion(x); let zones = getZonesCached(Math.floor(x / 10000));
         for (let zone of zones) {
             if (x >= zone.start && x <= zone.end) {
                 for (let h of zone.holes) {
                     let lx = x - h.x;
-                    if (lx >= 0 && lx <= h.entryW + h.floorW + h.exitW) {
-                        mathY += erosionProfile(lx, h.entryW, h.floorW, h.exitW, h.depth, h.slope);
-                    }
+                    if (lx >= 0 && lx <= h.entryW + h.floorW + h.exitW) mathY += erosionProfile(lx, h.entryW, h.floorW, h.exitW, h.depth, h.slope);
                 }
             }
         }
@@ -566,9 +616,7 @@
     function generateTerrain() {
         while (lastGeneratedX < cameraX + (canvas.width / zoom) + 1000) {
             let vertices = [];
-            for (let i = 0; i <= 200; i++) {
-                vertices.push(pl.Vec2((lastGeneratedX + i) / SCALE, getTerrainY(lastGeneratedX + i) / SCALE));
-            }
+            for (let i = 0; i <= 200; i++) vertices.push(pl.Vec2((lastGeneratedX + i) / SCALE, getTerrainY(lastGeneratedX + i) / SCALE));
             const chain = world.createBody();
             let fixture = chain.createFixture(pl.Chain(vertices, false), { friction: 1.0, restitution: 0.0 });
             fixture.setUserData('terrain');
@@ -576,35 +624,24 @@
             lastGeneratedX += 200;
         }
     }
-
     function cleanupTerrain() {
         for (let i = terrainBodies.length - 1; i >= 0; i--) {
-            if (terrainBodies[i].endX < cameraX - 1500) {
-                world.destroyBody(terrainBodies[i].body);
-                terrainBodies.splice(i, 1);
-            }
+            if (terrainBodies[i].endX < cameraX - 1500) { world.destroyBody(terrainBodies[i].body); terrainBodies.splice(i, 1); }
         }
     }
 
-    // --- БАЙК В ИГРЕ ---
-    const wheelRadius = 10 / SCALE; 
-    const wheelBase = 23 / SCALE; 
+    const wheelRadius = 10 / SCALE; const wheelBase = 23 / SCALE; 
     let chassis, wheelRear, wheelFront, jointRear, jointFront;
 
     function createBike(x, y) {
         if (chassis) { world.destroyBody(chassis); world.destroyBody(wheelRear); world.destroyBody(wheelFront); }
-
         chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic', bullet: true });
         chassis.createFixture(pl.Box(53 / SCALE / 2, 6 / SCALE / 2, pl.Vec2(0, -18 / SCALE)), { density: currentBike.density, friction: 0.3 });
-
-        let headShape = pl.Circle(8 / SCALE);
-        headShape.m_p.set(0, -35 / SCALE);
-        let headFixture = chassis.createFixture(headShape, { isSensor: true });
-        headFixture.setUserData('head');
+        let headShape = pl.Circle(8 / SCALE); headShape.m_p.set(0, -35 / SCALE);
+        let headFixture = chassis.createFixture(headShape, { isSensor: true }); headFixture.setUserData('head');
 
         wheelRear = world.createBody({ position: pl.Vec2((x - wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic', bullet: true });
         wheelRear.createFixture(pl.Circle(wheelRadius), { density: 1.0, friction: 1.0 });
-
         wheelFront = world.createBody({ position: pl.Vec2((x + wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic', bullet: true });
         wheelFront.createFixture(pl.Circle(wheelRadius), { density: 1.0, friction: 1.0 });
 
@@ -612,7 +649,6 @@
         jointFront = world.createJoint(pl.WheelJoint({ motorSpeed: 0, maxMotorTorque: currentBike.motor.torque, enableMotor: true, frequencyHz: currentBike.suspension.freq, dampingRatio: currentBike.suspension.damp }, chassis, wheelFront, wheelFront.getPosition(), pl.Vec2(0, 1)));
     }
     
-    // --- УПРАВЛЕНИЕ ---
     window.isGas = false; window.isBrake = false; window.isLeanBack = false; window.isLeanForward = false;
 
     function bindBtn(id, variableName) {
@@ -628,6 +664,7 @@
 
     // --- СМЕНА СОСТОЯНИЙ ---
     document.getElementById('btnMenuPlay').addEventListener('click', () => {
+        initAudio(); 
         document.getElementById('mainMenu').classList.add('hidden');
         document.getElementById('gameUI').classList.remove('hidden');
         document.getElementById('gameOverScreen').style.display = 'none';
@@ -642,18 +679,15 @@
             document.getElementById('pauseScreen').classList.remove('hidden');
         }
     });
-
     document.getElementById('btnResume').addEventListener('click', () => {
         gameState = 'playing';
         document.getElementById('pauseScreen').classList.add('hidden');
     });
-
     document.getElementById('btnRestartPause').addEventListener('click', () => {
         document.getElementById('pauseScreen').classList.add('hidden');
         gameState = 'playing';
         resetGame();
     });
-
     document.getElementById('btnHomePause').addEventListener('click', () => {
         document.getElementById('pauseScreen').classList.add('hidden');
         document.getElementById('gameUI').classList.add('hidden');
@@ -661,13 +695,11 @@
         gameState = 'menu';
         updateMenuUI();
     });
-
     document.getElementById('btnRestartGameOver').addEventListener('click', () => {
         document.getElementById('gameOverScreen').style.display = 'none';
         gameState = 'playing';
         resetGame();
     });
-
     document.getElementById('btnHomeGameOver').addEventListener('click', () => {
         document.getElementById('gameOverScreen').style.display = 'none';
         document.getElementById('gameUI').classList.add('hidden');
@@ -685,38 +717,31 @@
         updateMenuUI();
     });
 
-    // --- СБРОС ИГРЫ ---
     function resetGame() {
-        sessionSeed = Math.floor(Math.random() * 0xFFFFFFFF);
-        zoneCache.clear();
-        terrainOffset = Math.random() * 10000;
-        
+        sessionSeed = Math.floor(Math.random() * 0xFFFFFFFF); zoneCache.clear(); terrainOffset = Math.random() * 10000;
         for (let b of terrainBodies) world.destroyBody(b.body);
-        terrainBodies = []; lastGeneratedX = startX - 1500; 
-        cameraX = startX - (canvas.width * 0.3);
-        
-        createBike(startX, getTerrainY(startX) - 60);
-        generateTerrain();
+        terrainBodies = []; lastGeneratedX = startX - 1500; cameraX = startX - (canvas.width * 0.3);
+        createBike(startX, getTerrainY(startX) - 60); generateTerrain();
 
         window.isGas = false; window.isBrake = false; window.isLeanBack = false; window.isLeanForward = false;
-        maxAirTime = 0; currentAirTime = 0; frontflipCount = 0; backflipCount = 0;
-        flipCounted = false; accumulatedRotation = 0; lastAngle = chassis.getAngle();
-        maxWheelieTime = 0; currentWheelieTime = 0; maxStoppieTime = 0; currentStoppieTime = 0;
-        particles = []; dustTimer = 0;
+        maxAirTime = 0; currentAirTime = 0; frontflipCount = 0; backflipCount = 0; flipCounted = false;
+        accumulatedRotation = 0; lastAngle = chassis.getAngle(); maxWheelieTime = 0; currentWheelieTime = 0;
+        maxStoppieTime = 0; currentStoppieTime = 0; particles = []; dustTimer = 0; popTimer = 0;
         
         document.getElementById('coinBalanceText').innerText = totalCoins;
         document.getElementById('distanceText').innerText = "0";
+        
+        if (isAudioInitialized) {
+            idleGain.gain.setValueAtTime(0.4, audioCtx.currentTime); revGain.gain.setValueAtTime(0, audioCtx.currentTime); windGain.gain.setValueAtTime(0, audioCtx.currentTime);
+            if (revFilter) revFilter.frequency.value = 2500; startRevSound();
+        }
     }
 
     function triggerGameOver() {
-        gameState = 'gameover';
-        window.isGas = false; 
-        
+        gameState = 'gameover'; window.isGas = false; 
         let dist = Math.max(0, Math.floor(((chassis.getPosition().x * SCALE) - startX) / 10));
         let earnedCoins = Math.floor(dist / 100) + Math.floor(maxAirTime) + (frontflipCount + backflipCount) * 10;
-        
-        totalCoins += earnedCoins;
-        localStorage.setItem('totalCoins', totalCoins);
+        totalCoins += earnedCoins; localStorage.setItem('totalCoins', totalCoins);
         if (dist > maxDistance) { maxDistance = dist; localStorage.setItem('bestDistance', maxDistance); }
         
         document.getElementById('go-distance').innerText = dist + "m";
@@ -724,17 +749,14 @@
         document.getElementById('go-flips').innerText = (frontflipCount + backflipCount);
         document.getElementById('go-highscore').innerText = maxDistance + "m";
         document.getElementById('go-coins').innerText = earnedCoins;
-        
         document.getElementById('gameOverScreen').style.display = 'flex';
+        
+        if (isAudioInitialized) { idleGain.gain.setValueAtTime(0, audioCtx.currentTime); revGain.gain.setValueAtTime(0, audioCtx.currentTime); windGain.gain.setValueAtTime(0, audioCtx.currentTime); }
     }
 
-    // --- ОТРИСОВКА СКАЛИСТЫХ ГОР ---
     function drawMountainLayer(yOffset, height, color, parallaxOffset) {
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        let startDrawX = Math.floor(cameraX) - 100; 
-        let endDrawX = Math.floor(cameraX) + (canvas.width / zoom) + 100;
-        
+        ctx.fillStyle = color; ctx.beginPath();
+        let startDrawX = Math.floor(cameraX) - 100; let endDrawX = Math.floor(cameraX) + (canvas.width / zoom) + 100;
         ctx.moveTo(startDrawX, groundY + 2000);
         for (let x = startDrawX; x <= endDrawX; x += 10) {
             let worldX = x + parallaxOffset;
@@ -743,15 +765,13 @@
             let y = groundY - yOffset - jagged - noise;
             ctx.lineTo(x, y);
         }
-        ctx.lineTo(endDrawX, groundY + 2000); 
-        ctx.closePath(); ctx.fill();
+        ctx.lineTo(endDrawX, groundY + 2000); ctx.closePath(); ctx.fill();
     }
 
     function drawTerrain() {
         ctx.fillStyle = '#000'; ctx.strokeStyle = '#000'; ctx.lineWidth = 4; 
         ctx.beginPath(); ctx.moveTo(cameraX - 100, groundY + 2000);
-        let startDrawX = Math.floor(cameraX) - 100;
-        let endDrawX = Math.floor(cameraX) + (canvas.width / zoom) + 100;
+        let startDrawX = Math.floor(cameraX) - 100; let endDrawX = Math.floor(cameraX) + (canvas.width / zoom) + 100;
         for (let x = startDrawX; x <= endDrawX; x += 2) ctx.lineTo(x, getTerrainY(x));
         ctx.lineTo(endDrawX, groundY + 2000); ctx.closePath(); ctx.fill(); ctx.stroke();
     }
@@ -769,16 +789,11 @@
         ctx.restore();
     }
 
-    // --- ПЫЛЬ ---
     function spawnDust(x, y, speedX, type) {
         if (particles.length > 80) return;
         let count = type === 'brake' ? 2 : 1, baseVy = type === 'brake' ? -5 : -2;
         for (let i = 0; i < count; i++) {
-            particles.push({
-                x: x + (Math.random() - 0.5) * 8, y: y, baseVx: -Math.random() * 3, vy: baseVy,
-                radius: 3 + Math.random() * 4, growth: 1 + Math.random(), alphaMax: 0.4, alpha: 0.4,
-                age: 0, maxAge: 1.0 + Math.random()
-            });
+            particles.push({ x: x + (Math.random() - 0.5) * 8, y: y, baseVx: -Math.random() * 3, vy: baseVy, radius: 3 + Math.random() * 4, growth: 1 + Math.random(), alphaMax: 0.4, alpha: 0.4, age: 0, maxAge: 1.0 + Math.random() });
         }
     }
     function updateParticles(dt) {
@@ -798,7 +813,6 @@
         }
     }
 
-    // --- ГЛАВНЫЙ ЦИКЛ ---
     let lastTime = performance.now();
     function update() {
         requestAnimationFrame(update);
@@ -811,19 +825,16 @@
             let wheelSpeed = Math.abs(wheelRear.getAngularVelocity());
             let linearSpeed = Math.abs(chassis.getLinearVelocity().x) * SCALE; 
             
-            let chassisX = chassis.getPosition().x * SCALE;
-            let chassisY = chassis.getPosition().y * SCALE;
+            let chassisX = chassis.getPosition().x * SCALE; let chassisY = chassis.getPosition().y * SCALE;
             let groundUnder = getTerrainY(chassisX);
             let isAirborne = (chassisY < groundUnder - 25); 
             
-            let angle = chassis.getAngle();
-            let deltaAngle = angle - lastAngle;
+            let angle = chassis.getAngle(); let deltaAngle = angle - lastAngle;
             if (deltaAngle > Math.PI) deltaAngle -= 2 * Math.PI;
             if (deltaAngle < -Math.PI) deltaAngle += 2 * Math.PI;
             
             if (isAirborne) {
-                accumulatedRotation += deltaAngle;
-                currentAirTime += dt;
+                accumulatedRotation += deltaAngle; currentAirTime += dt;
                 if (currentAirTime > maxAirTime) maxAirTime = currentAirTime;
                 if (!flipCounted && Math.abs(accumulatedRotation) >= Math.PI * 1.7 && currentAirTime > 0.3) {
                     if (accumulatedRotation > 0) frontflipCount++; else backflipCount++; 
@@ -855,6 +866,26 @@
             if (window.isLeanBack) { if (chassis.getAngularVelocity() > -maxTiltSpeed) chassis.applyTorque(-tiltPower, true); } 
             else if (window.isLeanForward) { if (chassis.getAngularVelocity() < maxTiltSpeed) chassis.applyTorque(tiltPower, true); }
 
+            if (isAudioInitialized) {
+                if (window.isGas) { idleGain.gain.cancelScheduledValues(audioCtx.currentTime); idleGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.05); } 
+                else { idleGain.gain.cancelScheduledValues(audioCtx.currentTime); idleGain.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + 0.1); }
+
+                let targetRev = window.isGas ? 0.8 : 0; let targetWind = Math.min(0.3, 0.05 + wheelSpeed * 0.15); 
+                revGain.gain.setTargetAtTime(targetRev, audioCtx.currentTime, 0.1); windGain.gain.setTargetAtTime(targetWind, audioCtx.currentTime, 0.1);
+
+                if (window.isGas && revSource) {
+                    let targetRate = 1.0 + (wheelSpeed * 0.3); let finalRate = Math.min(1.3, targetRate);
+                    revSource.playbackRate.setTargetAtTime(finalRate, audioCtx.currentTime, 0.1);
+                    let targetFreq = Math.max(1000, 2500 - (wheelSpeed * 1000));
+                    revFilter.frequency.setTargetAtTime(targetFreq, audioCtx.currentTime, 0.1);
+                    previousGasState = true;
+                } else { previousGasState = false; }
+
+                if (!window.isGas && wheelSpeed > 2) {
+                    popTimer += dt; if (popTimer > 1.0 && Math.random() < 0.02) { playPop(); popTimer = 0; }
+                } else { popTimer = 0; }
+            }
+
             if (chassis.getPosition().y > groundY + 1000) triggerGameOver();
 
             let targetCameraX = (chassis.getPosition().x * SCALE) - ((canvas.width * 0.3) / zoom);
@@ -872,7 +903,6 @@
 
         if (gameState === 'playing' || gameState === 'gameover' || gameState === 'paused') {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
             const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
             gradient.addColorStop(0, '#2b0b46'); gradient.addColorStop(0.4, '#842a66'); gradient.addColorStop(0.7, '#e65c41'); gradient.addColorStop(1, '#f5a354');
             ctx.fillStyle = gradient; ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -890,7 +920,6 @@
 
             ctx.save(); ctx.scale(zoom, zoom); ctx.translate(0, cameraY); ctx.translate(-cameraX, 0);
             drawTerrain();
-            
             if (gameState !== 'gameover' && chassis) {
                 drawParticles(); 
                 ctx.save(); ctx.translate(chassis.getPosition().x * SCALE, chassis.getPosition().y * SCALE); ctx.rotate(chassis.getAngle());
@@ -903,9 +932,10 @@
     }
 
     // Инициализация
-    checkOrientation();
-    resizeCanvas();
+    window.addEventListener('load', checkOrientation); // Проверка при загрузке
+    checkOrientation(); 
+    resizeCanvas(); 
     update();
 </script>
 </body>
-    </html>
+                                                                                            </html>
