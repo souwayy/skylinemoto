@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v16.1)</title>
+    <title>Nyxride (v16.2)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
@@ -58,39 +58,38 @@
         .btn-settings { background-position: 25% 100%; width: 50px; height: 50px; }
         .btn-quests { background-position: 50% 100%; width: 50px; height: 50px; }
         
+        /* Кнопка PLAY (Правый нижний угол) */
         .btn-play { 
-    background-position: 0% 0%; background-size: 100% 200%; 
-    width: 200px; height: 70px; /* Чуть уменьшили ширину */
-    position: absolute; 
-    bottom: 90px; /* Подняли кнопку ещё выше */
-    right: 20px; /* Оставили прижатой к правому краю */
-    z-index: 20; 
+            background-position: 0% 0%; background-size: 100% 200%; 
+            width: 190px; height: 65px; 
+            position: absolute; bottom: 20px; right: 20px; 
+            z-index: 20; 
         }
 
-        /* Статистика (Увеличена ширина, сдвинута влево) */
+        /* Статистика */
         .bike-stats {
             position: absolute; top: 45%; left: 10px; transform: translateY(-50%);
-            width: 280px; pointer-events: none; background: rgba(10, 5, 15, 0.85);
-            padding: 15px; border-radius: 10px; border: 2px solid rgba(255,255,255,0.15); z-index: 10;
+            width: 230px; padding: 10px;
+            pointer-events: none; background: rgba(10, 5, 15, 0.85);
+            border-radius: 10px; border: 2px solid rgba(255,255,255,0.15); z-index: 10;
             backdrop-filter: blur(5px); box-shadow: 0 10px 30px rgba(0,0,0,0.8);
         }
-        .bike-name { color: #fff; font-size: 18px; font-weight: 900; text-align: center; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
-        .stat-row { display: flex; align-items: center; margin-bottom: 10px; }
-        .stat-label { color: #ccc; font-size: 13px; width: 110px; font-weight: bold; } /* Ширина увеличена, чтобы влезло "СТАБИЛЬНОСТЬ" */
-        .stat-bar-bg { flex-grow: 1; height: 10px; background: #222; border-radius: 5px; overflow: hidden; border: 1px solid #000; }
+        .bike-name { color: #fff; font-size: 16px; font-weight: 900; text-align: center; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+        .stat-row { display: flex; align-items: center; margin-bottom: 6px; }
+        .stat-label { color: #ccc; font-size: 12px; width: 105px; font-weight: bold; }
+        .stat-bar-bg { flex-grow: 1; height: 8px; background: #222; border-radius: 4px; overflow: hidden; border: 1px solid #000; }
         .stat-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #ff3333, #ffcc00, #33ff33); transition: width 0.4s ease; }
 
+        /* Байк и стрелки (Стрелки вплотную) */
         .bike-carousel {
-    position: absolute; bottom: 2%; left: 50%; transform: translateX(-50%);
-    display: flex; align-items: flex-end; 
-    justify-content: center; 
-    gap: 0px; /* Убрали отступ, чтобы стрелки не вылезали */
-    pointer-events: auto; z-index: 10;
+            position: absolute; bottom: 2%; left: 52%; transform: translateX(-50%);
+            display: flex; align-items: flex-end; 
+            justify-content: center; gap: 5px; pointer-events: auto; z-index: 10;
         }
-        #menuBikeCanvas { width: 320px; height: 200px; filter: drop-shadow(0 15px 15px rgba(0,0,0,0.9)); }
+        #menuBikeCanvas { width: 300px; height: 190px; filter: drop-shadow(0 15px 15px rgba(0,0,0,0.9)); }
         
-        .btn-left { background-position: 75% 100%; width: 50px; height: 50px; margin-bottom: 20px; }
-        .btn-right { background-position: 100% 100%; width: 50px; height: 50px; margin-bottom: 20px; }
+        .btn-left { background-position: 75% 100%; width: 50px; height: 50px; margin-bottom: 50px; }
+        .btn-right { background-position: 100% 100%; width: 50px; height: 50px; margin-bottom: 50px; }
 
         /* --- ИГРОВОЙ ИНТЕРФЕЙС --- */
         .ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
@@ -169,22 +168,18 @@
         </div>
     </div>
 
-    .bike-stats {
-    position: absolute; top: 45%; left: 10px; transform: translateY(-50%);
-    width: 240px; /* Уменьшили ширину с 280 */
-    padding: 10px; /* Уменьшили отступы */
-    pointer-events: none; background: rgba(10, 5, 15, 0.85);
-    border-radius: 10px; border: 2px solid rgba(255,255,255,0.15); z-index: 10;
-    backdrop-filter: blur(5px); box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-}
-.bike-name { color: #fff; font-size: 16px; font-weight: 900; text-align: center; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
-.stat-row { display: flex; align-items: center; margin-bottom: 6px; } /* Уменьшили отступы между строками */
-    
+    <!-- Статистика -->
+    <div class="bike-stats">
+        <div class="bike-name" id="menuBikeName">CTM 300 EXC</div>
+        <div class="stat-row"><div class="stat-label">СКОРОСТЬ</div><div class="stat-bar-bg"><div class="stat-bar-fill" id="statSpeed"></div></div></div>
+        <div class="stat-row"><div class="stat-label">РАЗГОН</div><div class="stat-bar-bg"><div class="stat-bar-fill" id="statAccel"></div></div></div>
+        <div class="stat-row"><div class="stat-label">СТАБИЛЬНОСТЬ</div><div class="stat-bar-bg"><div class="stat-bar-fill" id="statStabil"></div></div></div>
+    </div>
 
-    <!-- Байк -->
+    <!-- Байк и стрелки -->
     <div class="bike-carousel">
         <button class="sprite-btn btn-left" id="btnPrevBike"></button>
-        <canvas id="menuBikeCanvas" width="320" height="200"></canvas>
+        <canvas id="menuBikeCanvas" width="300" height="190"></canvas>
         <button class="sprite-btn btn-right" id="btnNextBike"></button>
     </div>
 
@@ -240,7 +235,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v16.1</div>
+<div class="version-text">v16.2</div>
 
 <script>
     let gameState = 'splash'; 
@@ -374,7 +369,7 @@
         popSource.buffer = popBuffer; popSource.connect(popGain); popGain.connect(audioCtx.destination); popGain.gain.value = 1.0; popSource.start();
     }
 
-    // --- МЕНЮ (ОТРИСОВКА КОЛЕС КАК В ИГРЕ) ---
+    // --- МЕНЮ ---
     const bikeImage = new Image(); bikeImage.src = 'moto.png';
     const menuCanvas = document.getElementById('menuBikeCanvas');
     const menuCtx = menuCanvas.getContext('2d');
@@ -382,7 +377,6 @@
     function drawMenuBike() {
         menuCtx.clearRect(0, 0, menuCanvas.width, menuCanvas.height);
         menuCtx.save();
-        // Центрируем байк, чуть смещая вниз
         menuCtx.translate(menuCanvas.width / 2, menuCanvas.height / 2 + 15);
         menuCtx.scale(1.8, 1.8);
         
@@ -390,14 +384,12 @@
         
         let r = 10; let wheelBase = 23;
         
-        // Заднее колесо (срисовано 1 в 1 из функции drawWheel)
         menuCtx.beginPath(); menuCtx.arc(-wheelBase, 0, r, 0, Math.PI * 2); menuCtx.fillStyle = '#000'; menuCtx.fill();
         menuCtx.beginPath(); menuCtx.arc(-wheelBase, 0, r - 3.5, 0, Math.PI * 2); menuCtx.strokeStyle = '#222'; menuCtx.lineWidth = 2; menuCtx.stroke();
         menuCtx.strokeStyle = '#555'; menuCtx.lineWidth = 1;
         for (let i = 0; i < 6; i++) { let a = (i / 6) * Math.PI * 2; menuCtx.beginPath(); menuCtx.moveTo(-wheelBase, 0); menuCtx.lineTo(-wheelBase + Math.cos(a) * (r - 3.5), Math.sin(a) * (r - 3.5)); menuCtx.stroke(); }
         menuCtx.beginPath(); menuCtx.arc(-wheelBase, 0, 2, 0, Math.PI * 2); menuCtx.fillStyle = '#444'; menuCtx.fill();
 
-        // Переднее колесо (срисовано 1 в 1 из функции drawWheel)
         menuCtx.beginPath(); menuCtx.arc(wheelBase, 0, r, 0, Math.PI * 2); menuCtx.fillStyle = '#000'; menuCtx.fill();
         menuCtx.beginPath(); menuCtx.arc(wheelBase, 0, r - 3.5, 0, Math.PI * 2); menuCtx.strokeStyle = '#222'; menuCtx.lineWidth = 2; menuCtx.stroke();
         menuCtx.strokeStyle = '#555'; menuCtx.lineWidth = 1;
@@ -570,4 +562,4 @@
     checkOrientation(); resizeCanvas(); update();
 </script>
 </body>
-    </html>
+</html>
