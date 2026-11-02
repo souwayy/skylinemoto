@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (v10.5)</title>
+    <title>Skyline Moto (v10.7)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -48,10 +48,12 @@
             display: flex; align-items: center; justify-content: center;
         }
         .btn svg { width: 28px; height: 28px; fill: none; stroke: rgba(255, 255, 255, 0.9); stroke-width: 2.5; }
-        #btnLeanBack    { bottom: 100px; left: 15px; }
-        #btnLeanForward { bottom: 30px;  left: 50px; }
-        #btnGas         { bottom: 100px; right: 15px; }
-        #btnBrake       { bottom: 30px;  right: 50px; }
+        
+        /* Кнопки подняты выше, чтобы не перекрывались системной панелью */
+        #btnLeanBack    { bottom: 130px; left: 15px; }
+        #btnLeanForward { bottom: 60px;  left: 50px; }
+        #btnGas         { bottom: 130px; right: 15px; }
+        #btnBrake       { bottom: 60px;  right: 50px; }
 
         .overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -139,11 +141,11 @@
     </div>
 
     <div id="gameOverScreen">
-        <div class="score-header">ЗАЕЗД ОКОНЧЕН</div>
+        <div class="score-header">SCORE</div>
         
         <div class="score-list">
             <div class="score-row">
-                <span>Дистанция</span>
+                <span>Distance</span>
                 <span>
                     <span id="go-distance">0m</span> 
                     <span class="coin-bonus" id="go-coins-dist">(+0)</span>
@@ -151,7 +153,7 @@
                 </span>
             </div>
             <div class="score-row">
-                <span>Время в воздухе</span>
+                <span>Max Air Time</span>
                 <span>
                     <span id="go-airtime">0.0s</span> 
                     <span class="coin-bonus" id="go-coins-air">(+0)</span>
@@ -159,7 +161,7 @@
                 </span>
             </div>
             <div class="score-row">
-                <span>Стоппи (макс)</span>
+                <span>Max Stoppie</span>
                 <span>
                     <span id="go-stoppie">0.0s</span> 
                     <span class="coin-bonus" id="go-coins-stoppie">(+0)</span>
@@ -167,7 +169,7 @@
                 </span>
             </div>
             <div class="score-row">
-                <span>Вилли (макс)</span>
+                <span>Max Wheelie</span>
                 <span>
                     <span id="go-wheelie">0.0s</span> 
                     <span class="coin-bonus" id="go-coins-wheelie">(+0)</span>
@@ -175,7 +177,7 @@
                 </span>
             </div>
             <div class="score-row">
-                <span>Всего сальто</span>
+                <span>Total Flips</span>
                 <span>
                     <span id="go-flips">0</span> 
                     <span class="coin-bonus" id="go-coins-flips">(+0)</span>
@@ -184,12 +186,12 @@
             </div>
             
             <div class="score-row high-score">
-                <span>РЕКОРД</span>
+                <span>BEST DISTANCE</span>
                 <span id="go-highscore">0</span>
             </div>
             
             <div class="score-row reward-row">
-                <span>НАГРАДА</span>
+                <span>REWARD</span>
                 <span>
                     <span id="go-coins">0</span>
                     <img src="coin.png" class="coin-icon" onerror="this.style.display='none'">
@@ -214,7 +216,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v10.5</div>
+<div class="version-text">v10.7</div>
 
 <script>
     let isGameRunning = false;
@@ -324,16 +326,26 @@
         let gate = Math.pow(Math.max(0, Math.sin((x + terrainOffset) * 0.00125)), 6);
         let kicker = shape * gate;
 
-        // ЗОНЫ С "ВОЛНАМИ" (ГРЕБЕНКОЙ)
+        // УНИКАЛЬНЫЕ "ВОЛНЫ" (ГРЕБЕНКА) РАЗ В 1000 МЕТРОВ
         let washboard = 0;
-        let waveZone = noise((x + terrainOffset) * 0.0001); 
+        let chunkSize = 10000; // 1000 метров
+        let chunkIndex = Math.floor((x + terrainOffset) / chunkSize);
         
-        if (waveZone > 0.9) {
-            let intensity = (waveZone - 0.9) / 0.1; 
-            let rippleNoise = noise((x + terrainOffset) * 0.05); 
-            let amplitude = 6 + rippleNoise * 6; 
+        // Используем шум для выбора уникального места для зоны внутри каждого километра
+        let spot = noise(chunkIndex * 123.45); 
+        let zoneStart = chunkIndex * chunkSize + spot * chunkSize;
+        let zoneLength = 1500; // Длина зоны 150 метров
+
+        if (x > zoneStart && x < zoneStart + zoneLength) {
+            let progress = (x - zoneStart) / zoneLength; 
+            // Плавное появление и исчезновение
+            let intensity = Math.sin(progress * Math.PI); 
             
-            washboard = (Math.sin((x + terrainOffset) * 0.15) + Math.cos((x + terrainOffset) * 0.25)) * amplitude * intensity;
+            // Плавные реалистичные волны
+            let rippleNoise = noise((x + terrainOffset) * 0.02);
+            let amplitude = 4 + rippleNoise * 4; 
+            
+            washboard = Math.sin((x + terrainOffset) * 0.05) * amplitude * intensity;
         }
 
         let mathY = y - baseHill - kicker - washboard - micro;
