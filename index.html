@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (v10.7)</title>
+    <title>Skyline Moto (v10.8)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -49,7 +49,6 @@
         }
         .btn svg { width: 28px; height: 28px; fill: none; stroke: rgba(255, 255, 255, 0.9); stroke-width: 2.5; }
         
-        /* Кнопки подняты выше, чтобы не перекрывались системной панелью */
         #btnLeanBack    { bottom: 130px; left: 15px; }
         #btnLeanForward { bottom: 60px;  left: 50px; }
         #btnGas         { bottom: 130px; right: 15px; }
@@ -216,7 +215,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v10.7</div>
+<div class="version-text">v10.8</div>
 
 <script>
     let isGameRunning = false;
@@ -305,60 +304,188 @@
     let cameraY = 0; 
     const zoom = 1.1; 
 
-    function noise(x) {
-        let i = Math.floor(x);
-        let f = x - i;
-        let u = f * f * (3.0 - 2.0 * f);
-        let r1 = Math.sin(i * 12.9898) * 43758.5453;
-        let r2 = Math.sin((i + 1) * 12.9898) * 43758.5453;
-        r1 = r1 - Math.floor(r1);
-        r2 = r2 - Math.floor(r2);
-        return r1 * (1 - u) + r2 * u;
+    // -----------------------------------------------------
+    //  УНИКАЛЬНОСТЬ ЗАЕЗДА И ПРОМОИНЫ (erosion channels)
+    // -----------------------------------------------------
+
+    // 32-битный хэш (Wang hash + splitmix). Возвращает [0, 1).
+    // Каждый вызов с разными аргументами даёт статистически независимое значение.
+    function hash32(a, b, c) {
+        let h = (a | 0) ^ Math.imul(b | 0, 0x9E3779B1) ^ Math.imul(c | 0, 0x85EBCA77);
+        h ^= h >>> 16; h = Math.imul(h, 0x85EBCA6B);
+        h ^= h >>> 13; h = Math.imul(h, 0xC2B2AE35);
+        h ^= h >>> 16;
+        return (h >>> 0) / 4294967296;
     }
 
-    function getTerrainY(x) {
-        let y = groundY;
-        
-        let baseHill = Math.sin((x + terrainOffset) * 0.001) * 80;
-        let micro = Math.sin((x + terrainOffset) * 0.015) * 6;
+    let sessionSeed = 0;               // инициализируется в resetGame
+    const zoneCache = new Map();       // chunkIndex -> zone | null
 
-        let shape = Math.pow(Math.sin((x + terrainOffset) * 0.003), 3) * 180;
-        let gate = Math.pow(Math.max(0, Math.sin((x + terrainOffset) * 0.00125)), 6);
+    // Диапазон глубины по абсолютной дистанции в метрах
+    function getDepthForDist(distM) {
+        if (distM < 800)   return null;
+        if (distM < 1500)  return { min: 12, max: 15 };
+        if (distM < 3000)  return { min: 16, max: 22 };
+        if (distM < 5000)  return { min: 22, max: 28 };
+        return { min: 28, max: 30 };
+    }
+
+    // Асимметричный профиль одной промоины. localX — 0..entry+floor+exit.
+    // Возвращает глубину (в px, положительное значение — вниз).
+    function erosionProfile(localX, entryW, floorW, exitW, depth, slope) {
+        let total = entryW + floorW + exitW;
+        if (localX < 0 || localX > total) return 0;
+        if (localX < entryW) {
+            let t = localX / entryW;
+            return depth * t * t * (3 - 2 * t);
+        }
+        if (localX < entryW + floorW) {
+            let t = (localX - entryW) / floorW;
+            return depth + slope * t;
+        }
+        let t = (localX - entryW - floorW) / exitW;
+        return (depth + slope) * (1 - t * t * (3 - 2 * t));
+    }
+
+    // Базовая земля без промоин. Нужна, чтобы не было рекурсии:
+    // computeZone() вызывает её для расчёта позиции камешков.
+    function getTerrainYNoErosion(x) {
+        let y = groundY;
+        let u = x + terrainOffset;
+
+        let baseHill = Math.sin(u * 0.001) * 80;
+        let micro = Math.sin(u * 0.015) * 6;
+
+        let shape = Math.pow(Math.sin(u * 0.003), 3) * 180;
+        let gate = Math.pow(Math.max(0, Math.sin(u * 0.00125)), 6);
         let kicker = shape * gate;
 
-        // УНИКАЛЬНЫЕ "ВОЛНЫ" (ГРЕБЕНКА) РАЗ В 1000 МЕТРОВ
-        let washboard = 0;
-        let chunkSize = 10000; // 1000 метров
-        let chunkIndex = Math.floor((x + terrainOffset) / chunkSize);
-        
-        // Используем шум для выбора уникального места для зоны внутри каждого километра
-        let spot = noise(chunkIndex * 123.45); 
-        let zoneStart = chunkIndex * chunkSize + spot * chunkSize;
-        let zoneLength = 1500; // Длина зоны 150 метров
-
-        if (x > zoneStart && x < zoneStart + zoneLength) {
-            let progress = (x - zoneStart) / zoneLength; 
-            // Плавное появление и исчезновение
-            let intensity = Math.sin(progress * Math.PI); 
-            
-            // Плавные реалистичные волны
-            let rippleNoise = noise((x + terrainOffset) * 0.02);
-            let amplitude = 4 + rippleNoise * 4; 
-            
-            washboard = Math.sin((x + terrainOffset) * 0.05) * amplitude * intensity;
-        }
-
-        let mathY = y - baseHill - kicker - washboard - micro;
+        let mathY = y - baseHill - kicker - micro;
 
         let distFromStart = x - startX;
         if (distFromStart < 1000) {
-            let factor = Math.max(0, distFromStart / 1000); 
-            let flatY = groundY - (distFromStart * 0.02);   
-            return flatY * (1 - factor) + mathY * factor;   
+            let factor = Math.max(0, distFromStart / 1000);
+            let flatY = groundY - (distFromStart * 0.02);
+            return flatY * (1 - factor) + mathY * factor;
         }
-        
         return mathY;
     }
+
+    // Генерация зоны промоин для конкретного километрового чанка.
+    // Чанк = 10000 px = 1000 м.
+    function computeZone(chunkIndex) {
+        let chunkStart = chunkIndex * 10000;
+        let chunkDistM = chunkStart / 10;
+
+        let depthRange = getDepthForDist(chunkDistM);
+        if (!depthRange) return null;
+
+        // Зона внутри чанка: 300-700 м от начала, длина 60-120 м.
+        let zoneStartRel = 3000 + hash32(sessionSeed, chunkIndex, 1) * 4000;
+        let zoneLength   = 600  + hash32(sessionSeed, chunkIndex, 2) * 600;
+        let zoneStart = chunkStart + zoneStartRel;
+        let zoneEnd   = zoneStart + zoneLength;
+
+        let count = 1 + Math.floor(hash32(sessionSeed, chunkIndex, 3) * 4); // 1..4
+
+        let holes = [];
+        let cursor = 0;
+        for (let i = 0; i < count; i++) {
+            if (i > 0) {
+                let gap = 15 + hash32(sessionSeed, chunkIndex, 100 + i) * 25;
+                cursor += gap;
+            }
+            let entryW = 40 + hash32(sessionSeed, chunkIndex, 200 + i) * 20;
+            let floorW = 10 + hash32(sessionSeed, chunkIndex, 300 + i) * 15;
+            let exitW  = 15 + hash32(sessionSeed, chunkIndex, 400 + i) * 15;
+            let totalW = entryW + floorW + exitW;
+            if (cursor + totalW > zoneLength) break;
+
+            let depthRnd = hash32(sessionSeed, chunkIndex, 500 + i);
+            let depth = depthRange.min + depthRnd * (depthRange.max - depthRange.min);
+            let slope = (hash32(sessionSeed, chunkIndex, 600 + i) - 0.5) * 6; // -3..+3
+
+            holes.push({
+                x: zoneStart + cursor,
+                entryW: entryW,
+                floorW: floorW,
+                exitW: exitW,
+                depth: depth,
+                slope: slope
+            });
+
+            cursor += totalW;
+        }
+
+        if (holes.length === 0) return null;
+
+        // Камешки — визуальные, только перед входом в первую промоину.
+        // Там erosion = 0, поэтому getTerrainY === getTerrainYNoErosion.
+        let pebbles = [];
+        let pebbleCount = 3 + Math.floor(hash32(sessionSeed, chunkIndex, 700) * 6); // 3..8
+        let firstHole = holes[0];
+        for (let i = 0; i < pebbleCount; i++) {
+            let pxOff = -25 + hash32(sessionSeed, chunkIndex, 800 + i) * 20; // -25..-5
+            let px = firstHole.x + pxOff;
+            let py = getTerrainYNoErosion(px) - 1;
+            let r  = 1 + hash32(sessionSeed, chunkIndex, 900 + i) * 1.5;
+            let shade = 20 + Math.floor(hash32(sessionSeed, chunkIndex, 1000 + i) * 40);
+            pebbles.push({ x: px, y: py, r: r, shade: shade });
+        }
+
+        return { start: zoneStart, end: zoneEnd, holes: holes, pebbles: pebbles };
+    }
+
+    function getZoneCached(chunkIndex) {
+        if (!zoneCache.has(chunkIndex)) {
+            zoneCache.set(chunkIndex, computeZone(chunkIndex));
+        }
+        return zoneCache.get(chunkIndex);
+    }
+
+    function getTerrainY(x) {
+        let mathY = getTerrainYNoErosion(x);
+
+        let chunkIndex = Math.floor(x / 10000);
+        let zone = getZoneCached(chunkIndex);
+
+        if (zone && x >= zone.start && x <= zone.end) {
+            let erosion = 0;
+            for (let i = 0; i < zone.holes.length; i++) {
+                let h = zone.holes[i];
+                let lx = x - h.x;
+                if (lx >= 0 && lx <= h.entryW + h.floorW + h.exitW) {
+                    erosion += erosionProfile(lx, h.entryW, h.floorW, h.exitW, h.depth, h.slope);
+                }
+            }
+            mathY += erosion;
+        }
+        return mathY;
+    }
+
+    function drawPebbles() {
+        let viewStart = cameraX - 200;
+        let viewEnd   = cameraX + (canvas.width / zoom) + 200;
+        let startChunk = Math.floor(viewStart / 10000);
+        let endChunk   = Math.floor(viewEnd / 10000);
+
+        for (let ci = startChunk; ci <= endChunk; ci++) {
+            let zone = getZoneCached(ci);
+            if (!zone) continue;
+            for (let i = 0; i < zone.pebbles.length; i++) {
+                let p = zone.pebbles[i];
+                if (p.x < viewStart || p.x > viewEnd) continue;
+                ctx.fillStyle = 'rgb(' + p.shade + ',' + p.shade + ',' + p.shade + ')';
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+    }
+
+    // -----------------------------------------------------
+    //  ЗЕМЛЯ (chain)
+    // -----------------------------------------------------
 
     let terrainBodies = [];
     let lastGeneratedX = startX - 1500; 
@@ -585,6 +712,11 @@
 
     function resetGame() {
         initAudio();
+
+        // Уникальность заезда: новый seed + сброс кэша зон.
+        sessionSeed = Math.floor(Math.random() * 0xFFFFFFFF);
+        zoneCache.clear();
+
         terrainOffset = Math.random() * 10000;
         for (let i = 0; i < terrainBodies.length; i++) world.destroyBody(terrainBodies[i].body);
         terrainBodies = []; 
@@ -973,6 +1105,7 @@
             ctx.translate(-cameraX, 0);
             
             drawTerrain();
+            drawPebbles();
 
             if (gameState !== 'gameover' && chassis) {
                 drawParticles(); 
@@ -997,4 +1130,4 @@
     update();
 </script>
 </body>
-    </html>
+</html>
