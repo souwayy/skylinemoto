@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (v10.2)</title>
+    <title>Skyline Moto (v10.3)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -25,96 +25,7 @@
         }
         #rotateDevice h2 { font-size: 24px; font-weight: 600; margin: 0; }
 
-        /* Главное меню */
-        #mainMenu {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(180deg, #1a0b2e 0%, #5a2b58 100%);
-            z-index: 50; display: flex; flex-direction: column; color: white;
-        }
-        .top-nav {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 15px 30px; background: rgba(0,0,0,0.6);
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-        .nav-tabs { display: flex; gap: 20px; }
-        .nav-tab {
-            font-size: 16px; font-weight: bold; text-transform: uppercase;
-            color: rgba(255,255,255,0.5); cursor: pointer; transition: color 0.2s;
-            pointer-events: auto;
-        }
-        .nav-tab.active { color: #fff; text-shadow: 0 0 10px rgba(255,255,255,0.5); }
-        
-        .coin-balance {
-            display: flex; align-items: center; font-size: 20px; font-weight: bold;
-            color: #fff3d4;
-        }
-        .coin-balance img { height: 24px; margin-right: 8px; }
-
-        .menu-content {
-            flex: 1; display: flex; position: relative; overflow: hidden;
-        }
-        .tab-content {
-            display: none; width: 100%; height: 100%; position: absolute;
-            top: 0; left: 0;
-        }
-        .tab-content.active { display: flex; }
-
-        /* Экран "Играть" */
-        .play-tab { 
-            display: flex; flex-direction: row; justify-content: space-between; 
-            align-items: center; padding: 10px 20px; width: 100%; box-sizing: border-box;
-        }
-        .arrow-btn {
-            width: 60px; height: 60px; border-radius: 50%;
-            background: rgba(0,0,0,0.4); border: 2px solid rgba(255,255,255,0.2);
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer; pointer-events: auto; flex-shrink: 0;
-        }
-        .arrow-btn svg { width: 30px; height: 30px; stroke: white; fill: none; }
-        
-        .bike-preview {
-            flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
-            height: 100%; position: relative;
-        }
-        
-        #menuBikeCanvas {
-            max-width: 100%;
-            height: auto;
-            margin-top: -20px; /* Чуть поднимаем картинку */
-        }
-
-        .bike-name { 
-            font-size: 26px; font-weight: bold; margin: 0 0 15px 0; 
-            text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 2px 4px rgba(0,0,0,0.8);
-        }
-        
-        .stats-container {
-            width: 100%; max-width: 350px; display: flex; flex-direction: column; gap: 10px;
-            margin-bottom: 70px; /* Отступ под кнопку */
-        }
-        .stat-row { display: flex; align-items: center; gap: 15px; }
-        .stat-label { width: 120px; font-size: 13px; color: rgba(255,255,255,0.7); text-transform: uppercase; }
-        .stat-bar-bg { flex: 1; height: 8px; background: rgba(0,0,0,0.5); border-radius: 4px; overflow: hidden; }
-        .stat-bar-fill { height: 100%; border-radius: 4px; }
-
-        .play-btn-container {
-            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-        }
-        .play-btn {
-            padding: 15px 60px; font-size: 24px; font-weight: bold; text-transform: uppercase;
-            background: linear-gradient(90deg, #d96b4e, #f5c26b); border: none; border-radius: 30px;
-            color: white; cursor: pointer; pointer-events: auto;
-            box-shadow: 0 5px 15px rgba(217, 107, 78, 0.4); transition: transform 0.1s;
-        }
-        .play-btn:active { transform: scale(0.95); }
-
-        /* Заглушки для других вкладок */
-        .placeholder-tab { align-items: center; justify-content: center; font-size: 24px; color: rgba(255,255,255,0.5); }
-
-        /* Скрываем игру пока в меню */
-        .hidden { display: none !important; }
-
-        /* Внутриигровые стили (UI) */
+        /* UI Слой */
         .ui-layer {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; z-index: 10;
@@ -144,6 +55,18 @@
         #btnGas         { bottom: 100px; right: 15px; }
         #btnBrake       { bottom: 30px;  right: 50px; }
 
+        .overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.6); pointer-events: auto; z-index: 20;
+        }
+        .overlay h1 {
+            font-size: 42px; color: white; text-transform: uppercase; letter-spacing: 2px;
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.8); margin-bottom: 20px;
+        }
+        .overlay p { font-size: 18px; color: rgba(255,255,255,0.8); animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+        
         #gameOverScreen { 
             display: none; background: #0f1410; flex-direction: column;
             justify-content: center; align-items: center; pointer-events: auto; z-index: 20;
@@ -168,82 +91,25 @@
             border: 2px solid rgba(255, 255, 255, 0.3); display: flex; align-items: center; justify-content: center;
         }
         .icon-btn svg { width: 28px; height: 28px; fill: none; stroke: #fff; stroke-width: 2.5; }
-        .version-text { position: absolute; bottom: 5px; left: 5px; color: rgba(255,255,255,0.3); font-size: 12px; }
+        
+        .version-text { position: absolute; bottom: 5px; left: 5px; color: rgba(255,255,255,0.3); font-size: 12px; z-index: 100; }
+        .hidden { display: none !important; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/planck-js@0.3/dist/planck.min.js"></script>
 </head>
 <body>
 
-<!-- Экран поворота -->
+<!-- Экран поворота с нормальной иконкой телефона -->
 <div id="rotateDevice">
-    <!-- Правильная иконка телефона -->
     <svg viewBox="0 0 24 24">
-        <rect x="7" y="2" width="10" height="20" rx="2" ry="2"></rect>
+        <rect x="7" y="3" width="10" height="18" rx="2" ry="2"></rect>
         <line x1="12" y1="18" x2="12.01" y2="18" stroke-width="3"></line>
-        <path d="M21 12a9 9 0 0 0-9-9" stroke-dasharray="3"></path>
+        <path d="M21 12a9 9 0 0 0-9-9" stroke-dasharray="4"></path>
         <polyline points="21 3 21 9 15 9"></polyline>
     </svg>
     <h2>Пожалуйста, поверните устройство</h2>
 </div>
 
-<!-- Главное меню -->
-<div id="mainMenu" class="hidden">
-    <div class="top-nav">
-        <div class="nav-tabs">
-            <div class="nav-tab active" onclick="switchTab('play')">Играть</div>
-            <div class="nav-tab" onclick="switchTab('shop')">Магазин</div>
-            <div class="nav-tab" onclick="switchTab('quests')">Квесты</div>
-            <div class="nav-tab" onclick="switchTab('settings')">Настройки</div>
-        </div>
-        <div class="coin-balance">
-            <img src="coin.png" onerror="this.style.display='none'">
-            <span id="menuCoinText">0</span>
-        </div>
-    </div>
-
-    <div class="menu-content">
-        <div id="tab-play" class="tab-content play-tab active">
-            <div class="arrow-btn"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
-            
-            <div class="bike-preview">
-                <!-- Заменили img на canvas для отрисовки колес -->
-                <canvas id="menuBikeCanvas" width="300" height="200"></canvas>
-                <div class="bike-name" id="menuBikeName">CTM 300 EXC</div>
-                
-                <div class="stats-container">
-                    <div class="stat-row">
-                        <div class="stat-label">Скорость</div>
-                        <div class="stat-bar-bg"><div class="stat-bar-fill" style="width: 80%; background: #3a86ff;"></div></div>
-                    </div>
-                    <div class="stat-row">
-                        <div class="stat-label">Разгон</div>
-                        <div class="stat-bar-bg"><div class="stat-bar-fill" style="width: 90%; background: #f5c26b;"></div></div>
-                    </div>
-                    <div class="stat-row">
-                        <div class="stat-label">Управляемость</div>
-                        <div class="stat-bar-bg"><div class="stat-bar-fill" style="width: 60%; background: #a6ff00;"></div></div>
-                    </div>
-                    <div class="stat-row">
-                        <div class="stat-label">Вес</div>
-                        <div class="stat-bar-bg"><div class="stat-bar-fill" style="width: 40%; background: #8b7ca8;"></div></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="arrow-btn"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
-            
-            <div class="play-btn-container">
-                <button class="play-btn" onclick="startGame()">Поехали</button>
-            </div>
-        </div>
-
-        <div id="tab-shop" class="tab-content placeholder-tab">Здесь будет магазин</div>
-        <div id="tab-quests" class="tab-content placeholder-tab">Здесь будут квесты</div>
-        <div id="tab-settings" class="tab-content placeholder-tab">Здесь будут настройки</div>
-    </div>
-</div>
-
-<!-- Игра (UI) -->
 <div class="ui-layer hidden" id="gameUI">
     <div class="top-bar">
         <div class="stats-left">
@@ -345,33 +211,38 @@
     </div>
 </div>
 
+<!-- Стартовый экран (вернули заглушку) -->
+<div class="overlay hidden" id="startScreen">
+    <h1>Skyline Moto</h1>
+    <p>Нажми, чтобы начать</p>
+</div>
+
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v10.2</div>
+<div class="version-text">v10.3</div>
 
 <script>
     let isGameRunning = false;
-    let gameState = 'menu'; 
+    let gameState = 'start'; 
 
     function checkOrientation() {
         const rotateDiv = document.getElementById('rotateDevice');
-        const menuDiv = document.getElementById('mainMenu');
+        const startScreen = document.getElementById('startScreen');
         const gameUI = document.getElementById('gameUI');
         const canvas = document.getElementById('gameCanvas');
 
         if (window.innerHeight > window.innerWidth) {
             rotateDiv.style.display = 'flex';
-            menuDiv.classList.add('hidden');
+            startScreen.classList.add('hidden');
             gameUI.classList.add('hidden');
             canvas.style.display = 'none';
         } else {
             rotateDiv.style.display = 'none';
             canvas.style.display = 'block';
-            if (gameState === 'menu') {
-                menuDiv.classList.remove('hidden');
+            if (gameState === 'start') {
+                startScreen.classList.remove('hidden');
                 gameUI.classList.add('hidden');
-                drawMenuBike(); // Перерисовываем байк при повороте
             } else if (gameState === 'playing' || gameState === 'gameover') {
-                menuDiv.classList.add('hidden');
+                startScreen.classList.add('hidden');
                 gameUI.classList.remove('hidden');
             }
             if (typeof resizeCanvas === 'function') resizeCanvas();
@@ -379,113 +250,6 @@
     }
     window.addEventListener('resize', checkOrientation);
     window.addEventListener('orientationchange', () => setTimeout(checkOrientation, 200));
-
-    function switchTab(tabId) {
-        document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-        
-        if(event) event.target.classList.add('active');
-        document.getElementById('tab-' + tabId).classList.add('active');
-    }
-
-    function startGame() {
-        document.getElementById('mainMenu').classList.add('hidden');
-        document.getElementById('gameUI').classList.remove('hidden');
-        resizeCanvas(); 
-        isGameRunning = true;
-        gameState = 'playing';
-        resetGame();
-    }
-
-    // --- ОТРИСОВКА БАЙКА В МЕНЮ ---
-    const menuCanvas = document.getElementById('menuBikeCanvas');
-    const menuCtx = menuCanvas.getContext('2d');
-    const bikeImage = new Image();
-    bikeImage.src = 'moto.png'; 
-    let isImageLoaded = false;
-    bikeImage.onload = () => { 
-        isImageLoaded = true; 
-        drawMenuBike();
-    };
-
-    function drawMenuWheel(ctx, x, y, radius, isEnduro) {
-        ctx.save();
-        ctx.translate(x, y);
-        
-        ctx.beginPath();
-        ctx.arc(0, 0, radius, 0, Math.PI * 2);
-        ctx.fillStyle = '#000';
-        ctx.fill();
-
-        if (isEnduro) {
-            ctx.strokeStyle = '#111'; 
-            ctx.lineWidth = 2;
-            for (let i = 0; i < 16; i++) {
-                let angle = (i / 16) * Math.PI * 2;
-                ctx.beginPath();
-                ctx.moveTo(Math.cos(angle) * (radius - 1.5), Math.sin(angle) * (radius - 1.5));
-                ctx.lineTo(Math.cos(angle) * (radius + 1), Math.sin(angle) * (radius + 1));
-                ctx.stroke();
-            }
-        }
-
-        ctx.beginPath();
-        ctx.arc(0, 0, radius - 3.5, 0, Math.PI * 2);
-        ctx.strokeStyle = '#222';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        ctx.strokeStyle = '#555';
-        ctx.lineWidth = 1;
-        let spokes = isEnduro ? 6 : 8;
-        for (let i = 0; i < spokes; i++) {
-            let angle = (i / spokes) * Math.PI * 2;
-            ctx.beginPath();
-            ctx.moveTo(0, 0);
-            ctx.lineTo(Math.cos(angle) * (radius - 3.5), Math.sin(angle) * (radius - 3.5));
-            ctx.stroke();
-        }
-
-        ctx.beginPath();
-        ctx.arc(0, 0, 2, 0, Math.PI * 2);
-        ctx.fillStyle = '#444';
-        ctx.fill();
-
-        ctx.restore();
-    }
-
-    function drawMenuBike() {
-        if (!isImageLoaded) return;
-        
-        // Очищаем холст
-        menuCtx.clearRect(0, 0, menuCanvas.width, menuCanvas.height);
-        
-        const w = menuCanvas.width;
-        const h = menuCanvas.height;
-        const centerX = w / 2;
-        const centerY = h / 2;
-
-        // Координаты и размеры для меню (увеличенные)
-        const imgW = 180;
-        const imgH = 108;
-        
-        // Рисуем картинку по центру (немного поднимаем, так как колеса внизу)
-        if (isImageLoaded) {
-            menuCtx.drawImage(bikeImage, centerX - imgW / 2, centerY - imgH / 2 - 10, imgW, imgH);
-        }
-
-        // Рисуем колеса (смещены от центра картинки)
-        // В игре база 23, при ширине картинки 90. В меню ширина 180, значит колеса на +/- 46 от центра.
-        const wheelRadius = 20;
-        const wheelOffsetX = 46;
-        const wheelOffsetY = 44; // Сдвиг вниз относительно центра картинки
-        
-        const isEnduro = true; // Пока стоит CTM
-
-        drawMenuWheel(menuCtx, centerX - wheelOffsetX, centerY + wheelOffsetY - 10, wheelRadius, isEnduro);
-        drawMenuWheel(menuCtx, centerX + wheelOffsetX, centerY + wheelOffsetY - 10, wheelRadius, isEnduro);
-    }
-    // ------------------------------
 
     // --- ЛОГИКА ИГРЫ ---
     const ENABLE_AUDIO = true; 
@@ -501,7 +265,6 @@
     let totalCoins = parseInt(localStorage.getItem('totalCoins')) || 0;
     let sessionCoins = 0;
     document.getElementById('coinBalanceText').innerText = totalCoins;
-    document.getElementById('menuCoinText').innerText = totalCoins;
     
     let maxAirTime = 0, currentAirTime = 0;
     let frontflipCount = 0, backflipCount = 0;
@@ -566,10 +329,12 @@
         let gate = Math.pow(Math.max(0, Math.sin((x + terrainOffset) * 0.00125)), 6);
         let kicker = shape * gate;
 
+        // КОРОТКИЕ ЗОНЫ С "ВОЛНАМИ" (ГРЕБЕНКОЙ)
         let washboard = 0;
-        let waveZone = noise((x + terrainOffset) * 0.0005);
-        if (waveZone > 0.6) {
-            let intensity = (waveZone - 0.6) / 0.4;
+        // Увеличили частоту шума (было 0.0005, стало 0.002), чтобы зоны были короче
+        let waveZone = noise((x + terrainOffset) * 0.002); 
+        if (waveZone > 0.65) {
+            let intensity = (waveZone - 0.65) / 0.35;
             washboard = (Math.sin((x + terrainOffset) * 0.15) + Math.cos((x + terrainOffset) * 0.25)) * 8 * intensity;
         }
 
@@ -699,6 +464,11 @@
             frequencyHz: currentBike.suspension.freq, dampingRatio: currentBike.suspension.damp, collideConnected: false
         }, chassis, wheelFront, wheelFront.getPosition(), pl.Vec2(0, 1)));
     }
+
+    const bikeImage = new Image();
+    bikeImage.src = 'moto.png'; 
+    let isImageLoaded = false;
+    bikeImage.onload = () => { isImageLoaded = true; };
 
     window.isGas = false; window.isBrake = false; 
     window.isLeanBack = false; window.isLeanForward = false;
@@ -887,6 +657,16 @@
         }
     }
 
+    document.getElementById('startScreen').addEventListener('touchstart', (e) => {
+        e.preventDefault(); 
+        document.getElementById('startScreen').classList.add('hidden');
+        document.getElementById('gameUI').classList.remove('hidden');
+        resizeCanvas();
+        isGameRunning = true;
+        gameState = 'playing';
+        resetGame();
+    });
+
     document.getElementById('btnRestart').addEventListener('touchstart', (e) => {
         e.preventDefault();
         document.getElementById('gameOverScreen').style.display = 'none';
@@ -898,11 +678,9 @@
         e.preventDefault();
         document.getElementById('gameOverScreen').style.display = 'none';
         document.getElementById('gameUI').classList.add('hidden');
-        document.getElementById('mainMenu').classList.remove('hidden');
-        document.getElementById('menuCoinText').innerText = totalCoins;
+        document.getElementById('startScreen').classList.remove('hidden');
         isGameRunning = false;
-        gameState = 'menu';
-        drawMenuBike(); // Перерисовываем байк
+        gameState = 'start';
         
         if (ENABLE_AUDIO && isAudioInitialized) {
             idleGain.gain.setValueAtTime(0, audioCtx.currentTime);
@@ -1161,7 +939,7 @@
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        if (gameState !== 'menu' && gameState !== 'paused') {
+        if (gameState !== 'start') {
             const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
             gradient.addColorStop(0, '#1a0b2e'); gradient.addColorStop(0.4, '#5a2b58'); gradient.addColorStop(0.7, '#d96b4e'); gradient.addColorStop(1, '#f5c26b');
             ctx.fillStyle = gradient; ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -1205,9 +983,8 @@
         }
     }
 
-    // Инициализация при загрузке
     checkOrientation();
     update();
 </script>
 </body>
-                </html>
+    </html>
