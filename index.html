@@ -319,35 +319,20 @@
         return r1 * (1 - u) + r2 * u;
     }
 
-    function getTerrainY(x) {
-        let y = groundY;
-        
-        let baseHill = Math.sin((x + terrainOffset) * 0.001) * 80;
-        let micro = Math.sin((x + terrainOffset) * 0.015) * 6;
+    // ЗОНЫ С "ВОЛНАМИ" (ГРЕБЕНКОЙ)
+let washboard = 0;
+// Частота 0.0001 = зона раз в ~1000 метров. Шум делает их уникальными.
+let waveZone = noise((x + terrainOffset) * 0.0001); 
 
-        let shape = Math.pow(Math.sin((x + terrainOffset) * 0.003), 3) * 180;
-        let gate = Math.pow(Math.max(0, Math.sin((x + terrainOffset) * 0.00125)), 6);
-        let kicker = shape * gate;
-
-        // КОРОТКИЕ ЗОНЫ С "ВОЛНАМИ" (ГРЕБЕНКОЙ)
-        let washboard = 0;
-        // Увеличили частоту шума (было 0.0005, стало 0.002), чтобы зоны были короче
-        let waveZone = noise((x + terrainOffset) * 0.002); 
-        if (waveZone > 0.65) {
-            let intensity = (waveZone - 0.65) / 0.35;
-            washboard = (Math.sin((x + terrainOffset) * 0.15) + Math.cos((x + terrainOffset) * 0.25)) * 8 * intensity;
-        }
-
-        let mathY = y - baseHill - kicker - washboard - micro;
-
-        let distFromStart = x - startX;
-        if (distFromStart < 1000) {
-            let factor = Math.max(0, distFromStart / 1000); 
-            let flatY = groundY - (distFromStart * 0.02);   
-            return flatY * (1 - factor) + mathY * factor;   
-        }
-        
-        return mathY;
+// Жесткий порог 0.9 делает зону короткой (около 100 метров)
+if (waveZone > 0.9) {
+    let intensity = (waveZone - 0.9) / 0.1; 
+    // Добавляем шум к амплитуде, чтобы сами волны тоже были разными
+    let rippleNoise = noise((x + terrainOffset) * 0.05); 
+    let amplitude = 6 + rippleNoise * 6; 
+    
+    washboard = (Math.sin((x + terrainOffset) * 0.15) + Math.cos((x + terrainOffset) * 0.25)) * amplitude * intensity;
+    }
     }
 
     let terrainBodies = [];
