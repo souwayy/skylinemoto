@@ -3,44 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v15.9)</title>
+    <title>Nyxride (v16.0)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
         .hidden { display: none !important; }
 
-        /* --- ЭКРАН ПОВОРОТА (ВЕРНУЛ НОРМАЛЬНЫЙ ТЕЛЕФОН) --- */
+        /* --- ЭКРАН ПОВОРОТА --- */
         #rotateDevice { position: fixed; inset: 0; background: #000; z-index: 100000; display: none; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; }
         #rotateDevice svg { width: 100px; height: 100px; fill: none; stroke: white; stroke-width: 4; margin-bottom: 30px; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 15px rgba(255,255,255,0.3)); }
         #rotateDevice h2 { font-size: 24px; font-weight: 600; margin: 0; padding: 0 20px; }
 
-        /* --- ЗАСТАВКА --- */
+        /* --- ЗАСТАВКА (БЕЗ КВАДРАТОВ) --- */
         #splashScreen {
-            position: fixed; inset: 0; background-color: #000 !important; z-index: 99999;
+            position: fixed; inset: 0; background-color: #000; z-index: 99999;
             display: flex; align-items: center; justify-content: center;
             transition: opacity 0.8s ease-in-out;
-            box-shadow: inset 0 0 200px rgba(255, 100, 0, 0.15);
-            padding-bottom: 13vh; box-sizing: border-box; 
         }
-        #splashScreen img { width: 100vw; height: 100vh; object-fit: contain; animation: pulseLogo 2s ease-in-out infinite; }
-        @keyframes pulseLogo { 0%, 100% { transform: scale(1); opacity: 0.85; } 50% { transform: scale(1.03); opacity: 1; } }
+        #splashScreen img { width: 100vw; height: 100vh; object-fit: contain; padding: 10vh 0; box-sizing: border-box; }
 
         /* --- ГЛАВНОЕ МЕНЮ --- */
         #mainMenu {
-            background: url('menu_bg.jpg') no-repeat center center;
+            background: url('menu_bg.jpg') no-repeat center bottom; /* Прижал к низу, чтобы земля была видна */
             background-size: cover; width: 100vw; height: 100vh;
             position: relative; overflow: hidden;
         }
         
-        /* Логотип (уменьшен, чтобы не обрезался) */
+        /* Логотип */
         .menu-logo {
-            position: absolute; top: 8%; left: 50%; transform: translateX(-50%);
-            font-size: 42px; font-weight: 900; color: #fff; letter-spacing: 6px;
+            position: absolute; top: 5%; left: 50%; transform: translateX(-50%);
+            font-size: 46px; font-weight: 900; color: #fff; letter-spacing: 6px;
             text-shadow: 0 0 20px rgba(255,100,0,0.8), 0 5px 15px rgba(0,0,0,0.9);
             text-transform: uppercase; pointer-events: none; font-style: italic; z-index: 10;
         }
 
-        /* Верхняя панель (аккуратно по углам) */
+        /* Верхняя панель */
         .menu-header {
             position: absolute; top: 0; left: 0; width: 100%; padding: 15px 20px;
             box-sizing: border-box; display: flex; justify-content: space-between; align-items: flex-start; z-index: 10;
@@ -58,34 +55,33 @@
         }
         .sprite-btn:active { transform: scale(0.9); filter: brightness(1.5); }
         
-        /* Кнопки */
         .btn-shop { background-position: 0% 100%; width: 55px; height: 55px; }
         .btn-settings { background-position: 25% 100%; width: 50px; height: 50px; }
         .btn-quests { background-position: 50% 100%; width: 50px; height: 50px; }
         .btn-play { background-position: 0% 0%; background-size: 100% 200%; width: 220px; height: 75px; position: absolute; bottom: 20px; right: 20px; z-index: 20; }
 
-        /* Статистика (СЛЕВА, узкая) */
+        /* Статистика (СЛЕВА, УМЕНЬШЕНА) */
         .bike-stats {
-            position: absolute; top: 55%; left: 20px; transform: translateY(-50%);
-            width: 240px; pointer-events: none; background: rgba(10, 5, 15, 0.85);
-            padding: 15px; border-radius: 12px; border: 2px solid rgba(255,255,255,0.15); z-index: 10;
+            position: absolute; top: 45%; left: 20px; transform: translateY(-50%);
+            width: 210px; pointer-events: none; background: rgba(10, 5, 15, 0.85);
+            padding: 15px; border-radius: 10px; border: 2px solid rgba(255,255,255,0.15); z-index: 10;
             backdrop-filter: blur(5px); box-shadow: 0 10px 30px rgba(0,0,0,0.8);
         }
-        .bike-name { color: #fff; font-size: 18px; font-weight: 900; text-align: center; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
-        .stat-row { display: flex; align-items: center; margin-bottom: 10px; }
-        .stat-label { color: #ccc; font-size: 12px; width: 85px; font-weight: bold; }
-        .stat-bar-bg { flex-grow: 1; height: 10px; background: #222; border-radius: 5px; overflow: hidden; border: 1px solid #000; }
+        .bike-name { color: #fff; font-size: 16px; font-weight: 900; text-align: center; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px; }
+        .stat-row { display: flex; align-items: center; margin-bottom: 8px; }
+        .stat-label { color: #ccc; font-size: 11px; width: 75px; font-weight: bold; }
+        .stat-bar-bg { flex-grow: 1; height: 8px; background: #222; border-radius: 4px; overflow: hidden; border: 1px solid #000; }
         .stat-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #ff3333, #ffcc00, #33ff33); transition: width 0.4s ease; }
 
-        /* Байк и стрелки (СПРАВА) */
+        /* Байк (ЦЕНТР) */
         .bike-carousel {
-            position: absolute; bottom: 15%; right: 5%; display: flex; align-items: center; gap: 10px; pointer-events: auto; z-index: 10;
+            position: absolute; bottom: 12%; left: 50%; transform: translateX(-50%);
+            display: flex; align-items: center; justify-content: center; gap: 20px; pointer-events: auto; z-index: 10;
         }
-        #menuBikeCanvas { width: 250px; height: 150px; filter: drop-shadow(0 15px 15px rgba(0,0,0,0.9)); }
+        #menuBikeCanvas { width: 300px; height: 180px; filter: drop-shadow(0 15px 15px rgba(0,0,0,0.9)); }
         
-        /* Стрелки (уменьшены, чтобы не лезли на статистику) */
-        .btn-left { background-position: 75% 100%; width: 45px; height: 45px; }
-        .btn-right { background-position: 100% 100%; width: 45px; height: 45px; }
+        .btn-left { background-position: 75% 100%; width: 50px; height: 50px; }
+        .btn-right { background-position: 100% 100%; width: 50px; height: 50px; }
 
         /* --- ИГРОВОЙ ИНТЕРФЕЙС --- */
         .ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
@@ -123,7 +119,7 @@
 </head>
 <body>
 
-<!-- Экран поворота (с деталями телефона) -->
+<!-- ЭКРАН ПОВОРОТА -->
 <div id="rotateDevice">
     <svg viewBox="0 0 100 100">
         <g fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
@@ -141,6 +137,7 @@
     <h2>Пожалуйста, поверните устройство</h2>
 </div>
 
+<!-- ЗАСТАВКА -->
 <div id="splashScreen">
     <img src="splash.png" alt="Souway Games" onerror="this.src='moto.png';">
 </div>
@@ -163,7 +160,6 @@
         </div>
     </div>
 
-    <!-- Левая панель статистики -->
     <div class="bike-stats">
         <div class="bike-name" id="menuBikeName">CTM 300 EXC</div>
         <div class="stat-row"><div class="stat-label">SPEED</div><div class="stat-bar-bg"><div class="stat-bar-fill" id="statSpeed"></div></div></div>
@@ -172,10 +168,9 @@
         <div class="stat-row"><div class="stat-label">STABILITY</div><div class="stat-bar-bg"><div class="stat-bar-fill" id="statStabil"></div></div></div>
     </div>
 
-    <!-- Байк по центру и стрелки -->
     <div class="bike-carousel">
         <button class="sprite-btn btn-left" id="btnPrevBike"></button>
-        <canvas id="menuBikeCanvas" width="250" height="150"></canvas>
+        <canvas id="menuBikeCanvas" width="300" height="180"></canvas>
         <button class="sprite-btn btn-right" id="btnNextBike"></button>
     </div>
 
@@ -230,7 +225,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v15.9</div>
+<div class="version-text">v16.0</div>
 
 <script>
     let gameState = 'splash'; 
@@ -548,4 +543,4 @@
     checkOrientation(); resizeCanvas(); update();
 </script>
 </body>
-        </html>
+    </html>
