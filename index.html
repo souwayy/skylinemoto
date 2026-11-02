@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (v13.1)</title>
+    <title>Skyline Moto (v14.3)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -226,7 +226,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v13.1</div>
+<div class="version-text">v14.3</div>
 
 <script>
     let isGameRunning = false;
@@ -264,8 +264,8 @@
     let groundY = 0; 
 
     const BIKE_CATALOG = {
-        cayo_125: { name: "CAYO 125 TRAIL", density: 2.2, suspension: { freq: 3.5, damp: 0.8 }, motor: { speed: 35, torque: 40, brake: 50 } },
-        ctm_300_exc: { name: "CTM 300 EXC", density: 1.2, suspension: { freq: 4.5, damp: 0.7 }, motor: { speed: 50, torque: 60, brake: 100 } }
+        cayo_125: { name: "CAYO 125 TRAIL", density: 2.2, suspension: { freq: 4.5, damp: 0.8 }, motor: { speed: 35, torque: 40, brake: 50 } },
+        ctm_300_exc: { name: "CTM 300 EXC", density: 1.2, suspension: { freq: 5.5, damp: 0.7 }, motor: { speed: 50, torque: 60, brake: 100 } }
     };
     let currentBike = BIKE_CATALOG.ctm_300_exc;
 
@@ -326,14 +326,13 @@
     let sessionSeed = 0;
     const zoneCache = new Map(); 
 
+    // ПЛАВНЫЙ РОСТ ГЛУБИНЫ
     function getDepthForDist(distM) {
         if (distM < 800)   return null;
-        if (distM < 1500)  return { min: 14, max: 18 };
-        if (distM < 3000)  return { min: 20, max: 25 };
-        if (distM < 5000)  return { min: 25, max: 30 };   
-        if (distM < 10000) return { min: 30, max: 35 };   
-        if (distM < 15000) return { min: 35, max: 38 };   
-        return { min: 38, max: 42 };                       
+        if (distM < 2000)  return { min: 15, max: 20 };
+        if (distM < 5000)  return { min: 25, max: 35 };
+        if (distM < 10000) return { min: 35, max: 45 };   
+        return { min: 45, max: 60 };                       
     }
 
     function erosionProfile(localX, entryW, floorW, exitW, depth, slope) {
@@ -354,18 +353,22 @@
     function getTerrainYNoErosion(x) {
         let y = groundY;
         let u = x + terrainOffset;
+        let distFromStart = x - startX;
 
-        // ВЕРНУЛИ БАЗОВУЮ АМПЛИТУДУ 80 (без роста)
-        let baseHill = Math.sin(u * 0.001) * 80;
-        let micro = Math.sin(u * 0.015) * 6;
+        // РОСТ ХОЛМОВ (от 80 до 160 пикселей к 20 км)
+        let hillScale = Math.min(2.0, 1.0 + (Math.max(0, distFromStart) / 20000));
+        let baseHill = Math.sin(u * 0.001) * 80 * hillScale;
+        
+        // ВОЗВРАЩАЕМ МИКРО-КОЧКИ (2 пикселя)
+        let micro = Math.sin(u * 0.015) * 2; 
 
+        // РЕДКИЕ ТРАМПЛИНЫ
         let shape = Math.pow(Math.sin(u * 0.003), 3) * 180;
         let gate = Math.pow(Math.max(0, Math.sin(u * 0.00125)), 6);
         let kicker = shape * gate;
 
         let mathY = y - baseHill - kicker - micro;
 
-        let distFromStart = x - startX;
         if (distFromStart < 1000) {
             let factor = Math.max(0, distFromStart / 1000);
             let flatY = groundY - (distFromStart * 0.02);
@@ -383,18 +386,23 @@
 
     function buildErosionZone(chunkStart, chunkIndex, zoneIdx, depthRange, widthTier) {
         let entryMin, entryMax, gapMin, gapMax, countMin, countMax;
+        
+        // Масштабируем ширину ямы в зависимости от глубины
+        let baseDepth = (depthRange.min + depthRange.max) / 2;
+        entryMin = baseDepth * 1.5;
+        entryMax = baseDepth * 2.5;
+        let exitMin = baseDepth * 1.2;
+        let exitMax = baseDepth * 2.0;
+
         if (widthTier === 1) {
-            entryMin = 40; entryMax = 60;
             gapMin = 15; gapMax = 35;
-            countMin = 1; countMax = 4; 
+            countMin = 1; countMax = 3; 
         } else if (widthTier === 2) {
-            entryMin = 60; entryMax = 90;
             gapMin = 10; gapMax = 25;
-            countMin = 2; countMax = 5;
+            countMin = 2; countMax = 4;
         } else {
-            entryMin = 70; entryMax = 100;
             gapMin = 8; gapMax = 20;
-            countMin = 3; countMax = 6;
+            countMin = 3; countMax = 5;
         }
 
         let zoneLength = 600 + hash32(sessionSeed, chunkIndex, 2 + zoneIdx * 10) * 600;
@@ -418,8 +426,10 @@
             }
             let entryW = entryMin + hash32(sessionSeed, chunkIndex, 200 + i + zoneIdx * 20) * (entryMax - entryMin);
             let floorW = 15 + hash32(sessionSeed, chunkIndex, 300 + i + zoneIdx * 20) * 15;
-            // ВЫХОД 40-60 ПИКСЕЛЕЙ (ПЛАВНЫЙ)
-            let exitW  = 40 + hash32(sessionSeed, chunkIndex, 400 + i + zoneIdx * 20) * 20;
+            
+            // Выход привязан к глубине, чтобы не было вертикальных стенок
+            let exitW  = exitMin + hash32(sessionSeed, chunkIndex, 400 + i + zoneIdx * 20) * (exitMax - exitMin);
+            
             let totalW = entryW + floorW + exitW;
             if (cursor + totalW > zoneLength) break;
 
