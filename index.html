@@ -28,22 +28,26 @@
         }
         #rotateDevice h2 { font-size: 24px; font-weight: 600; margin: 0; padding: 0 20px; }
 
-        /* --- ЗАСТАВКА --- */
-        #splashScreen {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
-            background-color: #000 !important; z-index: 99999;
-            display: flex; align-items: center; justify-content: center;
-            transition: opacity 0.8s ease-in-out;
-        }
-        #splashScreen img {
-            width: auto; height: auto; max-width: 80vw; max-height: 80vh; 
-            object-fit: contain;
-            animation: pulseLogo 2s ease-in-out infinite;
-        }
-        @keyframes pulseLogo { 
-            0%, 100% { transform: scale(1); opacity: 0.8; filter: drop-shadow(0 0 10px rgba(255,100,0,0.2)); } 
-            50% { transform: scale(1.05); opacity: 1; filter: drop-shadow(0 0 30px rgba(255,100,0,0.6)); } 
-        }
+        /* --- ЗАСТАВКА (SPLASH SCREEN) --- */
+#splashScreen {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
+    background-color: #000 !important; z-index: 99999;
+    display: flex; align-items: center; justify-content: center;
+    transition: opacity 0.8s ease-in-out;
+    /* Мягкое оранжевое свечение от самих краев экрана */
+    box-shadow: inset 0 0 200px rgba(255, 100, 0, 0.15);
+}
+#splashScreen img {
+    /* Картинка занимает весь экран, но сохраняет пропорции */
+    width: 100vw; height: 100vh; 
+    object-fit: contain;
+    animation: pulseLogo 2s ease-in-out infinite;
+}
+@keyframes pulseLogo { 
+    /* Убрали свечение вокруг картинки, оставили только пульсацию */
+    0%, 100% { transform: scale(1); opacity: 0.85; } 
+    50% { transform: scale(1.03); opacity: 1; } 
+}
 
         /* --- ГЛАВНОЕ МЕНЮ --- */
         #mainMenu {
