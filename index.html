@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (v10.3)</title>
+    <title>Skyline Moto (v10.5)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -12,7 +12,6 @@
         }
         canvas { display: block; touch-action: none; }
 
-        /* Оверлей поворота экрана */
         #rotateDevice {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: #000; z-index: 1000; display: none;
@@ -25,7 +24,6 @@
         }
         #rotateDevice h2 { font-size: 24px; font-weight: 600; margin: 0; }
 
-        /* UI Слой */
         .ui-layer {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; z-index: 10;
@@ -99,7 +97,6 @@
 </head>
 <body>
 
-<!-- Экран поворота с нормальной иконкой телефона -->
 <div id="rotateDevice">
     <svg viewBox="0 0 24 24">
         <rect x="7" y="3" width="10" height="18" rx="2" ry="2"></rect>
@@ -211,14 +208,13 @@
     </div>
 </div>
 
-<!-- Стартовый экран (вернули заглушку) -->
 <div class="overlay hidden" id="startScreen">
     <h1>Skyline Moto</h1>
     <p>Нажми, чтобы начать</p>
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v10.3</div>
+<div class="version-text">v10.5</div>
 
 <script>
     let isGameRunning = false;
@@ -251,7 +247,6 @@
     window.addEventListener('resize', checkOrientation);
     window.addEventListener('orientationchange', () => setTimeout(checkOrientation, 200));
 
-    // --- ЛОГИКА ИГРЫ ---
     const ENABLE_AUDIO = true; 
     const SCALE = 30; 
     let groundY = 0; 
@@ -319,20 +314,38 @@
         return r1 * (1 - u) + r2 * u;
     }
 
-    // ЗОНЫ С "ВОЛНАМИ" (ГРЕБЕНКОЙ)
-let washboard = 0;
-// Частота 0.0001 = зона раз в ~1000 метров. Шум делает их уникальными.
-let waveZone = noise((x + terrainOffset) * 0.0001); 
+    function getTerrainY(x) {
+        let y = groundY;
+        
+        let baseHill = Math.sin((x + terrainOffset) * 0.001) * 80;
+        let micro = Math.sin((x + terrainOffset) * 0.015) * 6;
 
-// Жесткий порог 0.9 делает зону короткой (около 100 метров)
-if (waveZone > 0.9) {
-    let intensity = (waveZone - 0.9) / 0.1; 
-    // Добавляем шум к амплитуде, чтобы сами волны тоже были разными
-    let rippleNoise = noise((x + terrainOffset) * 0.05); 
-    let amplitude = 6 + rippleNoise * 6; 
-    
-    washboard = (Math.sin((x + terrainOffset) * 0.15) + Math.cos((x + terrainOffset) * 0.25)) * amplitude * intensity;
-    }
+        let shape = Math.pow(Math.sin((x + terrainOffset) * 0.003), 3) * 180;
+        let gate = Math.pow(Math.max(0, Math.sin((x + terrainOffset) * 0.00125)), 6);
+        let kicker = shape * gate;
+
+        // ЗОНЫ С "ВОЛНАМИ" (ГРЕБЕНКОЙ)
+        let washboard = 0;
+        let waveZone = noise((x + terrainOffset) * 0.0001); 
+        
+        if (waveZone > 0.9) {
+            let intensity = (waveZone - 0.9) / 0.1; 
+            let rippleNoise = noise((x + terrainOffset) * 0.05); 
+            let amplitude = 6 + rippleNoise * 6; 
+            
+            washboard = (Math.sin((x + terrainOffset) * 0.15) + Math.cos((x + terrainOffset) * 0.25)) * amplitude * intensity;
+        }
+
+        let mathY = y - baseHill - kicker - washboard - micro;
+
+        let distFromStart = x - startX;
+        if (distFromStart < 1000) {
+            let factor = Math.max(0, distFromStart / 1000); 
+            let flatY = groundY - (distFromStart * 0.02);   
+            return flatY * (1 - factor) + mathY * factor;   
+        }
+        
+        return mathY;
     }
 
     let terrainBodies = [];
