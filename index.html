@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (v11.5)</title>
+    <title>Skyline Moto (v11.9)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -226,7 +226,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v11.5</div>
+<div class="version-text">v11.9</div>
 
 <script>
     let isGameRunning = false;
@@ -263,9 +263,10 @@
     const SCALE = 30; 
     let groundY = 0; 
 
+    // ОБНОВЛЕННЫЕ ХАРАКТЕРИСТИКИ: ВЕС УВЕЛИЧЕН, ПОДВЕСКА УСИЛЕНА
     const BIKE_CATALOG = {
-        cayo_125: { name: "CAYO 125 TRAIL", density: 2.2, suspension: { freq: 3.5, damp: 0.8 }, motor: { speed: 35, torque: 40, brake: 50 } },
-        ctm_300_exc: { name: "CTM 300 EXC", density: 1.2, suspension: { freq: 4.5, damp: 0.7 }, motor: { speed: 50, torque: 60, brake: 100 } }
+        cayo_125: { name: "CAYO 125 TRAIL", density: 3.5, suspension: { freq: 4.5, damp: 0.8 }, motor: { speed: 35, torque: 40, brake: 50 } },
+        ctm_300_exc: { name: "CTM 300 EXC", density: 2.5, suspension: { freq: 6.5, damp: 0.8 }, motor: { speed: 50, torque: 60, brake: 100 } }
     };
     let currentBike = BIKE_CATALOG.ctm_300_exc;
 
@@ -789,6 +790,9 @@
 
         chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic', bullet: true });
         chassis.createFixture(pl.Box(53 / SCALE / 2, 6 / SCALE / 2, pl.Vec2(0, -18 / SCALE)), { density: currentBike.density, friction: 0.3 });
+        
+        // ДОБАВЛЯЕМ УГЛОВОЕ ЗАТУХАНИЕ ДЛЯ СТАБИЛЬНОСТИ В ВОЗДУХЕ
+        chassis.setAngularDamping(2.0);
 
         let headShape = pl.Circle(8 / SCALE);
         headShape.m_p.set(0 / SCALE, -35 / SCALE);
@@ -1149,7 +1153,6 @@
             let chassisY = chassis.getPosition().y * SCALE;
             let groundUnder = getTerrainY(chassisX);
             
-            // ПОРОГ ОТРЫВА УВЕЛИЧЕН ДО 35 ПИКСЕЛЕЙ
             let isAirborne = (chassisY < groundUnder - 35); 
             
             let angle = chassis.getAngle();
@@ -1162,7 +1165,7 @@
                 currentAirTime += dt;
                 if (currentAirTime > maxAirTime) maxAirTime = currentAirTime;
 
-                if (!flipCounted && Math.abs(accumulatedRotation) >= Math.PI * 1.9 && currentAirTime > 0.4) {
+                if (!flipCounted && Math.abs(accumulatedRotation) >= Math.PI * 2.0 && currentAirTime > 0.4) {
                     if (accumulatedRotation > 0) frontflipCount++; 
                     else backflipCount++; 
                     flipCounted = true;
@@ -1212,6 +1215,7 @@
             }
             lastAngle = angle; 
 
+            // ГАЗ РАБОТАЕТ ВСЕГДА
             if (window.isGas) {
                 jointRear.setMotorSpeed(currentBike.motor.speed); jointFront.setMotorSpeed(currentBike.motor.speed);
                 jointRear.setMaxMotorTorque(currentBike.motor.torque); jointFront.setMaxMotorTorque(currentBike.motor.torque);
@@ -1222,13 +1226,8 @@
                 jointRear.setMaxMotorTorque(0); jointFront.setMaxMotorTorque(0);
             }
 
-            // АЭРОДИНАМИЧЕСКАЯ ПРИЖИМНАЯ СИЛА (сбалансированная, квадратичная)
-            let vel = chassis.getLinearVelocity();
-            let downForce = vel.x * vel.x * 0.05; 
-            chassis.applyForce(pl.Vec2(0, downForce), chassis.getWorldCenter(), true);
-
             let tiltPower = 20; 
-            let maxTiltSpeed = 3.5;  
+            let maxTiltSpeed = 3.0;  
             let canTilt = !isAirborne || currentAirTime > 0.2;
 
             if (canTilt) {
@@ -1237,11 +1236,6 @@
                 } else if (window.isLeanForward) { 
                     if (chassis.getAngularVelocity() < maxTiltSpeed) chassis.applyTorque(tiltPower, true); 
                 }
-            }
-
-            // АЭРОДИНАМИЧЕСКОЕ СОПРОТИВЛЕНИЕ ВРАЩЕНИЮ (выравнивает байк в воздухе, если отпустить кнопки)
-            if (isAirborne && !window.isLeanBack && !window.isLeanForward) {
-                chassis.applyTorque(-chassis.getAngularVelocity() * 1.5, true);
             }
 
             if (ENABLE_AUDIO && isAudioInitialized) {
