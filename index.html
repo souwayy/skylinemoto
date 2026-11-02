@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (v11.1)</title>
+    <title>Skyline Moto (v11.2)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -22,15 +22,6 @@
             width: 120px; height: 120px; fill: none; stroke: white; stroke-width: 4;
             margin-bottom: 24px; stroke-linecap: round; stroke-linejoin: round;
             filter: drop-shadow(0 0 16px rgba(255,255,255,0.2));
-        }
-        .phone-group {
-            transform-box: fill-box;
-            transform-origin: center;
-            animation: rotatePhone 2s ease-in-out infinite alternate;
-        }
-        @keyframes rotatePhone {
-            0%   { transform: rotate(0deg); }
-            100% { transform: rotate(90deg); }
         }
         #rotateDevice h2 { font-size: 24px; font-weight: 600; margin: 0; line-height: 1.3; }
 
@@ -110,19 +101,21 @@
 
 <div id="rotateDevice">
     <svg viewBox="0 0 100 100">
+        <!-- Стрелки статичны -->
         <g fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
-            <!-- Верхняя дуга -->
             <path d="M 22 32 A 34 34 0 0 1 78 32" />
             <polyline points="66 20 78 32 66 44" />
-            
-            <!-- Нижняя дуга -->
             <path d="M 78 68 A 34 34 0 0 1 22 68" />
             <polyline points="34 80 22 68 34 56" />
         </g>
-        
-        <g class="phone-group" fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+        <!-- Телефон с нативной SVG-анимацией -->
+        <g fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
             <rect x="40" y="25" width="20" height="50" rx="3" ry="3" />
             <line x1="50" y1="66" x2="50.01" y2="66" stroke-width="4" />
+            <animateTransform attributeName="transform" type="rotate"
+                values="0 50 50; 90 50 50; 90 50 50; 0 50 50"
+                keyTimes="0; 0.4; 0.6; 1"
+                dur="3s" repeatCount="indefinite" />
         </g>
     </svg>
     <h2>Пожалуйста, поверните устройство</h2>
@@ -235,7 +228,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v11.1</div>
+<div class="version-text">v11.2</div>
 
 <script>
     let isGameRunning = false;
@@ -339,20 +332,19 @@
     let sessionSeed = 0;
     const zoneCache = new Map();  // chunkIndex -> Array<zone>
 
-    // Пороги сложности по дистанции (в метрах) — СМЯГЧЕНО
+    // Пороги сложности (среднее между v11.0 и v11.1)
     function getDepthForDist(distM) {
         if (distM < 800)   return null;
-        if (distM < 1500)  return { min: 12, max: 15 };
+        if (distM < 1500)  return { min: 12, max: 16 };
         if (distM < 3000)  return { min: 16, max: 22 };
-        if (distM < 5000)  return { min: 20, max: 25 };   // было 22-28
-        if (distM < 7000)  return { min: 25, max: 28 };   // новый порог
-        if (distM < 10000) return { min: 28, max: 32 };   
-        if (distM < 15000) return { min: 32, max: 35 };   
-        if (distM < 20000) return { min: 34, max: 36 };   
-        return { min: 35, max: 38 };                       
+        if (distM < 5000)  return { min: 22, max: 27 };   // Глубже, чем в 11.1
+        if (distM < 7000)  return { min: 27, max: 31 };   
+        if (distM < 10000) return { min: 31, max: 34 };   
+        if (distM < 15000) return { min: 34, max: 36 };   
+        return { min: 36, max: 38 };                       
     }
 
-    // Профиль промоины (глубина положительная)
+    // Профиль промоины
     function erosionProfile(localX, entryW, floorW, exitW, depth, slope) {
         let total = entryW + floorW + exitW;
         if (localX < 0 || localX > total) return 0;
@@ -368,7 +360,6 @@
         return (depth + slope) * (1 - t * t * (3 - 2 * t));
     }
 
-    // Профиль оврага (линейный step-down + flat + step-up)
     function ravineProfile(localX, dropW, floorW, riseW, depth) {
         let total = dropW + floorW + riseW;
         if (localX < 0 || localX > total) return 0;
@@ -382,7 +373,6 @@
         return depth * (1 - t);
     }
 
-    // Whoops — визуальная гребёнка, не наказание
     function whoopsProfile(localX, totalWidth, step, amplitude) {
         if (localX < 0 || localX > totalWidth) return 0;
         let progress = localX / totalWidth;
@@ -462,9 +452,9 @@
                 cursor += gap;
             }
             let entryW = entryMin + hash32(sessionSeed, chunkIndex, 200 + i + zoneIdx * 20) * (entryMax - entryMin);
-            let floorW = 10 + hash32(sessionSeed, chunkIndex, 300 + i + zoneIdx * 20) * 15;
-            // ИСПРАВЛЕНО: exitW увеличен до 35-50, чтобы не было трамплина
-            let exitW  = 35 + hash32(sessionSeed, chunkIndex, 400 + i + zoneIdx * 20) * 15;
+            let floorW = 15 + hash32(sessionSeed, chunkIndex, 300 + i + zoneIdx * 20) * 15;
+            // ЗОЛОТАЯ СЕРЕДИНА: выход 30-40 px
+            let exitW  = 30 + hash32(sessionSeed, chunkIndex, 400 + i + zoneIdx * 20) * 10;
             let totalW = entryW + floorW + exitW;
             if (cursor + totalW > zoneLength) break;
 
@@ -546,8 +536,7 @@
         let gap = 80 + hash32(sessionSeed, chunkIndex, 44 + zoneIdx * 10) * 70;
         let entryW = 60 + hash32(sessionSeed, chunkIndex, 45 + zoneIdx * 10) * 20;
         let holeFloorW = 15 + hash32(sessionSeed, chunkIndex, 46 + zoneIdx * 10) * 15;
-        // ИСПРАВЛЕНО: exitW увеличен до 35-50
-        let exitW = 35 + hash32(sessionSeed, chunkIndex, 47 + zoneIdx * 10) * 15;
+        let exitW = 30 + hash32(sessionSeed, chunkIndex, 47 + zoneIdx * 10) * 10;
         let holeW = entryW + holeFloorW + exitW;
         let holeDepth = depthRange.min + hash32(sessionSeed, chunkIndex, 48 + zoneIdx * 10) * (depthRange.max - depthRange.min);
         let holeSlope = (hash32(sessionSeed, chunkIndex, 49 + zoneIdx * 10) - 0.5) * 6;
@@ -582,29 +571,26 @@
         let depthRange = getDepthForDist(chunkDistM);
         if (!depthRange) return [];
 
-        // СМЯГЧЕНО: 2 зоны только с 20 км, 3 зоны с 30 км
+        // 2 зоны с 12 км, 3 зоны с 18 км
         let zoneCount = 1;
-        if (chunkDistM >= 30000) zoneCount = 3;
-        else if (chunkDistM >= 20000) zoneCount = 2;
+        if (chunkDistM >= 18000) zoneCount = 3;
+        else if (chunkDistM >= 12000) zoneCount = 2;
 
-        // СМЯГЧЕНО: widthTier 2 с 6 км, widthTier 3 с 10 км
         let widthTier = 1;
         if (chunkDistM >= 10000) widthTier = 3;
-        else if (chunkDistM >= 6000) widthTier = 2;
+        else if (chunkDistM >= 5000) widthTier = 2;
 
-        // СМЯГЧЕНО: whoops и ravine реже
         let whoopsChance = 0;
         if (chunkDistM >= 7000) whoopsChance = 0.10;
 
         let ravineChance = 0;
-        if (chunkDistM >= 20000)      ravineChance = 0.30;
-        else if (chunkDistM >= 15000) ravineChance = 0.25;
-        else if (chunkDistM >= 10000) ravineChance = 0.20;
-        else if (chunkDistM >= 7000)  ravineChance = 0.10;
+        if (chunkDistM >= 15000)      ravineChance = 0.35;
+        else if (chunkDistM >= 10000) ravineChance = 0.25;
+        else if (chunkDistM >= 7000)  ravineChance = 0.15;
 
         let comboChance = 0;
-        if (chunkDistM >= 20000)      comboChance = 0.15;
-        else if (chunkDistM >= 15000) comboChance = 0.10;
+        if (chunkDistM >= 15000)      comboChance = 0.20;
+        else if (chunkDistM >= 10000) comboChance = 0.10;
 
         let zones = [];
         for (let i = 0; i < zoneCount; i++) {
@@ -733,38 +719,37 @@
     }
 
     // -----------------------------------------------------
-    //  ПЫЛЬ (СМЯГЧЕНО: меньше, прозрачнее, реже)
+    //  ПЫЛЬ
     // -----------------------------------------------------
 
     function spawnDust(x, y, speedX, type) {
-        // ИСПРАВЛЕНО: лимит снижен со 200 до 80
         if (particles.length > 80) return;
 
         let count, baseVx, baseVy, baseRadius, baseGrowth, baseAlpha, lifeMin, lifeMax;
 
         if (type === 'brake') {
-            count = 2 + Math.floor(Math.random() * 2); // было 3-4, стало 2-3
+            count = 2 + Math.floor(Math.random() * 2);
             baseVx = -1 - Math.random() * 3;
             baseVy = -Math.random() * 8 - 3;
-            baseRadius = 3 + Math.random() * 4; // было 4-9, стало 3-7
+            baseRadius = 3 + Math.random() * 4;
             baseGrowth = 2 + Math.random() * 2;
-            baseAlpha = 0.4 + Math.random() * 0.2; // было 0.6-0.9, стало 0.4-0.6
+            baseAlpha = 0.4 + Math.random() * 0.2;
             lifeMin = 0.8; lifeMax = 1.4;
         } else if (type === 'gas') {
-            count = 1; // было 2, стало 1
+            count = 1;
             baseVx = -1 - Math.random() * 2;
             baseVy = -Math.random() * 2 - 1;
-            baseRadius = 3 + Math.random() * 4; // было 5-11, стало 3-7
+            baseRadius = 3 + Math.random() * 4;
             baseGrowth = 1.5 + Math.random() * 1.5;
-            baseAlpha = 0.3 + Math.random() * 0.2; // было 0.55-0.8, стало 0.3-0.5
+            baseAlpha = 0.3 + Math.random() * 0.2;
             lifeMin = 1.2; lifeMax = 2.0;
         } else {
             count = 1;
             baseVx = -1 - Math.random() * 1;
             baseVy = -Math.random() * 1;
-            baseRadius = 2 + Math.random() * 2; // было 3-6, стало 2-4
+            baseRadius = 2 + Math.random() * 2;
             baseGrowth = 1 + Math.random() * 1;
-            baseAlpha = 0.2 + Math.random() * 0.1; // было 0.3-0.5, стало 0.2-0.3
+            baseAlpha = 0.2 + Math.random() * 0.1;
             lifeMin = 0.6; lifeMax = 1.0;
         }
 
@@ -1227,7 +1212,6 @@
                 }
 
                 if (linearSpeed > 5) {
-                    // ИСПРАВЛЕНО: интервалы увеличены (реже пыль)
                     let dustInterval = 0.06; 
                     if (window.isBrake && linearSpeed > 10) dustInterval = 0.03;
                     else if (!window.isGas && linearSpeed < 20) dustInterval = 0.1;
@@ -1386,4 +1370,4 @@
     update();
 </script>
 </body>
-    </html>
+                        </html>
