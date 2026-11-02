@@ -34,8 +34,11 @@
     background-color: #000 !important; z-index: 99999;
     display: flex; align-items: center; justify-content: center;
     transition: opacity 0.8s ease-in-out;
-    /* Мягкое оранжевое свечение от самих краев экрана */
     box-shadow: inset 0 0 200px rgba(255, 100, 0, 0.15);
+    
+    /* ВОТ ЭТИ ДВЕ СТРОЧКИ ПОДНИМАЮТ ЛОГОТИП */
+    padding-bottom: 8vh; 
+    box-sizing: border-box; 
 }
 #splashScreen img {
     /* Картинка занимает весь экран, но сохраняет пропорции */
