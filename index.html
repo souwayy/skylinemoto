@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (v12.0)</title>
+    <title>Skyline Moto (v12.1)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -226,7 +226,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v12.0</div>
+<div class="version-text">v12.1</div>
 
 <script>
     let isGameRunning = false;
@@ -263,10 +263,10 @@
     const SCALE = 30; 
     let groundY = 0; 
 
-    // СБАЛАНСИРОВАННЫЕ ХАРАКТЕРИСТИКИ ПОД НОВУЮ БАЗУ
+    // ВОЗВРАЩАЕМ СТАРЫЕ ХАРАКТЕРИСТИКИ ДЛЯ КАЙФА
     const BIKE_CATALOG = {
-        cayo_125: { name: "CAYO 125 TRAIL", density: 3.5, suspension: { freq: 4.5, damp: 0.9 }, motor: { speed: 35, torque: 40, brake: 50 } },
-        ctm_300_exc: { name: "CTM 300 EXC", density: 2.5, suspension: { freq: 5.5, damp: 0.9 }, motor: { speed: 50, torque: 60, brake: 100 } }
+        cayo_125: { name: "CAYO 125 TRAIL", density: 2.2, suspension: { freq: 3.5, damp: 0.8 }, motor: { speed: 35, torque: 40, brake: 50 } },
+        ctm_300_exc: { name: "CTM 300 EXC", density: 1.2, suspension: { freq: 4.5, damp: 0.7 }, motor: { speed: 50, torque: 60, brake: 100 } }
     };
     let currentBike = BIKE_CATALOG.ctm_300_exc;
 
@@ -775,9 +775,9 @@
         }
     }
 
-    // ИСПРАВЛЕНА БАЗА (44 пикселя вместо 23)
+    // ВОЗВРАЩАЕМ БАЗУ 23
     const wheelRadius = 10 / SCALE; 
-    const wheelBase = 44 / SCALE; 
+    const wheelBase = 23 / SCALE; 
     
     let chassis, wheelRear, wheelFront;
     let jointRear, jointFront;
@@ -790,10 +790,7 @@
         }
 
         chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic', bullet: true });
-        // Центр масс смещен немного вниз для стабильности
         chassis.createFixture(pl.Box(53 / SCALE / 2, 6 / SCALE / 2, pl.Vec2(0, -18 / SCALE)), { density: currentBike.density, friction: 0.3 });
-        
-        chassis.setAngularDamping(1.0);
 
         let headShape = pl.Circle(8 / SCALE);
         headShape.m_p.set(0 / SCALE, -35 / SCALE);
@@ -1237,20 +1234,18 @@
                 } else if (window.isLeanForward) { 
                     if (chassis.getAngularVelocity() < maxTiltSpeed) chassis.applyTorque(tiltPower, true); 
                 } else {
-                    // Если кнопки не нажаты - принудительное выравнивание и гашение инерции газа
+                    // СТАБИЛИЗАЦИЯ: Если кнопки не нажаты, гасим вращение от кочек
                     let normAngle = angle % (2 * Math.PI);
                     if (normAngle > Math.PI) normAngle -= 2 * Math.PI;
                     if (normAngle < -Math.PI) normAngle += 2 * Math.PI;
 
-                    // 1. Гасим вращение (PD-контроллер)
-                    let stabilizeTorque = -(normAngle * 40.0) - (chassis.getAngularVelocity() * 8.0);
-                    
-                    // 2. Компенсируем реактивный момент от газа (чтобы байк не кувыркался от скорости колес)
-                    if (window.isGas) {
-                        stabilizeTorque += currentBike.motor.torque * 0.8;
-                    }
-                    
+                    let stabilizeTorque = -(normAngle * 30.0) - (chassis.getAngularVelocity() * 6.0);
                     chassis.applyTorque(stabilizeTorque, true);
+
+                    // ПРИЖИМНАЯ СИЛА (если подлетели невысоко)
+                    if (chassisY > groundUnder - 80) {
+                        chassis.applyForce(pl.Vec2(0, chassis.getMass() * 15.0), chassis.getWorldCenter(), true);
+                    }
                 }
             } else {
                 // НА ЗЕМЛЕ
@@ -1259,7 +1254,7 @@
                 } else if (window.isLeanForward) { 
                     if (chassis.getAngularVelocity() < maxTiltSpeed) chassis.applyTorque(tiltPower, true); 
                 } else {
-                    // Мягкое выравнивание на земле
+                    // Легкое выравнивание на земле
                     chassis.applyTorque(-chassis.getAngularVelocity() * 1.0, true);
                 }
             }
