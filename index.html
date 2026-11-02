@@ -14,14 +14,25 @@
         #rotateDevice svg { width: 100px; height: 100px; fill: none; stroke: white; stroke-width: 4; margin-bottom: 30px; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 15px rgba(255,255,255,0.3)); }
         #rotateDevice h2 { font-size: 24px; font-weight: 600; margin: 0; padding: 0 20px; }
 
-        /* --- ЗАСТАВКА (БЕЗ КВАДРАТОВ) --- */
-        #splashScreen {
-            position: fixed; inset: 0; background-color: #000; z-index: 99999;
-            display: flex; align-items: center; justify-content: center;
-            transition: opacity 0.8s ease-in-out;
-        }
-        #splashScreen img { width: 100vw; height: 100vh; object-fit: contain; padding: 10vh 0; box-sizing: border-box; }
+        /* --- ЗАСТАВКА --- */
+#splashScreen {
+    position: fixed; inset: 0; background-color: #000; z-index: 99999;
+    display: flex; align-items: center; justify-content: center;
+    transition: opacity 0.8s ease-in-out;
+}
+#splashScreen img { 
+    width: 100vw; height: 100vh; object-fit: contain; 
+    padding: 10vh 0; box-sizing: border-box; 
+    
+    /* ВОТ ЭТА СТРОКА ВОЗВРАЩАЕТ АНИМАЦИЮ */
+    animation: pulseLogo 2s ease-in-out infinite; 
+}
 
+/* А ВОТ ЭТИ СТРОКИ ЗАДАЮТ САМУ ПУЛЬСАЦИЮ */
+@keyframes pulseLogo { 
+    0%, 100% { transform: scale(1); opacity: 0.85; } 
+    50% { transform: scale(1.03); opacity: 1; } 
+}
         /* --- ГЛАВНОЕ МЕНЮ --- */
         #mainMenu {
             background: url('menu_bg.jpg') no-repeat center bottom; /* Прижал к низу, чтобы земля была видна */
@@ -161,11 +172,10 @@
     </div>
 
     <div class="bike-stats">
-        <div class="bike-name" id="menuBikeName">CTM 300 EXC</div>
-        <div class="stat-row"><div class="stat-label">SPEED</div><div class="stat-bar-bg"><div class="stat-bar-fill" id="statSpeed"></div></div></div>
-        <div class="stat-row"><div class="stat-label">ACCEL</div><div class="stat-bar-bg"><div class="stat-bar-fill" id="statAccel"></div></div></div>
-        <div class="stat-row"><div class="stat-label">SUSPENSION</div><div class="stat-bar-bg"><div class="stat-bar-fill" id="statSusp"></div></div></div>
-        <div class="stat-row"><div class="stat-label">STABILITY</div><div class="stat-bar-bg"><div class="stat-bar-fill" id="statStabil"></div></div></div>
+    <div class="bike-name" id="menuBikeName">CTM 300 EXC</div>
+    <div class="stat-row"><div class="stat-label">СКОРОСТЬ</div><div class="stat-bar-bg"><div class="stat-bar-fill" id="statSpeed"></div></div></div>
+    <div class="stat-row"><div class="stat-label">РАЗГОН</div><div class="stat-bar-bg"><div class="stat-bar-fill" id="statAccel"></div></div></div>
+    <div class="stat-row"><div class="stat-label">СТАБИЛЬНОСТЬ</div><div class="stat-bar-bg"><div class="stat-bar-fill" id="statStabil"></div></div></div>
     </div>
 
     <div class="bike-carousel">
