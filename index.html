@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (v9.2)</title>
+    <title>Skyline Moto (v9.3)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -220,7 +220,7 @@
 <body>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v9.2</div>
+<div class="version-text">v9.3</div>
 
 <div class="ui-layer">
     <div class="top-bar">
@@ -351,7 +351,8 @@
     let frontflipCount = 0;
     let backflipCount = 0;
     
-    let startAirAngle = 0;
+    let accumulatedRotation = 0;
+    let lastAngle = 0;
     let flipCounted = false;
     let wasAirborne = false;
 
@@ -460,23 +461,20 @@
         }
     }
 
-    // ИСПРАВЛЕННЫЕ КАМНИ (Квадратная физика, закопаны в землю)
+    // КАМНИ (Квадратная физика, закопаны)
     function spawnRocks() {
         while (lastRockX < cameraX + (canvas.width / zoom) + 1000) {
             let rx = lastRockX;
             let ry = getTerrainY(rx);
             
-            let visualRadius = 4 + Math.random() * 4; // Размер от 4 до 8 пикселей
+            let visualRadius = 4 + Math.random() * 4; 
             let physicsRadius = visualRadius / SCALE;
 
-            // Закопаем камень на 30% в землю, чтобы он был как бугор
-            let rockBody = world.createBody({ position: pl.Vec2(rx / SCALE, (ry - physicsRadius * 0.3 * SCALE) / SCALE), type: 'static' });
+            let rockBody = world.createBody({ position: pl.Vec2(rx / SCALE, (ry - physicsRadius * 0.5 * SCALE) / SCALE), type: 'static' });
             
-            // Делаем физику квадратной (повернутой), чтобы байк спотыкался
             rockBody.setAngle(Math.random() * Math.PI);
             rockBody.createFixture(pl.Box(physicsRadius, physicsRadius * 0.8), { friction: 0.8 });
 
-            // Генерация полигона для отрисовки
             let points = [];
             let numVertices = 5 + Math.floor(Math.random() * 3);
             for (let j = 0; j < numVertices; j++) {
@@ -736,7 +734,8 @@
         frontflipCount = 0; backflipCount = 0;
         flipCounted = false;
         wasAirborne = false;
-        startAirAngle = chassis.getAngle();
+        accumulatedRotation = 0;
+        lastAngle = chassis.getAngle();
         maxWheelieTime = 0; currentWheelieTime = 0;
         maxStoppieTime = 0; currentStoppieTime = 0;
         particles = [];
@@ -865,7 +864,7 @@
         ctx.stroke();
     }
 
-    // ИСПРАВЛЕННЫЕ КОЛЕСА (Убран серый блик с шины)
+    // КОЛЕСА (Без серого блика на шине)
     function drawWheel(wheel) {
         ctx.save();
         ctx.translate(wheel.getPosition().x * SCALE, wheel.getPosition().y * SCALE);
@@ -879,7 +878,7 @@
         ctx.fillStyle = '#000';
         ctx.fill();
 
-        // 2. Протектор (только для внедорожника)
+        // 2. Протектор (зубцы для эндуро)
         if (currentBike.name === "CTM 300 EXC") {
             ctx.strokeStyle = '#111'; 
             ctx.lineWidth = 2;
@@ -892,14 +891,14 @@
             }
         }
 
-        // 3. Обод (внутренний круг, темно-серый)
+        // 3. Обод (темно-серый)
         ctx.beginPath();
         ctx.arc(0, 0, r - 3.5, 0, Math.PI * 2);
         ctx.strokeStyle = '#222';
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        // 4. Спицы (светло-серые, чтобы выделялись на фоне шины)
+        // 4. Спицы (светло-серые)
         ctx.strokeStyle = '#555';
         ctx.lineWidth = 1;
         let spokes = currentBike.name === "CTM 300 EXC" ? 6 : 8;
@@ -938,34 +937,28 @@
             let wheelSpeed = Math.abs(wheelRear.getAngularVelocity());
             let linearSpeed = Math.abs(chassis.getLinearVelocity().x) * SCALE; 
             
-            // УВЕЛИЧЕН ПОРОГ ПОЛЕТА, чтобы на кочках не сбрасывался счетчик сальто
-            let isAirborne = Math.abs(chassis.getLinearVelocity().y) > 2.5; 
+            let isAirborne = Math.abs(chassis.getLinearVelocity().y) > 1.5; 
+            
+            let angle = chassis.getAngle();
+            let deltaAngle = angle - lastAngle;
+            if (deltaAngle > Math.PI) deltaAngle -= 2 * Math.PI;
+            if (deltaAngle < -Math.PI) deltaAngle += 2 * Math.PI;
             
             if (isAirborne) {
-                if (!wasAirborne) {
-                    startAirAngle = chassis.getAngle();
-                    flipCounted = false;
-                }
-                
+                accumulatedRotation += deltaAngle;
                 currentAirTime += dt;
                 if (currentAirTime > maxAirTime) maxAirTime = currentAirTime;
 
-                // ПРОСТАЯ И НАДЕЖНАЯ ЛОГИКА САЛЬТО
-                let currentAngle = chassis.getAngle();
-                let totalRotation = currentAngle - startAirAngle;
-
-                if (!flipCounted && Math.abs(totalRotation) >= Math.PI * 1.5) {
-                    if (totalRotation > 0) backflipCount++;
-                    else frontflipCount++;
+                if (!flipCounted && Math.abs(accumulatedRotation) >= Math.PI * 1.3) { // Порог 234 градуса
+                    if (accumulatedRotation > 0) backflipCount++; 
+                    else frontflipCount++; 
                     flipCounted = true;
                 }
             } else {
-                if (wasAirborne) {
-                    startAirAngle = chassis.getAngle();
-                }
                 currentAirTime = 0;
+                accumulatedRotation = 0; 
+                flipCounted = false;
 
-                let angle = chassis.getAngle();
                 if (angle < -0.3 && linearSpeed > 5) {
                     currentWheelieTime += dt;
                     if (currentWheelieTime > maxWheelieTime) maxWheelieTime = currentWheelieTime;
@@ -1001,7 +994,7 @@
                     dustTimer = 0.05;
                 }
             }
-            wasAirborne = isAirborne;
+            lastAngle = angle; 
 
             if (window.isGas) {
                 jointRear.setMotorSpeed(currentBike.motor.speed); jointFront.setMotorSpeed(currentBike.motor.speed);
