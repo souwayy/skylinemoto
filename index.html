@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (v12.1)</title>
+    <title>Skyline Moto (v13.1)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -226,7 +226,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v12.1</div>
+<div class="version-text">v13.1</div>
 
 <script>
     let isGameRunning = false;
@@ -263,7 +263,6 @@
     const SCALE = 30; 
     let groundY = 0; 
 
-    // ВОЗВРАЩАЕМ СТАРЫЕ ХАРАКТЕРИСТИКИ ДЛЯ КАЙФА
     const BIKE_CATALOG = {
         cayo_125: { name: "CAYO 125 TRAIL", density: 2.2, suspension: { freq: 3.5, damp: 0.8 }, motor: { speed: 35, torque: 40, brake: 50 } },
         ctm_300_exc: { name: "CTM 300 EXC", density: 1.2, suspension: { freq: 4.5, damp: 0.7 }, motor: { speed: 50, torque: 60, brake: 100 } }
@@ -352,33 +351,11 @@
         return (depth + slope) * (1 - t * t * (3 - 2 * t));
     }
 
-    function ravineProfile(localX, dropW, floorW, riseW, depth) {
-        let total = dropW + floorW + riseW;
-        if (localX < 0 || localX > total) return 0;
-        if (localX < dropW) {
-            return depth * (localX / dropW);
-        }
-        if (localX < dropW + floorW) {
-            return depth;
-        }
-        let t = (localX - dropW - floorW) / riseW;
-        return depth * (1 - t);
-    }
-
-    function whoopsProfile(localX, totalWidth, step, amplitude) {
-        if (localX < 0 || localX > totalWidth) return 0;
-        let progress = localX / totalWidth;
-        let envelope = 1;
-        if (progress < 0.15) envelope = progress / 0.15;
-        else if (progress > 0.85) envelope = (1 - progress) / 0.15;
-        let phase = (localX * Math.PI) / step;
-        return Math.sin(phase) * amplitude * envelope;
-    }
-
     function getTerrainYNoErosion(x) {
         let y = groundY;
         let u = x + terrainOffset;
 
+        // ВЕРНУЛИ БАЗОВУЮ АМПЛИТУДУ 80 (без роста)
         let baseHill = Math.sin(u * 0.001) * 80;
         let micro = Math.sin(u * 0.015) * 6;
 
@@ -409,15 +386,15 @@
         if (widthTier === 1) {
             entryMin = 40; entryMax = 60;
             gapMin = 15; gapMax = 35;
-            countMin = 2; countMax = 5; 
+            countMin = 1; countMax = 4; 
         } else if (widthTier === 2) {
             entryMin = 60; entryMax = 90;
             gapMin = 10; gapMax = 25;
-            countMin = 3; countMax = 6;
+            countMin = 2; countMax = 5;
         } else {
             entryMin = 70; entryMax = 100;
             gapMin = 8; gapMax = 20;
-            countMin = 4; countMax = 7;
+            countMin = 3; countMax = 6;
         }
 
         let zoneLength = 600 + hash32(sessionSeed, chunkIndex, 2 + zoneIdx * 10) * 600;
@@ -441,7 +418,8 @@
             }
             let entryW = entryMin + hash32(sessionSeed, chunkIndex, 200 + i + zoneIdx * 20) * (entryMax - entryMin);
             let floorW = 15 + hash32(sessionSeed, chunkIndex, 300 + i + zoneIdx * 20) * 15;
-            let exitW  = 22 + hash32(sessionSeed, chunkIndex, 400 + i + zoneIdx * 20) * 10;
+            // ВЫХОД 40-60 ПИКСЕЛЕЙ (ПЛАВНЫЙ)
+            let exitW  = 40 + hash32(sessionSeed, chunkIndex, 400 + i + zoneIdx * 20) * 20;
             let totalW = entryW + floorW + exitW;
             if (cursor + totalW > zoneLength) break;
 
@@ -474,83 +452,6 @@
         return { type: 'erosion', start: zoneStart, end: zoneStart + zoneLength, holes: holes, pebbles: pebbles };
     }
 
-    function buildRavineZone(chunkStart, chunkIndex, zoneIdx) {
-        let dropW  = 50 + hash32(sessionSeed, chunkIndex, 20 + zoneIdx * 10) * 20;
-        let floorW = 120 + hash32(sessionSeed, chunkIndex, 21 + zoneIdx * 10) * 80;
-        let riseW  = 50 + hash32(sessionSeed, chunkIndex, 22 + zoneIdx * 10) * 20;
-        let depth  = 20 + hash32(sessionSeed, chunkIndex, 23 + zoneIdx * 10) * 10;
-        let totalW = dropW + floorW + riseW;
-
-        let zoneStart = chunkStart + 1500 + hash32(sessionSeed, chunkIndex, 24 + zoneIdx * 10) * 6000;
-        let attempts = 0;
-        while (attempts < 3 && (isOnKicker(zoneStart) || isOnKicker(zoneStart + totalW))) {
-            zoneStart += 500;
-            attempts++;
-        }
-        if (zoneStart + totalW > chunkStart + 9900) return null;
-
-        return {
-            type: 'ravine',
-            start: zoneStart,
-            end: zoneStart + totalW,
-            ravine: { dropW: dropW, floorW: floorW, riseW: riseW, depth: depth }
-        };
-    }
-
-    function buildWhoopsZone(chunkStart, chunkIndex, zoneIdx) {
-        let width = 100 + hash32(sessionSeed, chunkIndex, 30 + zoneIdx * 10) * 150;
-        let step  = 40 + hash32(sessionSeed, chunkIndex, 31 + zoneIdx * 10) * 20;
-        let amp   = 6 + hash32(sessionSeed, chunkIndex, 32 + zoneIdx * 10) * 2;
-
-        let zoneStart = chunkStart + 1500 + hash32(sessionSeed, chunkIndex, 33 + zoneIdx * 10) * 6000;
-        let attempts = 0;
-        while (attempts < 3 && (isOnKicker(zoneStart) || isOnKicker(zoneStart + width))) {
-            zoneStart += 500;
-            attempts++;
-        }
-        if (zoneStart + width > chunkStart + 9900) return null;
-
-        return { type: 'whoops', start: zoneStart, end: zoneStart + width, whoops: { width: width, step: step, amplitude: amp } };
-    }
-
-    function buildComboZone(chunkStart, chunkIndex, zoneIdx, depthRange) {
-        let dropW  = 50 + hash32(sessionSeed, chunkIndex, 40 + zoneIdx * 10) * 20;
-        let floorW = 120 + hash32(sessionSeed, chunkIndex, 41 + zoneIdx * 10) * 80;
-        let riseW  = 50 + hash32(sessionSeed, chunkIndex, 42 + zoneIdx * 10) * 20;
-        let depth  = 20 + hash32(sessionSeed, chunkIndex, 43 + zoneIdx * 10) * 10;
-        let ravineW = dropW + floorW + riseW;
-
-        let gap = 80 + hash32(sessionSeed, chunkIndex, 44 + zoneIdx * 10) * 70;
-        let entryW = 60 + hash32(sessionSeed, chunkIndex, 45 + zoneIdx * 10) * 20;
-        let holeFloorW = 15 + hash32(sessionSeed, chunkIndex, 46 + zoneIdx * 10) * 15;
-        let exitW = 22 + hash32(sessionSeed, chunkIndex, 47 + zoneIdx * 10) * 10; 
-        let holeW = entryW + holeFloorW + exitW;
-        let holeDepth = depthRange.min + hash32(sessionSeed, chunkIndex, 48 + zoneIdx * 10) * (depthRange.max - depthRange.min);
-        let holeSlope = (hash32(sessionSeed, chunkIndex, 49 + zoneIdx * 10) - 0.5) * 6;
-
-        let totalW = ravineW + gap + holeW;
-        let zoneStart = chunkStart + 1500 + hash32(sessionSeed, chunkIndex, 51 + zoneIdx * 10) * 6000;
-
-        let attempts = 0;
-        while (attempts < 3 && (isOnKicker(zoneStart) || isOnKicker(zoneStart + totalW))) {
-            zoneStart += 500;
-            attempts++;
-        }
-        if (zoneStart + totalW > chunkStart + 9900) return null;
-
-        return {
-            type: 'combo',
-            start: zoneStart,
-            end: zoneStart + totalW,
-            ravine: { dropW: dropW, floorW: floorW, riseW: riseW, depth: depth },
-            hole: {
-                x: zoneStart + ravineW + gap,
-                entryW: entryW, floorW: holeFloorW, exitW: exitW,
-                depth: holeDepth, slope: holeSlope
-            }
-        };
-    }
-
     function computeZones(chunkIndex) {
         let chunkStart = chunkIndex * 10000;
         let chunkDistM = chunkStart / 10;
@@ -566,36 +467,11 @@
         if (chunkDistM >= 10000) widthTier = 3;
         else if (chunkDistM >= 5000) widthTier = 2;
 
-        let whoopsChance = 0;
-        if (chunkDistM >= 5000) whoopsChance = 0.15;
-
-        let ravineChance = 0;
-        if (chunkDistM >= 15000)      ravineChance = 0.40;
-        else if (chunkDistM >= 10000) ravineChance = 0.30;
-        else if (chunkDistM >= 5000)  ravineChance = 0.20;
-
-        let comboChance = 0;
-        if (chunkDistM >= 15000)      comboChance = 0.25;
-        else if (chunkDistM >= 10000) comboChance = 0.15;
-
         let zones = [];
         for (let i = 0; i < zoneCount; i++) {
-            let typeHash = hash32(sessionSeed, chunkIndex, 60 + i * 5);
-            let zone = null;
-
-            if (typeHash < comboChance) {
-                zone = buildComboZone(chunkStart, chunkIndex, i, depthRange);
-            } else if (typeHash < comboChance + ravineChance) {
-                zone = buildRavineZone(chunkStart, chunkIndex, i);
-            } else if (typeHash < comboChance + ravineChance + whoopsChance) {
-                zone = buildWhoopsZone(chunkStart, chunkIndex, i);
-            } else {
-                zone = buildErosionZone(chunkStart, chunkIndex, i, depthRange, widthTier);
-            }
-
+            let zone = buildErosionZone(chunkStart, chunkIndex, i, depthRange, widthTier);
             if (zone) zones.push(zone);
         }
-
         return zones;
     }
 
@@ -622,22 +498,6 @@
                     if (lx >= 0 && lx <= h.entryW + h.floorW + h.exitW) {
                         mathY += erosionProfile(lx, h.entryW, h.floorW, h.exitW, h.depth, h.slope);
                     }
-                }
-            } else if (zone.type === 'whoops') {
-                let lx = x - zone.start;
-                mathY += whoopsProfile(lx, zone.whoops.width, zone.whoops.step, zone.whoops.amplitude);
-            } else if (zone.type === 'ravine') {
-                let lx = x - zone.start;
-                mathY += ravineProfile(lx, zone.ravine.dropW, zone.ravine.floorW, zone.ravine.riseW, zone.ravine.depth);
-            } else if (zone.type === 'combo') {
-                let ravineW = zone.ravine.dropW + zone.ravine.floorW + zone.ravine.riseW;
-                let lx = x - zone.start;
-                if (lx >= 0 && lx < ravineW) {
-                    mathY += ravineProfile(lx, zone.ravine.dropW, zone.ravine.floorW, zone.ravine.riseW, zone.ravine.depth);
-                }
-                let holeLx = x - zone.hole.x;
-                if (holeLx >= 0 && holeLx <= zone.hole.entryW + zone.hole.floorW + zone.hole.exitW) {
-                    mathY += erosionProfile(holeLx, zone.hole.entryW, zone.hole.floorW, zone.hole.exitW, zone.hole.depth, zone.hole.slope);
                 }
             }
         }
@@ -775,7 +635,6 @@
         }
     }
 
-    // ВОЗВРАЩАЕМ БАЗУ 23
     const wheelRadius = 10 / SCALE; 
     const wheelBase = 23 / SCALE; 
     
@@ -1151,7 +1010,7 @@
             let chassisY = chassis.getPosition().y * SCALE;
             let groundUnder = getTerrainY(chassisX);
             
-            let isAirborne = (chassisY < groundUnder - 35); 
+            let isAirborne = (chassisY < groundUnder - 25); 
             
             let angle = chassis.getAngle();
             let deltaAngle = angle - lastAngle;
@@ -1163,7 +1022,7 @@
                 currentAirTime += dt;
                 if (currentAirTime > maxAirTime) maxAirTime = currentAirTime;
 
-                if (!flipCounted && Math.abs(accumulatedRotation) >= Math.PI * 2.0 && currentAirTime > 0.4) {
+                if (!flipCounted && Math.abs(accumulatedRotation) >= Math.PI * 1.7 && currentAirTime > 0.3) {
                     if (accumulatedRotation > 0) frontflipCount++; 
                     else backflipCount++; 
                     flipCounted = true;
@@ -1213,7 +1072,6 @@
             }
             lastAngle = angle; 
 
-            // ГАЗ
             if (window.isGas) {
                 jointRear.setMotorSpeed(currentBike.motor.speed); jointFront.setMotorSpeed(currentBike.motor.speed);
                 jointRear.setMaxMotorTorque(currentBike.motor.torque); jointFront.setMaxMotorTorque(currentBike.motor.torque);
@@ -1225,38 +1083,12 @@
             }
 
             let tiltPower = 20; 
-            let maxTiltSpeed = 3.0;  
+            let maxTiltSpeed = 2.5;  
             
-            if (isAirborne) {
-                // УПРАВЛЕНИЕ В ВОЗДУХЕ
-                if (window.isLeanBack) { 
-                    if (chassis.getAngularVelocity() > -maxTiltSpeed) chassis.applyTorque(-tiltPower, true); 
-                } else if (window.isLeanForward) { 
-                    if (chassis.getAngularVelocity() < maxTiltSpeed) chassis.applyTorque(tiltPower, true); 
-                } else {
-                    // СТАБИЛИЗАЦИЯ: Если кнопки не нажаты, гасим вращение от кочек
-                    let normAngle = angle % (2 * Math.PI);
-                    if (normAngle > Math.PI) normAngle -= 2 * Math.PI;
-                    if (normAngle < -Math.PI) normAngle += 2 * Math.PI;
-
-                    let stabilizeTorque = -(normAngle * 30.0) - (chassis.getAngularVelocity() * 6.0);
-                    chassis.applyTorque(stabilizeTorque, true);
-
-                    // ПРИЖИМНАЯ СИЛА (если подлетели невысоко)
-                    if (chassisY > groundUnder - 80) {
-                        chassis.applyForce(pl.Vec2(0, chassis.getMass() * 15.0), chassis.getWorldCenter(), true);
-                    }
-                }
-            } else {
-                // НА ЗЕМЛЕ
-                if (window.isLeanBack) { 
-                    if (chassis.getAngularVelocity() > -maxTiltSpeed) chassis.applyTorque(-tiltPower, true); 
-                } else if (window.isLeanForward) { 
-                    if (chassis.getAngularVelocity() < maxTiltSpeed) chassis.applyTorque(tiltPower, true); 
-                } else {
-                    // Легкое выравнивание на земле
-                    chassis.applyTorque(-chassis.getAngularVelocity() * 1.0, true);
-                }
+            if (window.isLeanBack) { 
+                if (chassis.getAngularVelocity() > -maxTiltSpeed) chassis.applyTorque(-tiltPower, true); 
+            } else if (window.isLeanForward) { 
+                if (chassis.getAngularVelocity() < maxTiltSpeed) chassis.applyTorque(tiltPower, true); 
             }
 
             if (ENABLE_AUDIO && isAudioInitialized) {
