@@ -58,11 +58,13 @@
         .btn-settings { background-position: 25% 100%; width: 50px; height: 50px; }
         .btn-quests { background-position: 50% 100%; width: 50px; height: 50px; }
         
-        /* Кнопка PLAY (Уменьшена, поднята и сдвинута вправо) */
         .btn-play { 
-            background-position: 0% 0%; background-size: 100% 200%; 
-            width: 190px; height: 65px; 
-            position: absolute; bottom: 45px; right: 30px; z-index: 20; 
+    background-position: 0% 0%; background-size: 100% 200%; 
+    width: 200px; height: 70px; /* Чуть уменьшили ширину */
+    position: absolute; 
+    bottom: 90px; /* Подняли кнопку ещё выше */
+    right: 20px; /* Оставили прижатой к правому краю */
+    z-index: 20; 
         }
 
         /* Статистика (Увеличена ширина, сдвинута влево) */
@@ -78,11 +80,12 @@
         .stat-bar-bg { flex-grow: 1; height: 10px; background: #222; border-radius: 5px; overflow: hidden; border: 1px solid #000; }
         .stat-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #ff3333, #ffcc00, #33ff33); transition: width 0.4s ease; }
 
-        /* Байк и стрелки (Опущены на землю, стрелки ближе) */
         .bike-carousel {
-            position: absolute; bottom: 2%; left: 55%; transform: translateX(-50%);
-            display: flex; align-items: flex-end; /* Прижимает стрелки к низу (к колесам) */
-            justify-content: center; gap: 5px; pointer-events: auto; z-index: 10;
+    position: absolute; bottom: 2%; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: flex-end; 
+    justify-content: center; 
+    gap: 0px; /* Убрали отступ, чтобы стрелки не вылезали */
+    pointer-events: auto; z-index: 10;
         }
         #menuBikeCanvas { width: 320px; height: 200px; filter: drop-shadow(0 15px 15px rgba(0,0,0,0.9)); }
         
@@ -166,13 +169,17 @@
         </div>
     </div>
 
-    <!-- Статистика -->
-    <div class="bike-stats">
-        <div class="bike-name" id="menuBikeName">CTM 300 EXC</div>
-        <div class="stat-row"><div class="stat-label">СКОРОСТЬ</div><div class="stat-bar-bg"><div class="stat-bar-fill" id="statSpeed"></div></div></div>
-        <div class="stat-row"><div class="stat-label">РАЗГОН</div><div class="stat-bar-bg"><div class="stat-bar-fill" id="statAccel"></div></div></div>
-        <div class="stat-row"><div class="stat-label">СТАБИЛЬНОСТЬ</div><div class="stat-bar-bg"><div class="stat-bar-fill" id="statStabil"></div></div></div>
-    </div>
+    .bike-stats {
+    position: absolute; top: 45%; left: 10px; transform: translateY(-50%);
+    width: 240px; /* Уменьшили ширину с 280 */
+    padding: 10px; /* Уменьшили отступы */
+    pointer-events: none; background: rgba(10, 5, 15, 0.85);
+    border-radius: 10px; border: 2px solid rgba(255,255,255,0.15); z-index: 10;
+    backdrop-filter: blur(5px); box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+}
+.bike-name { color: #fff; font-size: 16px; font-weight: 900; text-align: center; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+.stat-row { display: flex; align-items: center; margin-bottom: 6px; } /* Уменьшили отступы между строками */
+    
 
     <!-- Байк -->
     <div class="bike-carousel">
