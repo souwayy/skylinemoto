@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (v9.4)</title>
+    <title>Skyline Moto (v10.0)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -12,217 +12,167 @@
         }
         canvas { display: block; touch-action: none; }
 
-        .ui-layer {
+        /* Оверлей поворота экрана */
+        #rotateDevice {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 1000; display: none;
+            flex-direction: column; align-items: center; justify-content: center;
+            color: white; text-align: center; padding: 20px; box-sizing: border-box;
+        }
+        #rotateDevice svg {
+            width: 60px; height: 60px; fill: none; stroke: white; stroke-width: 2;
+            margin-bottom: 20px; animation: rotateAnim 2s infinite;
+        }
+        @keyframes rotateAnim {
+            0% { transform: rotate(0deg); }
+            50% { transform: rotate(90deg); }
+            100% { transform: rotate(90deg); }
+        }
+
+        /* Главное меню */
+        #mainMenu {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; z-index: 10;
+            background: linear-gradient(180deg, #1a0b2e 0%, #5a2b58 100%);
+            z-index: 50; display: flex; flex-direction: column; color: white;
         }
-
-        .top-bar {
-            display: flex; justify-content: space-between; padding: 20px;
-            align-items: flex-start;
+        .top-nav {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 15px 30px; background: rgba(0,0,0,0.6);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
         }
-        
-        .stats-left {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-        }
-        .stat-text {
-            font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.7);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            display: flex;
-            align-items: center;
-        }
-        
-        .stats-right {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            gap: 5px;
-        }
-        .clock {
-            font-size: 18px;
-            font-weight: 600;
-            color: rgba(255,255,255,0.8);
-            font-family: monospace;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
-        }
-        .score {
-            font-size: 32px; font-weight: bold; color: white;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-            line-height: 1;
-        }
-
-        .btn {
-            position: absolute;
-            width: 55px; height: 55px; border-radius: 50%;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(0,0,0,0.4) 100%);
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            box-shadow: 0 0 10px rgba(0,0,0,0.5), inset 0 0 8px rgba(255,255,255,0.1);
-            display: flex; align-items: center; justify-content: center;
-            pointer-events: auto; color: white;
-            transition: transform 0.1s, background 0.1s;
-        }
-        .btn:active { 
-            transform: scale(0.95);
-            background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, rgba(0,0,0,0.5) 100%);
-        }
-        
-        .btn svg {
-            width: 28px; height: 28px; fill: none; stroke: rgba(255, 255, 255, 0.9);
-            stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;
-            filter: drop-shadow(0 0 2px rgba(255,255,255,0.5));
-        }
-
-        #btnLeanBack    { bottom: 100px; left: 15px; }
-        #btnLeanForward { bottom: 30px;  left: 50px; }
-        #btnGas         { bottom: 100px; right: 15px; }
-        #btnBrake       { bottom: 30px;  right: 50px; }
-
-        .controls { display: none; } 
-        .controls.active { display: block; }
-
-        .overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            background: rgba(0,0,0,0.6);
+        .nav-tabs { display: flex; gap: 20px; }
+        .nav-tab {
+            font-size: 16px; font-weight: bold; text-transform: uppercase;
+            color: rgba(255,255,255,0.5); cursor: pointer; transition: color 0.2s;
             pointer-events: auto;
-            transition: opacity 0.3s;
-            z-index: 20;
         }
-        .overlay h1 {
-            font-size: 42px; color: white; text-transform: uppercase; letter-spacing: 2px;
-            text-shadow: 2px 2px 8px rgba(0,0,0,0.8);
-            margin-bottom: 20px;
-        }
-        .overlay p {
-            font-size: 18px; color: rgba(255,255,255,0.8);
-            animation: pulse 1.5s infinite;
-        }
-        @keyframes pulse {
-            0% { opacity: 0.5; }
-            50% { opacity: 1; }
-            100% { opacity: 0.5; }
-        }
+        .nav-tab.active { color: #fff; text-shadow: 0 0 10px rgba(255,255,255,0.5); }
         
-        #gameOverScreen { 
-            display: none; 
-            background: #0f1410;
-            flex-direction: column;
-            justify-content: center; 
-            align-items: center;
-            padding: 10px 20px;
-            box-sizing: border-box;
+        .coin-balance {
+            display: flex; align-items: center; font-size: 20px; font-weight: bold;
+            color: #fff3d4;
         }
-        
-        .score-header {
-            text-align: center;
-            font-size: 18px; 
-            font-weight: bold;
-            letter-spacing: 2px;
-            color: #fff;
-            margin-bottom: 10px;
-            text-transform: uppercase;
-        }
+        .coin-balance img { height: 24px; margin-right: 8px; }
 
-        .score-list {
-            width: 100%;
-            max-width: 600px;
+        .menu-content {
+            flex: 1; display: flex; position: relative;
         }
-
-        .score-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 6px 0; 
-            font-size: 15px; 
-            color: #e0e0e0;
-            border-bottom: 1px solid rgba(255,255,255,0.15);
+        .tab-content {
+            display: none; width: 100%; height: 100%; position: absolute;
+            top: 0; left: 0;
         }
+        .tab-content.active { display: flex; }
 
-        .coin-bonus {
-            color: #a6ff00; 
-            font-size: 13px;
-            margin-left: 6px;
-            font-weight: normal;
-        }
-
-        .coin-bonus-icon {
-            height: 14px;
-            width: auto;
-            vertical-align: middle;
-            margin-left: 3px;
-            margin-bottom: 2px;
-        }
-
-        .score-row.high-score {
-            font-size: 18px;
-            font-weight: bold;
-            color: #fff;
-            border-bottom: none;
-            margin-top: 10px;
-        }
-
-        .score-row.reward-row {
-            font-size: 20px;
-            font-weight: bold;
-            color: #fff3d4; 
-            border-bottom: none;
-            align-items: center;
-            margin-top: 5px;
-        }
-
-        .coin-icon {
-            height: 18px;
-            width: auto;
-            display: inline-block;
-            vertical-align: middle;
-            margin-left: 6px;
-            border-radius: 50%;
-        }
-
-        .gameover-buttons {
-            display: flex;
-            justify-content: center;
-            gap: 30px;
-            margin-top: 20px;
-            width: 100%;
-        }
-
-        .icon-btn {
-            cursor: pointer;
-            pointer-events: auto;
-            width: 55px; height: 55px; border-radius: 50%;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(0,0,0,0.4) 100%);
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            box-shadow: 0 0 10px rgba(0,0,0,0.5), inset 0 0 8px rgba(255,255,255,0.1);
+        /* Экран "Играть" */
+        .play-tab { justify-content: space-between; align-items: center; padding: 0 40px; }
+        .arrow-btn {
+            width: 60px; height: 60px; border-radius: 50%;
+            background: rgba(0,0,0,0.4); border: 2px solid rgba(255,255,255,0.2);
             display: flex; align-items: center; justify-content: center;
-            transition: transform 0.1s, background 0.1s;
+            cursor: pointer; pointer-events: auto;
         }
-        .icon-btn:active { 
-            transform: scale(0.95);
-            background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, rgba(0,0,0,0.5) 100%);
-        }
-
-        .icon-btn svg {
-            width: 28px; height: 28px; fill: none; stroke: #fff;
-            stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;
-        }
+        .arrow-btn svg { width: 30px; height: 30px; stroke: white; fill: none; }
         
-        .version-text {
-            position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
-            color: rgba(255,255,255,0.3); font-size: 12px; font-family: monospace;
-            z-index: 100; pointer-events: none;
+        .bike-preview {
+            flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
+        .bike-preview img { width: 250px; height: auto; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.8)); }
+        .bike-name { font-size: 28px; font-weight: bold; margin: 15px 0; text-transform: uppercase; letter-spacing: 2px; }
+        
+        .stats-container {
+            width: 100%; max-width: 350px; display: flex; flex-direction: column; gap: 10px;
+        }
+        .stat-row { display: flex; align-items: center; gap: 15px; }
+        .stat-label { width: 110px; font-size: 14px; color: rgba(255,255,255,0.7); text-transform: uppercase; }
+        .stat-bar-bg { flex: 1; height: 8px; background: rgba(0,0,0,0.5); border-radius: 4px; overflow: hidden; }
+        .stat-bar-fill { height: 100%; background: #d96b4e; border-radius: 4px; }
+
+        .play-btn-container {
+            position: absolute; bottom: 30px; width: 100%; display: flex; justify-content: center;
+        }
+        .play-btn {
+            padding: 15px 60px; font-size: 24px; font-weight: bold; text-transform: uppercase;
+            background: linear-gradient(90deg, #d96b4e, #f5c26b); border: none; border-radius: 30px;
+            color: white; cursor: pointer; pointer-events: auto;
+            box-shadow: 0 5px 15px rgba(217, 107, 78, 0.4); transition: transform 0.1s;
+        }
+        .play-btn:active { transform: scale(0.95); }
+
+        /* Заглушки для других вкладок */
+        .placeholder-tab { align-items: center; justify-content: center; font-size: 24px; color: rgba(255,255,255,0.5); }
+
+        /* Скрываем игру пока в меню */
+        .hidden { display: none !important; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/planck-js@0.3/dist/planck.min.js"></script>
 </head>
 <body>
 
-<canvas id="gameCanvas"></canvas>
-<div class="version-text">v9.4</div>
+<!-- Экран поворота -->
+<div id="rotateDevice">
+    <svg viewBox="0 0 24 24"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+    <h2>Пожалуйста, поверните устройство</h2>
+    <p>Игра поддерживает только горизонтальный режим.</p>
+</div>
 
-<div class="ui-layer">
+<!-- Главное меню -->
+<div id="mainMenu" class="hidden">
+    <div class="top-nav">
+        <div class="nav-tabs">
+            <div class="nav-tab active" onclick="switchTab('play')">Играть</div>
+            <div class="nav-tab" onclick="switchTab('shop')">Магазин</div>
+            <div class="nav-tab" onclick="switchTab('quests')">Квесты</div>
+            <div class="nav-tab" onclick="switchTab('settings')">Настройки</div>
+        </div>
+        <div class="coin-balance">
+            <img src="coin.png" onerror="this.style.display='none'">
+            <span id="menuCoinText">0</span>
+        </div>
+    </div>
+
+    <div class="menu-content">
+        <div id="tab-play" class="tab-content play-tab active">
+            <div class="arrow-btn"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></div>
+            
+            <div class="bike-preview">
+                <img src="moto.png" id="menuBikeImg" onerror="this.style.display='none'">
+                <div class="bike-name" id="menuBikeName">CTM 300 EXC</div>
+                
+                <div class="stats-container">
+                    <div class="stat-row">
+                        <div class="stat-label">Скорость</div>
+                        <div class="stat-bar-bg"><div class="stat-bar-fill" style="width: 80%;"></div></div>
+                    </div>
+                    <div class="stat-row">
+                        <div class="stat-label">Разгон</div>
+                        <div class="stat-bar-bg"><div class="stat-bar-fill" style="width: 90%; background: #f5c26b;"></div></div>
+                    </div>
+                    <div class="stat-row">
+                        <div class="stat-label">Управляемость</div>
+                        <div class="stat-bar-bg"><div class="stat-bar-fill" style="width: 60%; background: #a6ff00;"></div></div>
+                    </div>
+                    <div class="stat-row">
+                        <div class="stat-label">Вес</div>
+                        <div class="stat-bar-bg"><div class="stat-bar-fill" style="width: 40%; background: #8b7ca8;"></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="arrow-btn"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
+            
+            <div class="play-btn-container">
+                <button class="play-btn" onclick="startGame()">Поехали</button>
+            </div>
+        </div>
+
+        <div id="tab-shop" class="tab-content placeholder-tab">Здесь будет магазин</div>
+        <div id="tab-quests" class="tab-content placeholder-tab">Здесь будут квесты</div>
+        <div id="tab-settings" class="tab-content placeholder-tab">Здесь будут настройки</div>
+    </div>
+</div>
+
+<!-- Игра (UI) -->
+<div class="ui-layer hidden" id="gameUI">
     <div class="top-bar">
         <div class="stats-left">
             <div class="stat-text">Best: <span id="bestDistanceText">0</span>m</div>
@@ -253,17 +203,12 @@
         </div>
     </div>
 
-    <div class="overlay" id="startScreen">
-        <h1>Skyline Moto</h1>
-        <p>Нажми, чтобы начать</p>
-    </div>
-
     <div class="overlay" id="gameOverScreen">
-        <div class="score-header">SCORE</div>
+        <div class="score-header">ЗАЕЗД ОКОНЧЕН</div>
         
         <div class="score-list">
             <div class="score-row">
-                <span>Distance</span>
+                <span>Дистанция</span>
                 <span>
                     <span id="go-distance">0m</span> 
                     <span class="coin-bonus" id="go-coins-dist">(+0)</span>
@@ -271,7 +216,7 @@
                 </span>
             </div>
             <div class="score-row">
-                <span>Max Air Time</span>
+                <span>Время в воздухе</span>
                 <span>
                     <span id="go-airtime">0.0s</span> 
                     <span class="coin-bonus" id="go-coins-air">(+0)</span>
@@ -279,7 +224,7 @@
                 </span>
             </div>
             <div class="score-row">
-                <span>Max Stoppie</span>
+                <span>Стоппи (макс)</span>
                 <span>
                     <span id="go-stoppie">0.0s</span> 
                     <span class="coin-bonus" id="go-coins-stoppie">(+0)</span>
@@ -287,7 +232,7 @@
                 </span>
             </div>
             <div class="score-row">
-                <span>Max Wheelie</span>
+                <span>Вилли (макс)</span>
                 <span>
                     <span id="go-wheelie">0.0s</span> 
                     <span class="coin-bonus" id="go-coins-wheelie">(+0)</span>
@@ -295,7 +240,7 @@
                 </span>
             </div>
             <div class="score-row">
-                <span>Total Flips</span>
+                <span>Всего сальто</span>
                 <span>
                     <span id="go-flips">0</span> 
                     <span class="coin-bonus" id="go-coins-flips">(+0)</span>
@@ -304,12 +249,12 @@
             </div>
             
             <div class="score-row high-score">
-                <span>BEST DISTANCE</span>
+                <span>РЕКОРД</span>
                 <span id="go-highscore">0</span>
             </div>
             
             <div class="score-row reward-row">
-                <span>REWARD</span>
+                <span>НАГРАДА</span>
                 <span>
                     <span id="go-coins">0</span>
                     <img src="coin.png" class="coin-icon" onerror="this.style.display='none'">
@@ -328,11 +273,70 @@
     </div>
 </div>
 
+<canvas id="gameCanvas"></canvas>
+<div class="version-text" id="versionText">v10.0</div>
+
 <script>
+    // --- СИСТЕМА МЕНЮ И ОРИЕНТАЦИИ ---
+    function checkOrientation() {
+        const rotateDiv = document.getElementById('rotateDevice');
+        const menuDiv = document.getElementById('mainMenu');
+        const gameUI = document.getElementById('gameUI');
+        const canvas = document.getElementById('gameCanvas');
+
+        if (window.innerHeight > window.innerWidth) {
+            rotateDiv.style.display = 'flex';
+            menuDiv.classList.add('hidden');
+            gameUI.classList.add('hidden');
+            canvas.style.display = 'none';
+            gameState = 'paused';
+        } else {
+            rotateDiv.style.display = 'none';
+            canvas.style.display = 'block';
+            if (gameState === 'menu') {
+                menuDiv.classList.remove('hidden');
+                gameUI.classList.add('hidden');
+            } else if (gameState === 'paused') {
+                // Возвращаемся туда, где были
+                if (document.getElementById('gameOverScreen').style.display === 'flex') {
+                    gameUI.classList.remove('hidden');
+                } else if (isGameRunning) {
+                    gameUI.classList.remove('hidden');
+                    gameState = 'playing';
+                } else {
+                    menuDiv.classList.remove('hidden');
+                    gameState = 'menu';
+                }
+            }
+        }
+        if (typeof resizeCanvas === 'function') resizeCanvas();
+    }
+    window.addEventListener('resize', checkOrientation);
+    window.addEventListener('orientationchange', () => setTimeout(checkOrientation, 200));
+
+    function switchTab(tabId) {
+        document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        
+        event.target.classList.add('active');
+        document.getElementById('tab-' + tabId).classList.add('active');
+    }
+
+    let isGameRunning = false;
+    let gameState = 'menu'; // menu, playing, gameover, paused
+
+    function startGame() {
+        document.getElementById('mainMenu').classList.add('hidden');
+        document.getElementById('gameUI').classList.remove('hidden');
+        isGameRunning = true;
+        gameState = 'playing';
+        resetGame();
+    }
+
+    // --- ЛОГИКА ИГРЫ ---
     const ENABLE_AUDIO = true; 
     const SCALE = 30; 
     const DEBUG_POINTS = false; 
-
     let groundY = 0; 
 
     const BIKE_CATALOG = {
@@ -344,27 +348,23 @@
     let totalCoins = parseInt(localStorage.getItem('totalCoins')) || 0;
     let sessionCoins = 0;
     document.getElementById('coinBalanceText').innerText = totalCoins;
+    document.getElementById('menuCoinText').innerText = totalCoins;
     
     let maxAirTime = 0;
     let currentAirTime = 0;
-    
     let frontflipCount = 0;
     let backflipCount = 0;
-    
     let accumulatedRotation = 0;
     let lastAngle = 0;
     let flipCounted = false;
 
     let maxWheelieTime = 0; 
     let currentWheelieTime = 0;
-    
     let maxStoppieTime = 0; 
     let currentStoppieTime = 0;
 
     let particles = [];
     let dustTimer = 0;
-    let rocks = [];
-    let lastRockX = 50000;
 
     document.addEventListener('touchmove', function(e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
 
@@ -372,13 +372,12 @@
     const ctx = canvas.getContext('2d');
     
     function resizeCanvas() {
+        if (window.innerHeight > window.innerWidth) return; // Не меняем размер в портретном режиме
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
         groundY = canvas.height - 80; 
     }
     resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
-    window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 200));
 
     const pl = planck;
     const world = new pl.World({ gravity: pl.Vec2(0, 10) });
@@ -397,7 +396,6 @@
 
     const startX = 50000;
     let terrainOffset = 0; 
-    let gameState = 'start';
     let maxDistance = parseInt(localStorage.getItem('bestDistance')) || 0;
     document.getElementById('bestDistanceText').innerText = maxDistance;
     
@@ -405,6 +403,18 @@
     let cameraY = 0; 
     const zoom = 1.1; 
 
+    function noise(x) {
+        let i = Math.floor(x);
+        let f = x - i;
+        let u = f * f * (3.0 - 2.0 * f);
+        let r1 = Math.sin(i * 12.9898) * 43758.5453;
+        let r2 = Math.sin((i + 1) * 12.9898) * 43758.5453;
+        r1 = r1 - Math.floor(r1);
+        r2 = r2 - Math.floor(r2);
+        return r1 * (1 - u) + r2 * u;
+    }
+
+    // ГЕНЕРАЦИЯ С "ВОЛНАМИ" (ГРЕБЕНКОЙ)
     function getTerrainY(x) {
         let y = groundY;
         
@@ -415,7 +425,16 @@
         let gate = Math.pow(Math.max(0, Math.sin((x + terrainOffset) * 0.00125)), 6);
         let kicker = shape * gate;
 
-        let mathY = y - baseHill - kicker - micro;
+        // Хаотичные волны (стиральная доска)
+        let washboard = 0;
+        let waveZone = noise((x + terrainOffset) * 0.0005);
+        if (waveZone > 0.6) {
+            // Частые высокие колебания
+            let intensity = (waveZone - 0.6) / 0.4; // 0..1
+            washboard = (Math.sin((x + terrainOffset) * 0.15) + Math.cos((x + terrainOffset) * 0.25)) * 8 * intensity;
+        }
+
+        let mathY = y - baseHill - kicker - washboard - micro;
 
         let distFromStart = x - startX;
         if (distFromStart < 1000) {
@@ -456,55 +475,6 @@
             if (terrainBodies[i].endX < cameraX - 1500) {
                 world.destroyBody(terrainBodies[i].body);
                 terrainBodies.splice(i, 1);
-            }
-        }
-    }
-
-    // НОВЫЕ КАМНИ (Низкополигональные, плоское дно, кучки)
-    function spawnRocks() {
-        while (lastRockX < cameraX + (canvas.width / zoom) + 1000) {
-            let rx = lastRockX;
-            let ry = getTerrainY(rx);
-            
-            // Одиночный камень или кучка (50/50)
-            let isPile = Math.random() > 0.5;
-            
-            let visualRadius = isPile ? 12 : 8; 
-            let physicsRadius = visualRadius / SCALE;
-
-            let rockBody = world.createBody({ position: pl.Vec2(rx / SCALE, (ry - physicsRadius * 0.4 * SCALE) / SCALE), type: 'static' });
-            rockBody.createFixture(pl.Box(physicsRadius, physicsRadius * 0.6), { friction: 0.8 });
-
-            // Генерация полигонов для отрисовки (плоское дно, острые грани сверху)
-            let rocksToDraw = [];
-            let count = isPile ? 3 : 1;
-            for (let i = 0; i < count; i++) {
-                let offsetX = (Math.random() - 0.5) * (visualRadius * 0.8);
-                let offsetY = (Math.random() - 0.5) * (visualRadius * 0.4);
-                let rSize = visualRadius * (isPile ? (0.6 + Math.random() * 0.4) : 1);
-                
-                let points = [];
-                // Плоское основание
-                points.push({x: -rSize, y: rSize * 0.5});
-                points.push({x: rSize, y: rSize * 0.5});
-                // Острые грани сверху
-                points.push({x: rSize * 0.8, y: -rSize * 0.2});
-                points.push({x: rSize * 0.2, y: -rSize * 0.9});
-                points.push({x: -rSize * 0.4, y: -rSize * 0.6});
-                points.push({x: -rSize * 0.9, y: -rSize * 0.1});
-                
-                rocksToDraw.push({ points: points, offsetX: offsetX, offsetY: offsetY });
-            }
-
-            rocks.push({ body: rockBody, rocks: rocksToDraw });
-            
-            lastRockX += 1500 + Math.random() * 1500; 
-        }
-
-        for (let i = rocks.length - 1; i >= 0; i--) {
-            if (rocks[i].body.getPosition().x * SCALE < cameraX - 1500) {
-                world.destroyBody(rocks[i].body);
-                rocks.splice(i, 1);
             }
         }
     }
@@ -550,36 +520,6 @@
             ctx.beginPath();
             ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
             ctx.fill();
-        }
-    }
-
-    function drawRocks() {
-        for (let r of rocks) {
-            let pos = r.body.getPosition();
-            ctx.save();
-            ctx.translate(pos.x * SCALE, pos.y * SCALE);
-            ctx.rotate(r.body.getAngle());
-            
-            for (let rock of r.rocks) {
-                ctx.save();
-                ctx.translate(rock.offsetX, rock.offsetY);
-                ctx.beginPath();
-                ctx.moveTo(rock.points[0].x, rock.points[0].y);
-                for (let i = 1; i < rock.points.length; i++) {
-                    ctx.lineTo(rock.points[i].x, rock.points[i].y);
-                }
-                ctx.closePath();
-                
-                // Темный камень с легкой обводкой граней
-                ctx.fillStyle = '#0a0a0a'; 
-                ctx.fill();
-                ctx.strokeStyle = '#222'; 
-                ctx.lineWidth = 1.5;
-                ctx.stroke();
-                ctx.restore();
-            }
-            
-            ctx.restore();
         }
     }
 
@@ -730,15 +670,12 @@
     bindBtn('btnGas', 'isGas'); bindBtn('btnBrake', 'isBrake'); bindBtn('btnLeanBack', 'isLeanBack'); bindBtn('btnLeanForward', 'isLeanForward');
 
     function resetGame() {
+        initAudio();
         terrainOffset = Math.random() * 10000;
         for (let i = 0; i < terrainBodies.length; i++) world.destroyBody(terrainBodies[i].body);
         terrainBodies = []; 
         
-        for (let i = 0; i < rocks.length; i++) world.destroyBody(rocks[i].body);
-        rocks = [];
-        
         lastGeneratedX = startX - 1500; 
-        lastRockX = startX;
         cameraX = startX - (canvas.width * 0.3);
         
         let startHillY = getTerrainY(startX);
@@ -816,26 +753,21 @@
         }
     }
 
-    document.getElementById('startScreen').addEventListener('touchstart', (e) => {
-        e.preventDefault(); 
-        initAudio(); 
-        document.getElementById('startScreen').style.display = 'none';
-        document.getElementById('controls').classList.add('active');
-        resetGame(); gameState = 'playing';
-    });
-
     document.getElementById('btnRestart').addEventListener('touchstart', (e) => {
         e.preventDefault();
         document.getElementById('gameOverScreen').style.display = 'none';
+        isGameRunning = true;
         resetGame(); gameState = 'playing';
     });
     
     document.getElementById('btnHome').addEventListener('touchstart', (e) => {
         e.preventDefault();
         document.getElementById('gameOverScreen').style.display = 'none';
-        document.getElementById('startScreen').style.display = 'flex';
-        document.getElementById('controls').classList.remove('active');
-        gameState = 'start';
+        document.getElementById('gameUI').classList.add('hidden');
+        document.getElementById('mainMenu').classList.remove('hidden');
+        document.getElementById('menuCoinText').innerText = totalCoins;
+        isGameRunning = false;
+        gameState = 'menu';
         
         if (ENABLE_AUDIO && isAudioInitialized) {
             idleGain.gain.setValueAtTime(0, audioCtx.currentTime);
@@ -889,13 +821,11 @@
         
         let r = wheelRadius * SCALE;
 
-        // Шина (чисто черная)
         ctx.beginPath();
         ctx.arc(0, 0, r, 0, Math.PI * 2);
         ctx.fillStyle = '#000';
         ctx.fill();
 
-        // Протектор (для внедорожника)
         if (currentBike.name === "CTM 300 EXC") {
             ctx.strokeStyle = '#111'; 
             ctx.lineWidth = 2;
@@ -908,14 +838,12 @@
             }
         }
 
-        // Обод (темно-серый)
         ctx.beginPath();
         ctx.arc(0, 0, r - 3.5, 0, Math.PI * 2);
         ctx.strokeStyle = '#222';
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        // Спицы (светло-серые)
         ctx.strokeStyle = '#555';
         ctx.lineWidth = 1;
         let spokes = currentBike.name === "CTM 300 EXC" ? 6 : 8;
@@ -927,7 +855,6 @@
             ctx.stroke();
         }
 
-        // Ступица
         ctx.beginPath();
         ctx.arc(0, 0, 2, 0, Math.PI * 2);
         ctx.fillStyle = '#444';
@@ -954,7 +881,6 @@
             let wheelSpeed = Math.abs(wheelRear.getAngularVelocity());
             let linearSpeed = Math.abs(chassis.getLinearVelocity().x) * SCALE; 
             
-            // ЖЕЛЕЗОБЕТОННАЯ ПРОВЕРКА ПОЛЕТА (По расстоянию до земли)
             let chassisX = chassis.getPosition().x * SCALE;
             let chassisY = chassis.getPosition().y * SCALE;
             let groundUnder = getTerrainY(chassisX);
@@ -970,8 +896,8 @@
                 currentAirTime += dt;
                 if (currentAirTime > maxAirTime) maxAirTime = currentAirTime;
 
-                if (!flipCounted && Math.abs(accumulatedRotation) >= Math.PI * 1.1) { // 198 градусов
-                    // Box2D: положительный угол - против часовой (переднее сальто)
+                // ПОРОГ САЛЬТО 306 ГРАДУСОВ (1.7 Пи)
+                if (!flipCounted && Math.abs(accumulatedRotation) >= Math.PI * 1.7) {
                     if (accumulatedRotation > 0) frontflipCount++; 
                     else backflipCount++; 
                     flipCounted = true;
@@ -995,7 +921,6 @@
                     currentStoppieTime = 0;
                 }
 
-                // СПАВН ПЫЛИ
                 if (linearSpeed > 5) {
                     dustTimer += dt;
                     if (dustTimer > 0.03) {
@@ -1081,7 +1006,7 @@
             let targetCameraY = (canvas.height * 0.5) - (chassis.getPosition().y * SCALE);
             cameraY += (targetCameraY - cameraY) * 0.1;
             
-            generateTerrain(); cleanupTerrain(); spawnRocks(); updateParticles();
+            generateTerrain(); cleanupTerrain(); updateParticles();
 
             let currentDistance = Math.max(0, Math.floor(((chassis.getPosition().x * SCALE) - startX) / 10));
             
@@ -1102,50 +1027,53 @@
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-        gradient.addColorStop(0, '#1a0b2e'); gradient.addColorStop(0.4, '#5a2b58'); gradient.addColorStop(0.7, '#d96b4e'); gradient.addColorStop(1, '#f5c26b');
-        ctx.fillStyle = gradient; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        if (gameState !== 'menu' && gameState !== 'paused') {
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#1a0b2e'); gradient.addColorStop(0.4, '#5a2b58'); gradient.addColorStop(0.7, '#d96b4e'); gradient.addColorStop(1, '#f5c26b');
+            ctx.fillStyle = gradient; ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        let sunX = canvas.width * 0.75; let sunY = canvas.height * 0.35;
-        let sunGlow = ctx.createRadialGradient(sunX, sunY, 10, sunX, sunY, 150);
-        sunGlow.addColorStop(0, 'rgba(255, 243, 212, 0.8)'); sunGlow.addColorStop(0.5, 'rgba(255, 243, 212, 0.2)'); sunGlow.addColorStop(1, 'rgba(255, 243, 212, 0)');
-        ctx.fillStyle = sunGlow; ctx.beginPath(); ctx.arc(sunX, sunY, 150, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#fff3d4'; ctx.beginPath(); ctx.arc(sunX, sunY, 45, 0, Math.PI * 2); ctx.fill();
+            let sunX = canvas.width * 0.75; let sunY = canvas.height * 0.35;
+            let sunGlow = ctx.createRadialGradient(sunX, sunY, 10, sunX, sunY, 150);
+            sunGlow.addColorStop(0, 'rgba(255, 243, 212, 0.8)'); sunGlow.addColorStop(0.5, 'rgba(255, 243, 212, 0.2)'); sunGlow.addColorStop(1, 'rgba(255, 243, 212, 0)');
+            ctx.fillStyle = sunGlow; ctx.beginPath(); ctx.arc(sunX, sunY, 150, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#fff3d4'; ctx.beginPath(); ctx.arc(sunX, sunY, 45, 0, Math.PI * 2); ctx.fill();
 
-        ctx.save(); 
-        ctx.scale(zoom, zoom); 
-        ctx.translate(-cameraX, cameraY); 
-        drawMountainLayer(200, 60, '#3a2354', cameraX * 0.2); 
-        drawMountainLayer(100, 100, '#1e1129', cameraX * 0.5);
-        ctx.restore();
-
-        ctx.save(); 
-        ctx.scale(zoom, zoom); 
-        ctx.translate(0, cameraY); 
-        ctx.translate(-cameraX, 0);
-        
-        drawTerrain();
-        drawRocks();
-
-        if (gameState !== 'gameover' && chassis) {
-            drawParticles(); 
-
-            ctx.save();
-            ctx.translate(chassis.getPosition().x * SCALE, chassis.getPosition().y * SCALE);
-            ctx.rotate(chassis.getAngle());
-            
-            if (isImageLoaded) ctx.drawImage(bikeImage, -45, -45, 90, 54); 
-            
+            ctx.save(); 
+            ctx.scale(zoom, zoom); 
+            ctx.translate(-cameraX, cameraY); 
+            drawMountainLayer(200, 60, '#3a2354', cameraX * 0.2); 
+            drawMountainLayer(100, 100, '#1e1129', cameraX * 0.5);
             ctx.restore();
-            
-            drawWheel(wheelRear); 
-            drawWheel(wheelFront);
-        }
 
-        ctx.restore(); 
+            ctx.save(); 
+            ctx.scale(zoom, zoom); 
+            ctx.translate(0, cameraY); 
+            ctx.translate(-cameraX, 0);
+            
+            drawTerrain();
+
+            if (gameState !== 'gameover' && chassis) {
+                drawParticles(); 
+
+                ctx.save();
+                ctx.translate(chassis.getPosition().x * SCALE, chassis.getPosition().y * SCALE);
+                ctx.rotate(chassis.getAngle());
+                
+                if (isImageLoaded) ctx.drawImage(bikeImage, -45, -45, 90, 54); 
+                
+                ctx.restore();
+                
+                drawWheel(wheelRear); 
+                drawWheel(wheelFront);
+            }
+
+            ctx.restore(); 
+        }
     }
 
+    // Инициализация
+    checkOrientation();
     update();
 </script>
 </body>
-    </html>
+                                                                          </html>
