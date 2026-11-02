@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (v11.2)</title>
+    <title>Skyline Moto (v11.3)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -101,14 +101,12 @@
 
 <div id="rotateDevice">
     <svg viewBox="0 0 100 100">
-        <!-- Стрелки статичны -->
         <g fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
             <path d="M 22 32 A 34 34 0 0 1 78 32" />
             <polyline points="66 20 78 32 66 44" />
             <path d="M 78 68 A 34 34 0 0 1 22 68" />
             <polyline points="34 80 22 68 34 56" />
         </g>
-        <!-- Телефон с нативной SVG-анимацией -->
         <g fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
             <rect x="40" y="25" width="20" height="50" rx="3" ry="3" />
             <line x1="50" y1="66" x2="50.01" y2="66" stroke-width="4" />
@@ -228,7 +226,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v11.2</div>
+<div class="version-text">v11.3</div>
 
 <script>
     let isGameRunning = false;
@@ -330,21 +328,19 @@
     }
 
     let sessionSeed = 0;
-    const zoneCache = new Map();  // chunkIndex -> Array<zone>
+    const zoneCache = new Map(); 
 
-    // Пороги сложности (среднее между v11.0 и v11.1)
+    // Пороги сложности (ЗОЛОТАЯ СЕРЕДИНА)
     function getDepthForDist(distM) {
         if (distM < 800)   return null;
-        if (distM < 1500)  return { min: 12, max: 16 };
-        if (distM < 3000)  return { min: 16, max: 22 };
-        if (distM < 5000)  return { min: 22, max: 27 };   // Глубже, чем в 11.1
-        if (distM < 7000)  return { min: 27, max: 31 };   
-        if (distM < 10000) return { min: 31, max: 34 };   
-        if (distM < 15000) return { min: 34, max: 36 };   
-        return { min: 36, max: 38 };                       
+        if (distM < 1500)  return { min: 14, max: 18 };
+        if (distM < 3000)  return { min: 20, max: 25 };
+        if (distM < 5000)  return { min: 25, max: 30 };   
+        if (distM < 10000) return { min: 30, max: 35 };   
+        if (distM < 15000) return { min: 35, max: 38 };   
+        return { min: 38, max: 42 };                       
     }
 
-    // Профиль промоины
     function erosionProfile(localX, entryW, floorW, exitW, depth, slope) {
         let total = entryW + floorW + exitW;
         if (localX < 0 || localX > total) return 0;
@@ -412,24 +408,20 @@
         return Math.abs(shape * gate) > 50;
     }
 
-    // -----------------------------------------------------
-    //  БИЛДЕРЫ ЗОН
-    // -----------------------------------------------------
-
     function buildErosionZone(chunkStart, chunkIndex, zoneIdx, depthRange, widthTier) {
         let entryMin, entryMax, gapMin, gapMax, countMin, countMax;
         if (widthTier === 1) {
             entryMin = 40; entryMax = 60;
-            gapMin = 15; gapMax = 40;
-            countMin = 1; countMax = 4;
+            gapMin = 15; gapMax = 35;
+            countMin = 2; countMax = 5; // Плотнее
         } else if (widthTier === 2) {
             entryMin = 60; entryMax = 90;
             gapMin = 10; gapMax = 25;
-            countMin = 2; countMax = 5;
+            countMin = 3; countMax = 6;
         } else {
             entryMin = 70; entryMax = 100;
             gapMin = 8; gapMax = 20;
-            countMin = 3; countMax = 6;
+            countMin = 4; countMax = 7;
         }
 
         let zoneLength = 600 + hash32(sessionSeed, chunkIndex, 2 + zoneIdx * 10) * 600;
@@ -453,8 +445,8 @@
             }
             let entryW = entryMin + hash32(sessionSeed, chunkIndex, 200 + i + zoneIdx * 20) * (entryMax - entryMin);
             let floorW = 15 + hash32(sessionSeed, chunkIndex, 300 + i + zoneIdx * 20) * 15;
-            // ЗОЛОТАЯ СЕРЕДИНА: выход 30-40 px
-            let exitW  = 30 + hash32(sessionSeed, chunkIndex, 400 + i + zoneIdx * 20) * 10;
+            // ВЫХОД 22-32 (среднее)
+            let exitW  = 22 + hash32(sessionSeed, chunkIndex, 400 + i + zoneIdx * 20) * 10;
             let totalW = entryW + floorW + exitW;
             if (cursor + totalW > zoneLength) break;
 
@@ -536,7 +528,7 @@
         let gap = 80 + hash32(sessionSeed, chunkIndex, 44 + zoneIdx * 10) * 70;
         let entryW = 60 + hash32(sessionSeed, chunkIndex, 45 + zoneIdx * 10) * 20;
         let holeFloorW = 15 + hash32(sessionSeed, chunkIndex, 46 + zoneIdx * 10) * 15;
-        let exitW = 30 + hash32(sessionSeed, chunkIndex, 47 + zoneIdx * 10) * 10;
+        let exitW = 22 + hash32(sessionSeed, chunkIndex, 47 + zoneIdx * 10) * 10; // Средний выход
         let holeW = entryW + holeFloorW + exitW;
         let holeDepth = depthRange.min + hash32(sessionSeed, chunkIndex, 48 + zoneIdx * 10) * (depthRange.max - depthRange.min);
         let holeSlope = (hash32(sessionSeed, chunkIndex, 49 + zoneIdx * 10) - 0.5) * 6;
@@ -571,26 +563,26 @@
         let depthRange = getDepthForDist(chunkDistM);
         if (!depthRange) return [];
 
-        // 2 зоны с 12 км, 3 зоны с 18 км
+        // 2 зоны с 6 км, 3 зоны с 12 км
         let zoneCount = 1;
-        if (chunkDistM >= 18000) zoneCount = 3;
-        else if (chunkDistM >= 12000) zoneCount = 2;
+        if (chunkDistM >= 12000) zoneCount = 3;
+        else if (chunkDistM >= 6000) zoneCount = 2;
 
         let widthTier = 1;
         if (chunkDistM >= 10000) widthTier = 3;
         else if (chunkDistM >= 5000) widthTier = 2;
 
         let whoopsChance = 0;
-        if (chunkDistM >= 7000) whoopsChance = 0.10;
+        if (chunkDistM >= 5000) whoopsChance = 0.15;
 
         let ravineChance = 0;
-        if (chunkDistM >= 15000)      ravineChance = 0.35;
-        else if (chunkDistM >= 10000) ravineChance = 0.25;
-        else if (chunkDistM >= 7000)  ravineChance = 0.15;
+        if (chunkDistM >= 15000)      ravineChance = 0.40;
+        else if (chunkDistM >= 10000) ravineChance = 0.30;
+        else if (chunkDistM >= 5000)  ravineChance = 0.20;
 
         let comboChance = 0;
-        if (chunkDistM >= 15000)      comboChance = 0.20;
-        else if (chunkDistM >= 10000) comboChance = 0.10;
+        if (chunkDistM >= 15000)      comboChance = 0.25;
+        else if (chunkDistM >= 10000) comboChance = 0.15;
 
         let zones = [];
         for (let i = 0; i < zoneCount; i++) {
@@ -681,10 +673,6 @@
         }
     }
 
-    // -----------------------------------------------------
-    //  ЗЕМЛЯ (chain)
-    // -----------------------------------------------------
-
     let terrainBodies = [];
     let lastGeneratedX = startX - 1500; 
     const chunkWidth = 1; 
@@ -717,10 +705,6 @@
             }
         }
     }
-
-    // -----------------------------------------------------
-    //  ПЫЛЬ
-    // -----------------------------------------------------
 
     function spawnDust(x, y, speedX, type) {
         if (particles.length > 80) return;
@@ -796,10 +780,6 @@
             ctx.fill();
         }
     }
-
-    // -----------------------------------------------------
-    //  БАЙК
-    // -----------------------------------------------------
 
     const wheelRadius = 10 / SCALE; 
     const wheelBase = 23 / SCALE; 
@@ -1175,7 +1155,9 @@
             let chassisX = chassis.getPosition().x * SCALE;
             let chassisY = chassis.getPosition().y * SCALE;
             let groundUnder = getTerrainY(chassisX);
-            let isAirborne = (chassisY < groundUnder - 15); 
+            
+            // УВЕЛИЧИЛ ВЫСОТУ ДЛЯ AIRBORNE (15 -> 25)
+            let isAirborne = (chassisY < groundUnder - 25); 
             
             let angle = chassis.getAngle();
             let deltaAngle = angle - lastAngle;
@@ -1187,7 +1169,8 @@
                 currentAirTime += dt;
                 if (currentAirTime > maxAirTime) maxAirTime = currentAirTime;
 
-                if (!flipCounted && Math.abs(accumulatedRotation) >= Math.PI * 1.7) {
+                // УВЕЛИЧИЛ ТРЕБУЕМЫЙ УГОЛ ДЛЯ ФЛИПА (1.7 -> 1.9)
+                if (!flipCounted && Math.abs(accumulatedRotation) >= Math.PI * 1.9) {
                     if (accumulatedRotation > 0) frontflipCount++; 
                     else backflipCount++; 
                     flipCounted = true;
@@ -1247,9 +1230,15 @@
                 jointRear.setMaxMotorTorque(0); jointFront.setMaxMotorTorque(0);
             }
 
-            let tiltPower = 20; let maxTiltSpeed = 2.5;  
-            if (window.isLeanBack) { if (chassis.getAngularVelocity() > -maxTiltSpeed) chassis.applyTorque(-tiltPower, true); } 
-            else if (window.isLeanForward) { if (chassis.getAngularVelocity() < maxTiltSpeed) chassis.applyTorque(tiltPower, true); }
+            let tiltPower = 20; 
+            // ОГРАНИЧЕНИЕ СКОРОСТИ ВРАЩЕНИЯ В ВОЗДУХЕ (2.5 -> 1.0)
+            let maxTiltSpeed = isAirborne ? 1.0 : 2.5;  
+            
+            if (window.isLeanBack) { 
+                if (chassis.getAngularVelocity() > -maxTiltSpeed) chassis.applyTorque(-tiltPower, true); 
+            } else if (window.isLeanForward) { 
+                if (chassis.getAngularVelocity() < maxTiltSpeed) chassis.applyTorque(tiltPower, true); 
+            }
 
             if (ENABLE_AUDIO && isAudioInitialized) {
                 if (window.isGas) {
@@ -1370,4 +1359,4 @@
     update();
 </script>
 </body>
-                        </html>
+    </html>
