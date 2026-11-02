@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Skyline Moto (v11.3)</title>
+    <title>Skyline Moto (v11.5)</title>
     <style>
         body { 
             margin: 0; padding: 0; overflow: hidden; background-color: #000; 
@@ -226,7 +226,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v11.3</div>
+<div class="version-text">v11.5</div>
 
 <script>
     let isGameRunning = false;
@@ -315,10 +315,6 @@
     let cameraY = 0; 
     const zoom = 1.1; 
 
-    // -----------------------------------------------------
-    //  ХЭШ И КЭШ ЗОН
-    // -----------------------------------------------------
-
     function hash32(a, b, c) {
         let h = (a | 0) ^ Math.imul(b | 0, 0x9E3779B1) ^ Math.imul(c | 0, 0x85EBCA77);
         h ^= h >>> 16; h = Math.imul(h, 0x85EBCA6B);
@@ -330,7 +326,6 @@
     let sessionSeed = 0;
     const zoneCache = new Map(); 
 
-    // Пороги сложности (ЗОЛОТАЯ СЕРЕДИНА)
     function getDepthForDist(distM) {
         if (distM < 800)   return null;
         if (distM < 1500)  return { min: 14, max: 18 };
@@ -413,7 +408,7 @@
         if (widthTier === 1) {
             entryMin = 40; entryMax = 60;
             gapMin = 15; gapMax = 35;
-            countMin = 2; countMax = 5; // Плотнее
+            countMin = 2; countMax = 5; 
         } else if (widthTier === 2) {
             entryMin = 60; entryMax = 90;
             gapMin = 10; gapMax = 25;
@@ -445,7 +440,6 @@
             }
             let entryW = entryMin + hash32(sessionSeed, chunkIndex, 200 + i + zoneIdx * 20) * (entryMax - entryMin);
             let floorW = 15 + hash32(sessionSeed, chunkIndex, 300 + i + zoneIdx * 20) * 15;
-            // ВЫХОД 22-32 (среднее)
             let exitW  = 22 + hash32(sessionSeed, chunkIndex, 400 + i + zoneIdx * 20) * 10;
             let totalW = entryW + floorW + exitW;
             if (cursor + totalW > zoneLength) break;
@@ -528,7 +522,7 @@
         let gap = 80 + hash32(sessionSeed, chunkIndex, 44 + zoneIdx * 10) * 70;
         let entryW = 60 + hash32(sessionSeed, chunkIndex, 45 + zoneIdx * 10) * 20;
         let holeFloorW = 15 + hash32(sessionSeed, chunkIndex, 46 + zoneIdx * 10) * 15;
-        let exitW = 22 + hash32(sessionSeed, chunkIndex, 47 + zoneIdx * 10) * 10; // Средний выход
+        let exitW = 22 + hash32(sessionSeed, chunkIndex, 47 + zoneIdx * 10) * 10; 
         let holeW = entryW + holeFloorW + exitW;
         let holeDepth = depthRange.min + hash32(sessionSeed, chunkIndex, 48 + zoneIdx * 10) * (depthRange.max - depthRange.min);
         let holeSlope = (hash32(sessionSeed, chunkIndex, 49 + zoneIdx * 10) - 0.5) * 6;
@@ -563,7 +557,6 @@
         let depthRange = getDepthForDist(chunkDistM);
         if (!depthRange) return [];
 
-        // 2 зоны с 6 км, 3 зоны с 12 км
         let zoneCount = 1;
         if (chunkDistM >= 12000) zoneCount = 3;
         else if (chunkDistM >= 6000) zoneCount = 2;
@@ -1156,8 +1149,8 @@
             let chassisY = chassis.getPosition().y * SCALE;
             let groundUnder = getTerrainY(chassisX);
             
-            // УВЕЛИЧИЛ ВЫСОТУ ДЛЯ AIRBORNE (15 -> 25)
-            let isAirborne = (chassisY < groundUnder - 25); 
+            // ПОРОГ ОТРЫВА УВЕЛИЧЕН ДО 35 ПИКСЕЛЕЙ
+            let isAirborne = (chassisY < groundUnder - 35); 
             
             let angle = chassis.getAngle();
             let deltaAngle = angle - lastAngle;
@@ -1169,8 +1162,7 @@
                 currentAirTime += dt;
                 if (currentAirTime > maxAirTime) maxAirTime = currentAirTime;
 
-                // УВЕЛИЧИЛ ТРЕБУЕМЫЙ УГОЛ ДЛЯ ФЛИПА (1.7 -> 1.9)
-                if (!flipCounted && Math.abs(accumulatedRotation) >= Math.PI * 1.9) {
+                if (!flipCounted && Math.abs(accumulatedRotation) >= Math.PI * 1.9 && currentAirTime > 0.4) {
                     if (accumulatedRotation > 0) frontflipCount++; 
                     else backflipCount++; 
                     flipCounted = true;
@@ -1230,14 +1222,26 @@
                 jointRear.setMaxMotorTorque(0); jointFront.setMaxMotorTorque(0);
             }
 
+            // АЭРОДИНАМИЧЕСКАЯ ПРИЖИМНАЯ СИЛА (сбалансированная, квадратичная)
+            let vel = chassis.getLinearVelocity();
+            let downForce = vel.x * vel.x * 0.05; 
+            chassis.applyForce(pl.Vec2(0, downForce), chassis.getWorldCenter(), true);
+
             let tiltPower = 20; 
-            // ОГРАНИЧЕНИЕ СКОРОСТИ ВРАЩЕНИЯ В ВОЗДУХЕ (2.5 -> 1.0)
-            let maxTiltSpeed = isAirborne ? 1.0 : 2.5;  
-            
-            if (window.isLeanBack) { 
-                if (chassis.getAngularVelocity() > -maxTiltSpeed) chassis.applyTorque(-tiltPower, true); 
-            } else if (window.isLeanForward) { 
-                if (chassis.getAngularVelocity() < maxTiltSpeed) chassis.applyTorque(tiltPower, true); 
+            let maxTiltSpeed = 3.5;  
+            let canTilt = !isAirborne || currentAirTime > 0.2;
+
+            if (canTilt) {
+                if (window.isLeanBack) { 
+                    if (chassis.getAngularVelocity() > -maxTiltSpeed) chassis.applyTorque(-tiltPower, true); 
+                } else if (window.isLeanForward) { 
+                    if (chassis.getAngularVelocity() < maxTiltSpeed) chassis.applyTorque(tiltPower, true); 
+                }
+            }
+
+            // АЭРОДИНАМИЧЕСКОЕ СОПРОТИВЛЕНИЕ ВРАЩЕНИЮ (выравнивает байк в воздухе, если отпустить кнопки)
+            if (isAirborne && !window.isLeanBack && !window.isLeanForward) {
+                chassis.applyTorque(-chassis.getAngularVelocity() * 1.5, true);
             }
 
             if (ENABLE_AUDIO && isAudioInitialized) {
