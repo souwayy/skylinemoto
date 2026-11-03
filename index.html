@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v18.4 - UI Fix)</title>
+    <title>Nyxride (v18.5 - UI Polish)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
@@ -26,9 +26,21 @@
         /* --- ГЛАВНОЕ МЕНЮ --- */
         #mainMenu {
             background-color: #000;
-            width: 100vw; height: 100dvh; /* dvh вместо vh */
+            width: 100vw; height: 100dvh;
             position: relative; overflow: hidden;
             display: flex; align-items: center; justify-content: center;
+            z-index: 1;
+        }
+
+        /* РАЗМЫТЫЙ ФОН ПО КРАЯМ ЭКРАНА */
+        #mainMenu::before {
+            content: "";
+            position: absolute;
+            inset: -30px; /* Запас, чтобы размытие не давало резких краев */
+            background: url('menu_bg_full.jpg') no-repeat center center;
+            background-size: cover;
+            filter: blur(20px) brightness(0.3); /* Сильное размытие и затемнение */
+            z-index: -1;
         }
 
         /* БЕЗОПАСНАЯ ЗОНА (16:9) */
@@ -36,8 +48,8 @@
             position: relative;
             width: 100vw;
             height: 56.25vw; 
-            max-height: 100dvh; /* dvh вместо vh */
-            max-width: 177.777778dvh; /* dvh вместо vh */
+            max-height: 100dvh; 
+            max-width: 177.777778dvh; 
             background: url('menu_bg_full.jpg') no-repeat center center;
             background-size: 100% 100%;
         }
@@ -55,27 +67,26 @@
             touch-action: manipulation;
         }
 
-        /* Кнопки меню (подогнаны под фон) */
+        /* Кнопки меню */
         #btn-settings { top: 6%; left: 8%; width: 10%; height: 14%; }
         #btn-quests { top: 6%; left: 20%; width: 10%; height: 14%; }
         #btn-shop { top: 6%; right: 8%; width: 10%; height: 14%; }
         
-        /* Кнопка PLAY поднята выше */
         #btn-play {
             bottom: 15%; right: 8%; width: 22%; height: 15%;
         }
 
-        /* Баланс монет */
+        /* Баланс монет (справа от магазина) */
         #shop-coin-ui {
             position: absolute; 
-            top: 22%; right: 7%; 
+            top: 8%; right: 20%; /* Сдвинули влево, чтобы было рядом */
             display: flex; align-items: center; gap: 5px; 
             color: white; font-weight: bold; font-size: 26px; 
             z-index: 11; text-shadow: 2px 2px 4px #000, 0 0 10px #000;
             pointer-events: none;
         }
 
-        /* Статистика (придвинута ближе к байку) */
+        /* Статистика */
         #stats-block {
             bottom: 25%; left: 18%; 
             width: 30%; height: 25%;
@@ -84,7 +95,7 @@
             pointer-events: none;
         }
 
-        /* Байк (приподнят) */
+        /* Байк */
         #bike-block {
             bottom: 10%; left: 50%; transform: translateX(-50%); 
             width: 45%; height: 50%;
@@ -125,9 +136,9 @@
         #btnGas { bottom: 100px; right: 20px; } 
         #btnBrake { bottom: 30px; right: 70px; }
 
-        /* Кнопка паузы */
+        /* Кнопка паузы (слева от метров) */
         #btnPause { 
-            position: absolute; top: 75px; right: 20px; 
+            position: absolute; top: 25px; right: 160px; /* Позиция слева от текста */
             width: 40px; height: 40px; 
             pointer-events: auto; 
             background: rgba(0,0,0,0.3); 
@@ -262,7 +273,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v18.4 (DEBUG)</div>
+<div class="version-text">v18.5 (DEBUG)</div>
 
 <script>
     let gameState = 'splash'; 
@@ -597,4 +608,4 @@
     checkOrientation(); resizeCanvas(); update();
 </script>
 </body>
-</html>
+    </html>
