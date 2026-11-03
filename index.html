@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v18.1 - Menu Setup)</title>
+    <title>Nyxride (v18.2 - Safe Zone)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
@@ -25,9 +25,21 @@
 
         /* --- ГЛАВНОЕ МЕНЮ --- */
         #mainMenu {
-            background: url('menu_bg_full.jpg') no-repeat center center;
+            /* Фон прибит к низу, чтобы земля всегда была видна */
+            background: url('menu_bg_full.jpg') no-repeat center bottom;
             background-size: cover; width: 100vw; height: 100vh;
             position: relative; overflow: hidden;
+            display: flex; align-items: center; justify-content: center; /* Центрируем Safe Zone */
+        }
+
+        /* БЕЗОПАСНАЯ ЗОНА (16:9) */
+        /* Все элементы меню привязаны к этому блоку, а не к краям экрана */
+        #menu-safe-zone {
+            position: relative;
+            width: 100vw;
+            height: 56.25vw; /* 16:9 */
+            max-height: 100vh;
+            max-width: 177.777778vh; /* 16:9 */
         }
         
         /* --- ОТЛАДОЧНЫЕ БЛОКИ (ВРЕМЕННО КРАСНЫЕ) --- */
@@ -43,27 +55,12 @@
             z-index: 10;
         }
 
-        /* 1. Кнопка Настроек (самая левая вверху) */
-        #btn-settings {
-            top: 5%; left: 3%; width: 10%; height: 15%;
-        }
-
-        /* 2. Кнопка Квестов (рядом с настройками) */
-        #btn-quests {
-            top: 5%; left: 15%; width: 10%; height: 15%;
-        }
-
-        /* 3. Кнопка Магазина (справа вверху) */
-        #btn-shop {
-            top: 5%; right: 3%; width: 10%; height: 15%;
-        }
-
-        /* 4. Кнопка PLAY (справа внизу) */
-        #btn-play {
-            bottom: 8%; right: 8%; width: 22%; height: 15%;
-        }
-
-        /* Блок баланса монет рядом с магазином */
+        /* Позиции внутри Safe Zone (в процентах от 16:9 картинки) */
+        #btn-settings { top: 5%; left: 5%; width: 10%; height: 15%; }
+        #btn-quests { top: 5%; left: 17%; width: 10%; height: 15%; }
+        #btn-shop { top: 5%; right: 5%; width: 10%; height: 15%; }
+        
+        /* Баланс монет (справа под магазином) */
         #shop-coin-ui {
             position: absolute; 
             top: 22%; right: 4%; 
@@ -73,20 +70,23 @@
             pointer-events: none;
         }
 
-        /* 5. Блок Статистики (слева от байка) */
+        /* Статистика и Байк (привязаны к низу Safe Zone) */
         #stats-block {
-            top: 50%; left: 10%; transform: translateY(-50%); 
-            width: 25%; height: 25%;
+            bottom: 20%; left: 10%; 
+            width: 30%; height: 30%;
             background-color: rgba(0, 255, 0, 0.4); 
             border: 2px solid lime;
         }
 
-        /* 6. Блок Мотоцикла (ровно по центру) */
         #bike-block {
-            top: 50%; left: 50%; transform: translate(-50%, -50%); 
-            width: 40%; height: 35%;
+            bottom: 15%; left: 50%; transform: translateX(-50%); 
+            width: 45%; height: 50%;
             background-color: rgba(0, 0, 255, 0.3); 
             border: 2px solid blue;
+        }
+
+        #btn-play {
+            bottom: 8%; right: 8%; width: 22%; height: 15%;
         }
 
         /* Внутренности статистики */
@@ -155,30 +155,36 @@
 </div>
 
 <div class="hidden" id="mainMenu">
-    <!-- Кнопки (Красные) -->
-    <div class="debug-box" id="btn-settings">GEAR</div>
-    <div class="debug-box" id="btn-quests">QUESTS</div>
-    <div class="debug-box" id="btn-shop">SHOP</div>
-    <div class="debug-box" id="btn-play">PLAY</div>
+    <!-- БЕЗОПАСНАЯ ЗОНА (Сюда вложены все элементы UI меню) -->
+    <div id="menu-safe-zone">
+        
+        <!-- Кнопки (Красные) -->
+        <div class="debug-box" id="btn-settings">GEAR</div>
+        <div class="debug-box" id="btn-quests">QUESTS</div>
+        <div class="debug-box" id="btn-shop">SHOP</div>
+        <div class="debug-box" id="btn-play">PLAY</div>
 
-    <!-- Баланс монет рядом с магазином -->
-    <div id="shop-coin-ui">
-        <img src="coin.png" style="height: 32px;" onerror="this.style.display='none'">
-        <span id="menuCoinBalance">0</span>
-    </div>
-
-    <!-- Статистика (Зеленая) -->
-    <div class="debug-box" id="stats-block">
-        <div class="stat-content">
-            <div class="stat-row"><div class="stat-label">СКОРОСТЬ</div><div class="stat-bar-bg"><div class="stat-bar-fill" id="statSpeed"></div></div></div>
-            <div class="stat-row"><div class="stat-label">РАЗГОН</div><div class="stat-bar-bg"><div class="stat-bar-fill" id="statAccel"></div></div></div>
-            <div class="stat-row"><div class="stat-label">СТАБИЛЬНОСТЬ</div><div class="stat-bar-bg"><div class="stat-bar-fill" id="statStabil"></div></div></div>
+        <!-- Баланс монет -->
+        <div id="shop-coin-ui">
+            <img src="coin.png" style="height: 32px;" onerror="this.style.display='none'">
+            <span id="menuCoinBalance">0</span>
         </div>
-    </div>
 
-    <!-- Байк (Синий) -->
-    <div class="debug-box" id="bike-block">
-        <canvas id="menuBikeCanvas" width="400" height="260"></canvas>
+        <!-- Статистика (Зеленая) -->
+        <div class="debug-box" id="stats-block">
+            <div class="stat-content">
+                <div class="stat-row"><div class="stat-label">СКОРОСТЬ</div><div class="stat-bar-bg"><div class="stat-bar-fill" id="statSpeed"></div></div></div>
+                <div class="stat-row"><div class="stat-label">РАЗГОН</div><div class="stat-bar-bg"><div class="stat-bar-fill" id="statAccel"></div></div></div>
+                <div class="stat-row"><div class="stat-label">СТАБИЛЬНОСТЬ</div><div class="stat-bar-bg"><div class="stat-bar-fill" id="statStabil"></div></div></div>
+            </div>
+        </div>
+
+        <!-- Байк (Синий) -->
+        <div class="debug-box" id="bike-block">
+            <!-- Увеличен размер холста, чтобы байк влез целиком -->
+            <canvas id="menuBikeCanvas" width="600" height="400"></canvas>
+        </div>
+
     </div>
 </div>
 
@@ -228,7 +234,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v18.1 (DEBUG)</div>
+<div class="version-text">v18.2 (DEBUG)</div>
 
 <script>
     let gameState = 'splash'; 
@@ -370,10 +376,11 @@
         menuCtx.clearRect(0, 0, menuCanvas.width, menuCanvas.height);
         menuCtx.save();
         
-        // Привязываем к центру холста
-        menuCtx.translate(menuCanvas.width / 2, menuCanvas.height / 2 + 20);
-        // Масштаб 4.0 (увеличен для меню)
-        menuCtx.scale(4.0, 4.0); 
+        // Центрируем строго по центру увеличенного холста (600x400)
+        menuCtx.translate(menuCanvas.width / 2, menuCanvas.height / 2);
+        
+        // Масштаб 3.5 (оптимально для холста 600x400)
+        menuCtx.scale(3.5, 3.5); 
         
         if (bikeImage.complete && bikeImage.naturalWidth !== 0) menuCtx.drawImage(bikeImage, -45, -45, 90, 54);
         
@@ -408,7 +415,6 @@
         document.getElementById('statAccel').style.width = Math.min(100, accelPct) + '%';
         document.getElementById('statStabil').style.width = Math.min(100, stabilPct) + '%';
         
-        // Обновляем баланс монет в меню
         document.getElementById('menuCoinBalance').innerText = totalCoins;
         
         drawMenuBike();
@@ -566,4 +572,4 @@
     checkOrientation(); resizeCanvas(); update();
 </script>
 </body>
-    </html>
+                                                                              </html>
