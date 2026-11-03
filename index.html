@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v17.0)</title>
+    <title>Nyxride (v17.1)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
@@ -59,12 +59,11 @@
         }
         .sprite-btn:active { transform: scale(0.9); filter: brightness(1.5); }
         
-        /* Кнопка магазина (55x55) */
         .btn-shop { background-position: 0% 100%; width: 55px; height: 55px; }
         .btn-settings { background-position: 25% 100%; width: 50px; height: 50px; }
         .btn-quests { background-position: 50% 100%; width: 50px; height: 50px; }
         
-        /* Кнопка PLAY (в 2 раза больше магазина) */
+        /* Кнопка PLAY (в 2 раза больше магазина, не гигантская) */
         .btn-play { 
             background-position: 0% 0%; 
             width: 110px; 
@@ -242,7 +241,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v17.0</div>
+<div class="version-text">v17.1</div>
 
 <script>
     let gameState = 'splash'; 
@@ -392,17 +391,19 @@
         
         let r = 10; let wheelBase = 23;
         
-        // ЗАДНЕЕ КОЛЕСО (Как в v15.2)
+        // ЗАДНЕЕ КОЛЕСО (Спицы светло-серые, чтобы было видно на черном)
         menuCtx.beginPath(); menuCtx.arc(-wheelBase, 0, r, 0, Math.PI * 2); menuCtx.fillStyle = '#000'; menuCtx.fill();
-        menuCtx.beginPath(); menuCtx.arc(-wheelBase, 0, r - 3.5, 0, Math.PI * 2); menuCtx.strokeStyle = '#333'; menuCtx.lineWidth = 2; menuCtx.stroke();
-        menuCtx.strokeStyle = '#666'; menuCtx.lineWidth = 1;
+        menuCtx.beginPath(); menuCtx.arc(-wheelBase, 0, r - 3.5, 0, Math.PI * 2); menuCtx.strokeStyle = '#aaa'; menuCtx.lineWidth = 2; menuCtx.stroke();
+        menuCtx.strokeStyle = '#aaa'; menuCtx.lineWidth = 1;
         for (let i = 0; i < 6; i++) { let a = (i / 6) * Math.PI * 2; menuCtx.beginPath(); menuCtx.moveTo(-wheelBase, 0); menuCtx.lineTo(-wheelBase + Math.cos(a) * (r - 3.5), Math.sin(a) * (r - 3.5)); menuCtx.stroke(); }
+        menuCtx.beginPath(); menuCtx.arc(-wheelBase, 0, 2, 0, Math.PI * 2); menuCtx.fillStyle = '#aaa'; menuCtx.fill();
 
-        // ПЕРЕДНЕЕ КОЛЕСО (Как в v15.2)
+        // ПЕРЕДНЕЕ КОЛЕСО (Спицы светло-серые)
         menuCtx.beginPath(); menuCtx.arc(wheelBase, 0, r, 0, Math.PI * 2); menuCtx.fillStyle = '#000'; menuCtx.fill();
-        menuCtx.beginPath(); menuCtx.arc(wheelBase, 0, r - 3.5, 0, Math.PI * 2); menuCtx.strokeStyle = '#333'; menuCtx.lineWidth = 2; menuCtx.stroke();
-        menuCtx.strokeStyle = '#666'; menuCtx.lineWidth = 1;
+        menuCtx.beginPath(); menuCtx.arc(wheelBase, 0, r - 3.5, 0, Math.PI * 2); menuCtx.strokeStyle = '#aaa'; menuCtx.lineWidth = 2; menuCtx.stroke();
+        menuCtx.strokeStyle = '#aaa'; menuCtx.lineWidth = 1;
         for (let i = 0; i < 6; i++) { let a = (i / 6) * Math.PI * 2; menuCtx.beginPath(); menuCtx.moveTo(wheelBase, 0); menuCtx.lineTo(wheelBase + Math.cos(a) * (r - 3.5), Math.sin(a) * (r - 3.5)); menuCtx.stroke(); }
+        menuCtx.beginPath(); menuCtx.arc(wheelBase, 0, 2, 0, Math.PI * 2); menuCtx.fillStyle = '#aaa'; menuCtx.fill();
         
         menuCtx.restore();
     }
