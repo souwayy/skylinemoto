@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v16.8)</title>
+    <title>Nyxride (v16.9)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
@@ -59,22 +59,24 @@
         }
         .sprite-btn:active { transform: scale(0.9); filter: brightness(1.5); }
         
+        /* Кнопка магазина (55x55) */
         .btn-shop { background-position: 0% 100%; width: 55px; height: 55px; }
         .btn-settings { background-position: 25% 100%; width: 50px; height: 50px; }
         .btn-quests { background-position: 50% 100%; width: 50px; height: 50px; }
         
-        /* Кнопка PLAY (Поднята выше, чтобы не пряталась за панелью браузера) */
+        /* Кнопка PLAY (в 2 раза больше магазина, 110x55) */
         .btn-play { 
             background-position: 0% 0%; 
-            width: 120px; height: 60px; /* Размер в 2 раза больше магазина */
+            width: 110px; 
+            height: 55px; 
             position: absolute; 
-            bottom: 80px; /* Подняли на 80px */
+            bottom: 80px; 
             right: 20px; 
             z-index: 20; 
             opacity: 0.9;
         }
 
-        /* Статистика (Слева) */
+        /* Статистика слева */
         .bike-stats {
             position: absolute; top: 50%; left: 15px; transform: translateY(-50%);
             width: 210px; padding: 10px;
@@ -90,7 +92,7 @@
 
         /* Байк (Справа, чтобы не наезжать на стату) */
         .bike-carousel {
-            position: absolute; bottom: 15%; right: 5%; 
+            position: absolute; bottom: 15%; right: 10%; 
             display: flex; justify-content: center; align-items: flex-end; pointer-events: none; z-index: 10;
         }
         #menuBikeCanvas { 
@@ -241,7 +243,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v16.8</div>
+<div class="version-text">v16.9</div>
 
 <script>
     let gameState = 'splash'; 
@@ -375,7 +377,7 @@
         popSource.buffer = popBuffer; popSource.connect(popGain); popGain.connect(audioCtx.destination); popGain.gain.value = 1.0; popSource.start();
     }
 
-    // --- МЕНЮ (ТЕ САМЫЕ КОЛЕСА БЕЗ СЕРОГО ОТТЕНКА) ---
+    // --- МЕНЮ (ВОЗВРАЩАЕМ ХОРОШИЕ КОЛЕСА С ДЕТАЛИЗАЦИЕЙ) ---
     const bikeImage = new Image(); bikeImage.src = 'moto.png';
     const menuCanvas = document.getElementById('menuBikeCanvas');
     const menuCtx = menuCanvas.getContext('2d');
@@ -383,6 +385,7 @@
     function drawMenuBike() {
         menuCtx.clearRect(0, 0, menuCanvas.width, menuCanvas.height);
         menuCtx.save();
+        
         menuCtx.translate(menuCanvas.width / 2, menuCanvas.height / 2 + 15);
         menuCtx.scale(2.0, 2.0); 
         
@@ -390,12 +393,22 @@
         
         let r = 10; let wheelBase = 23;
         
-        // Заднее колесо (ЧИСТО ЧЕРНОЕ, БЕЗ СЕРОЙ ОБВОДКИ)
+        // ЗАДНЕЕ КОЛЕСО
         menuCtx.beginPath(); menuCtx.arc(-wheelBase, 0, r, 0, Math.PI * 2); menuCtx.fillStyle = '#000'; menuCtx.fill();
-        // Обводку убрали, спицы убрали. Только черный круг.
+        // Обводка обода (сделали черной вместо серой)
+        menuCtx.beginPath(); menuCtx.arc(-wheelBase, 0, r - 3.5, 0, Math.PI * 2); menuCtx.strokeStyle = '#000'; menuCtx.lineWidth = 2; menuCtx.stroke();
+        // Спицы (сделали черными вместо серых)
+        menuCtx.strokeStyle = '#000'; menuCtx.lineWidth = 1;
+        for (let i = 0; i < 6; i++) { let a = (i / 6) * Math.PI * 2; menuCtx.beginPath(); menuCtx.moveTo(-wheelBase, 0); menuCtx.lineTo(-wheelBase + Math.cos(a) * (r - 3.5), Math.sin(a) * (r - 3.5)); menuCtx.stroke(); }
+        // Ступица (сделали черной)
+        menuCtx.beginPath(); menuCtx.arc(-wheelBase, 0, 2, 0, Math.PI * 2); menuCtx.fillStyle = '#000'; menuCtx.fill();
 
-        // Переднее колесо (ЧИСТО ЧЕРНОЕ, БЕЗ СЕРОЙ ОБВОДКИ)
+        // ПЕРЕДНЕЕ КОЛЕСО
         menuCtx.beginPath(); menuCtx.arc(wheelBase, 0, r, 0, Math.PI * 2); menuCtx.fillStyle = '#000'; menuCtx.fill();
+        menuCtx.beginPath(); menuCtx.arc(wheelBase, 0, r - 3.5, 0, Math.PI * 2); menuCtx.strokeStyle = '#000'; menuCtx.lineWidth = 2; menuCtx.stroke();
+        menuCtx.strokeStyle = '#000'; menuCtx.lineWidth = 1;
+        for (let i = 0; i < 6; i++) { let a = (i / 6) * Math.PI * 2; menuCtx.beginPath(); menuCtx.moveTo(wheelBase, 0); menuCtx.lineTo(wheelBase + Math.cos(a) * (r - 3.5), Math.sin(a) * (r - 3.5)); menuCtx.stroke(); }
+        menuCtx.beginPath(); menuCtx.arc(wheelBase, 0, 2, 0, Math.PI * 2); menuCtx.fillStyle = '#000'; menuCtx.fill();
         
         menuCtx.restore();
     }
@@ -561,4 +574,4 @@
     checkOrientation(); resizeCanvas(); update();
 </script>
 </body>
-                                                                                             </html>
+    </html>
