@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v17.1)</title>
+    <title>Nyxride (v17.2)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
@@ -63,7 +63,7 @@
         .btn-settings { background-position: 25% 100%; width: 50px; height: 50px; }
         .btn-quests { background-position: 50% 100%; width: 50px; height: 50px; }
         
-        /* Кнопка PLAY (в 2 раза больше магазина, не гигантская) */
+        /* Кнопка PLAY (в 2 раза больше магазина, в правом нижнем углу) */
         .btn-play { 
             background-position: 0% 0%; 
             width: 110px; 
@@ -75,7 +75,7 @@
             opacity: 0.9;
         }
 
-        /* Статистика слева */
+        /* Статистика (Слева) */
         .bike-stats {
             position: absolute; top: 50%; left: 15px; transform: translateY(-50%);
             width: 210px; padding: 10px;
@@ -89,7 +89,7 @@
         .stat-bar-bg { flex-grow: 1; height: 8px; background: #222; border-radius: 4px; overflow: hidden; border: 1px solid #000; }
         .stat-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #ff3333, #ffcc00, #33ff33); transition: width 0.4s ease; }
 
-        /* Байк Справа */
+        /* Байк (Справа) */
         .bike-carousel {
             position: absolute; bottom: 15%; right: 5%; 
             display: flex; justify-content: center; align-items: flex-end; pointer-events: none; z-index: 10;
@@ -241,7 +241,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v17.1</div>
+<div class="version-text">v17.2</div>
 
 <script>
     let gameState = 'splash'; 
@@ -375,7 +375,7 @@
         popSource.buffer = popBuffer; popSource.connect(popGain); popGain.connect(audioCtx.destination); popGain.gain.value = 1.0; popSource.start();
     }
 
-    // --- МЕНЮ (ВОЗВРАЩАЕМ ТЕ САМЫЕ КОЛЕСА С ДЕТАЛИЗАЦИЕЙ) ---
+    // --- МЕНЮ (ТОЧЬ-В-ТОЧЬ КАК В v15.2) ---
     const bikeImage = new Image(); bikeImage.src = 'moto.png';
     const menuCanvas = document.getElementById('menuBikeCanvas');
     const menuCtx = menuCanvas.getContext('2d');
@@ -391,19 +391,19 @@
         
         let r = 10; let wheelBase = 23;
         
-        // ЗАДНЕЕ КОЛЕСО (Спицы светло-серые, чтобы было видно на черном)
+        // ЗАДНЕЕ КОЛЕСО
         menuCtx.beginPath(); menuCtx.arc(-wheelBase, 0, r, 0, Math.PI * 2); menuCtx.fillStyle = '#000'; menuCtx.fill();
-        menuCtx.beginPath(); menuCtx.arc(-wheelBase, 0, r - 3.5, 0, Math.PI * 2); menuCtx.strokeStyle = '#aaa'; menuCtx.lineWidth = 2; menuCtx.stroke();
-        menuCtx.strokeStyle = '#aaa'; menuCtx.lineWidth = 1;
+        menuCtx.beginPath(); menuCtx.arc(-wheelBase, 0, r - 3.5, 0, Math.PI * 2); menuCtx.strokeStyle = '#222'; menuCtx.lineWidth = 2; menuCtx.stroke();
+        menuCtx.strokeStyle = '#555'; menuCtx.lineWidth = 1;
         for (let i = 0; i < 6; i++) { let a = (i / 6) * Math.PI * 2; menuCtx.beginPath(); menuCtx.moveTo(-wheelBase, 0); menuCtx.lineTo(-wheelBase + Math.cos(a) * (r - 3.5), Math.sin(a) * (r - 3.5)); menuCtx.stroke(); }
-        menuCtx.beginPath(); menuCtx.arc(-wheelBase, 0, 2, 0, Math.PI * 2); menuCtx.fillStyle = '#aaa'; menuCtx.fill();
+        menuCtx.beginPath(); menuCtx.arc(-wheelBase, 0, 2, 0, Math.PI * 2); menuCtx.fillStyle = '#444'; menuCtx.fill();
 
-        // ПЕРЕДНЕЕ КОЛЕСО (Спицы светло-серые)
+        // ПЕРЕДНЕЕ КОЛЕСО
         menuCtx.beginPath(); menuCtx.arc(wheelBase, 0, r, 0, Math.PI * 2); menuCtx.fillStyle = '#000'; menuCtx.fill();
-        menuCtx.beginPath(); menuCtx.arc(wheelBase, 0, r - 3.5, 0, Math.PI * 2); menuCtx.strokeStyle = '#aaa'; menuCtx.lineWidth = 2; menuCtx.stroke();
-        menuCtx.strokeStyle = '#aaa'; menuCtx.lineWidth = 1;
+        menuCtx.beginPath(); menuCtx.arc(wheelBase, 0, r - 3.5, 0, Math.PI * 2); menuCtx.strokeStyle = '#222'; menuCtx.lineWidth = 2; menuCtx.stroke();
+        menuCtx.strokeStyle = '#555'; menuCtx.lineWidth = 1;
         for (let i = 0; i < 6; i++) { let a = (i / 6) * Math.PI * 2; menuCtx.beginPath(); menuCtx.moveTo(wheelBase, 0); menuCtx.lineTo(wheelBase + Math.cos(a) * (r - 3.5), Math.sin(a) * (r - 3.5)); menuCtx.stroke(); }
-        menuCtx.beginPath(); menuCtx.arc(wheelBase, 0, 2, 0, Math.PI * 2); menuCtx.fillStyle = '#aaa'; menuCtx.fill();
+        menuCtx.beginPath(); menuCtx.arc(wheelBase, 0, 2, 0, Math.PI * 2); menuCtx.fillStyle = '#444'; menuCtx.fill();
         
         menuCtx.restore();
     }
