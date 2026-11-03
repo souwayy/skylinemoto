@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v18.2 - Safe Zone)</title>
+    <title>Nyxride (v18.3 - UI Fix)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
@@ -25,25 +25,24 @@
 
         /* --- ГЛАВНОЕ МЕНЮ --- */
         #mainMenu {
-            /* Фон прибит к низу, чтобы земля всегда была видна */
-            background: url('menu_bg_full.jpg') no-repeat center bottom;
-            background-size: cover; width: 100vw; height: 100vh;
+            background-color: #000; /* Черный фон вокруг картинки */
+            width: 100vw; height: 100vh;
             position: relative; overflow: hidden;
-            display: flex; align-items: center; justify-content: center; /* Центрируем Safe Zone */
+            display: flex; align-items: center; justify-content: center;
         }
 
-        /* БЕЗОПАСНАЯ ЗОНА (16:9) */
-        /* Все элементы меню привязаны к этому блоку, а не к краям экрана */
+        /* БЕЗОПАСНАЯ ЗОНА (16:9) - Сюда перенесен фон */
         #menu-safe-zone {
             position: relative;
             width: 100vw;
             height: 56.25vw; /* 16:9 */
             max-height: 100vh;
             max-width: 177.777778vh; /* 16:9 */
+            background: url('menu_bg_full.jpg') no-repeat center center;
+            background-size: 100% 100%;
         }
         
-        /* --- ОТЛАДОЧНЫЕ БЛОКИ (ВРЕМЕННО КРАСНЫЕ) --- */
-        /* Когда подгонишь позиции, удали background-color и border из этого класса */
+        /* --- ОТЛАДОЧНЫЕ БЛОКИ --- */
         .debug-box {
             position: absolute;
             background-color: rgba(255, 0, 0, 0.4); 
@@ -53,14 +52,19 @@
             pointer-events: auto; cursor: pointer;
             box-sizing: border-box;
             z-index: 10;
+            touch-action: manipulation;
         }
 
-        /* Позиции внутри Safe Zone (в процентах от 16:9 картинки) */
+        /* Кнопки меню */
         #btn-settings { top: 5%; left: 5%; width: 10%; height: 15%; }
         #btn-quests { top: 5%; left: 17%; width: 10%; height: 15%; }
         #btn-shop { top: 5%; right: 5%; width: 10%; height: 15%; }
         
-        /* Баланс монет (справа под магазином) */
+        #btn-play {
+            bottom: 8%; right: 8%; width: 22%; height: 15%;
+        }
+
+        /* Баланс монет */
         #shop-coin-ui {
             position: absolute; 
             top: 22%; right: 4%; 
@@ -70,23 +74,22 @@
             pointer-events: none;
         }
 
-        /* Статистика и Байк (привязаны к низу Safe Zone) */
+        /* Статистика */
         #stats-block {
             bottom: 20%; left: 10%; 
             width: 30%; height: 30%;
             background-color: rgba(0, 255, 0, 0.4); 
             border: 2px solid lime;
+            pointer-events: none; /* Чтобы не мешал нажимать кнопки */
         }
 
+        /* Байк */
         #bike-block {
-            bottom: 15%; left: 50%; transform: translateX(-50%); 
+            bottom: 5%; left: 50%; transform: translateX(-50%); 
             width: 45%; height: 50%;
             background-color: rgba(0, 0, 255, 0.3); 
             border: 2px solid blue;
-        }
-
-        #btn-play {
-            bottom: 8%; right: 8%; width: 22%; height: 15%;
+            pointer-events: none; /* Чтобы не мешал нажимать кнопки */
         }
 
         /* Внутренности статистики */
@@ -106,13 +109,34 @@
         .stats-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
         .score { font-size: 36px; font-weight: bold; color: white; text-shadow: 0 2px 5px #000; }
         
-        .btn-game { position: absolute; width: 65px; height: 65px; border-radius: 50%; background: rgba(0,0,0,0.6); border: 2px solid rgba(255,255,255,0.3); pointer-events: auto; color: white; display: flex; align-items: center; justify-content: center; }
-        .btn-game svg { width: 35px; height: 35px; stroke: white; stroke-width: 2.5; }
-        #btnLeanBack { bottom: 150px; left: 20px; } #btnLeanForward { bottom: 60px; left: 60px; }
-        #btnGas { bottom: 150px; right: 20px; } #btnBrake { bottom: 60px; right: 60px; }
+        /* Обновленные кнопки управления */
+        .btn-game { 
+            position: absolute; width: 50px; height: 50px; border-radius: 50%; 
+            background: rgba(0,0,0,0.3); 
+            border: 1px solid rgba(255,255,255,0.2); 
+            pointer-events: auto; color: white; 
+            display: flex; align-items: center; justify-content: center; 
+        }
+        .btn-game svg { width: 25px; height: 25px; stroke: rgba(255,255,255,0.8); stroke-width: 2.5; }
+        
+        #btnLeanBack { bottom: 100px; left: 20px; } 
+        #btnLeanForward { bottom: 30px; left: 70px; }
+        #btnGas { bottom: 100px; right: 20px; } 
+        #btnBrake { bottom: 30px; right: 70px; }
 
-        #btnPause { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: 50px; height: 50px; pointer-events: auto; background: rgba(0,0,0,0.6); border: 2px solid rgba(255,255,255,0.2); border-radius: 8px; }
+        /* Обновленная кнопка паузы */
+        #btnPause { 
+            position: absolute; top: 75px; right: 20px; 
+            width: 40px; height: 40px; 
+            pointer-events: auto; 
+            background: rgba(0,0,0,0.3); 
+            border: 1px solid rgba(255,255,255,0.2); 
+            border-radius: 8px; 
+            display: flex; align-items: center; justify-content: center;
+        }
+        #btnPause svg { width: 20px; height: 20px; }
 
+        /* Экраны паузы и смерти */
         #pauseScreen, #gameOverScreen {
             position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
             background: rgba(10,5,15,0.95); display: none; flex-direction: column; justify-content: center; align-items: center; pointer-events: auto; z-index: 60;
@@ -155,10 +179,10 @@
 </div>
 
 <div class="hidden" id="mainMenu">
-    <!-- БЕЗОПАСНАЯ ЗОНА (Сюда вложены все элементы UI меню) -->
+    <!-- БЕЗОПАСНАЯ ЗОНА -->
     <div id="menu-safe-zone">
         
-        <!-- Кнопки (Красные) -->
+        <!-- Кнопки -->
         <div class="debug-box" id="btn-settings">GEAR</div>
         <div class="debug-box" id="btn-quests">QUESTS</div>
         <div class="debug-box" id="btn-shop">SHOP</div>
@@ -170,7 +194,7 @@
             <span id="menuCoinBalance">0</span>
         </div>
 
-        <!-- Статистика (Зеленая) -->
+        <!-- Статистика -->
         <div class="debug-box" id="stats-block">
             <div class="stat-content">
                 <div class="stat-row"><div class="stat-label">СКОРОСТЬ</div><div class="stat-bar-bg"><div class="stat-bar-fill" id="statSpeed"></div></div></div>
@@ -179,9 +203,8 @@
             </div>
         </div>
 
-        <!-- Байк (Синий) -->
+        <!-- Байк -->
         <div class="debug-box" id="bike-block">
-            <!-- Увеличен размер холста, чтобы байк влез целиком -->
             <canvas id="menuBikeCanvas" width="600" height="400"></canvas>
         </div>
 
@@ -202,7 +225,11 @@
             <div class="score"><span id="distanceText">0</span> m</div>
         </div>
     </div>
-    <button id="btnPause"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg></button>
+    
+    <button id="btnPause">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+    </button>
+    
     <div class="controls" id="controls">
         <div class="btn-game" id="btnLeanBack"><svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg></div>
         <div class="btn-game" id="btnLeanForward"><svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/></svg></div>
@@ -234,7 +261,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v18.2 (DEBUG)</div>
+<div class="version-text">v18.3 (DEBUG)</div>
 
 <script>
     let gameState = 'splash'; 
@@ -376,10 +403,7 @@
         menuCtx.clearRect(0, 0, menuCanvas.width, menuCanvas.height);
         menuCtx.save();
         
-        // Центрируем строго по центру увеличенного холста (600x400)
         menuCtx.translate(menuCanvas.width / 2, menuCanvas.height / 2);
-        
-        // Масштаб 3.5 (оптимально для холста 600x400)
         menuCtx.scale(3.5, 3.5); 
         
         if (bikeImage.complete && bikeImage.naturalWidth !== 0) menuCtx.drawImage(bikeImage, -45, -45, 90, 54);
@@ -420,7 +444,7 @@
         drawMenuBike();
     }
 
-    // Обработчики кнопок меню (заглушки)
+    // Обработчики кнопок меню
     document.getElementById('btn-shop').addEventListener('click', () => { alert('Магазин в разработке'); });
     document.getElementById('btn-quests').addEventListener('click', () => { alert('Квесты в разработке'); });
     document.getElementById('btn-settings').addEventListener('click', () => { alert('Настройки в разработке'); });
@@ -572,4 +596,4 @@
     checkOrientation(); resizeCanvas(); update();
 </script>
 </body>
-                                                                              </html>
+    </html>
