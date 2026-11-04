@@ -3,14 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v22.2 - UI Fixes)</title>
+    <title>Nyxride (v22.3 - Big Bike & Icon Fix)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
         .hidden { display: none !important; }
 
-        /* --- ЭКРАН ПОВОРОТА (Без иконки) --- */
+        /* --- ЭКРАН ПОВОРОТА (Иконка вернулась) --- */
         #rotateDevice { position: fixed; inset: 0; background: #000; z-index: 100000; display: none; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; }
+        #rotateDevice svg { width: 100px; height: 100px; fill: none; stroke: white; stroke-width: 4; margin-bottom: 30px; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 15px rgba(255,255,255,0.3)); }
         #rotateDevice h2 { font-size: 24px; font-weight: 600; margin: 0; padding: 0 20px; }
 
         /* --- ЗАСТАВКА --- */
@@ -46,10 +47,11 @@
         .ui-text-row.coins { font-size: 28px; color: #fff; }
         .ui-text-row.coins img { height: 32px; }
 
+        /* Блок байка (увеличен) */
         #bike-block {
             position: absolute;
             bottom: 5%; left: 50%; transform: translateX(-50%); 
-            width: 90vw; height: 50vh; 
+            width: 90vw; height: 60vh; 
             pointer-events: none; z-index: 5;
         }
         #menuBikeCanvas { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0px 15px 20px rgba(0,0,0,0.8)); }
@@ -73,7 +75,7 @@
         #btnPause { position: absolute; top: 25px; right: 160px; width: 40px; height: 40px; pointer-events: auto; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
         #btnPause svg { width: 20px; height: 20px; }
 
-        /* --- ЭКРАН СМЕРТИ (КОМПАКТНЫЙ) --- */
+        /* --- ЭКРАН СМЕРТИ --- */
         #pauseScreen, #gameOverScreen {
             position: absolute; top: 0; left: 0; width: 100vw; height: 100dvh;
             background: #0a050f; display: none; flex-direction: column; justify-content: space-evenly; align-items: center; pointer-events: auto; z-index: 60; padding: 10px 0; box-sizing: border-box;
@@ -119,6 +121,19 @@
 <body>
 
 <div id="rotateDevice">
+    <svg viewBox="0 0 100 100">
+        <g fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="35" y="20" width="30" height="60" rx="4" ry="4">
+                <animateTransform attributeName="transform" type="rotate" values="0 50 50; 90 50 50; 90 50 50; 0 50 50" keyTimes="0; 0.4; 0.6; 1" dur="3s" repeatCount="indefinite" />
+            </rect>
+            <circle cx="50" cy="72" r="2">
+                <animateTransform attributeName="transform" type="rotate" values="0 50 50; 90 50 50; 90 50 50; 0 50 50" keyTimes="0; 0.4; 0.6; 1" dur="3s" repeatCount="indefinite" />
+            </circle>
+            <line x1="45" y1="26" x2="55" y2="26">
+                <animateTransform attributeName="transform" type="rotate" values="0 50 50; 90 50 50; 90 50 50; 0 50 50" keyTimes="0; 0.4; 0.6; 1" dur="3s" repeatCount="indefinite" />
+            </line>
+        </g>
+    </svg>
     <h2>Пожалуйста, поверните устройство</h2>
 </div>
 
@@ -143,7 +158,8 @@
     </div>
 
     <div id="bike-block">
-        <canvas id="menuBikeCanvas" width="1000" height="1000"></canvas>
+        <!-- Изменены пропорции холста для широкого экрана -->
+        <canvas id="menuBikeCanvas" width="1200" height="800"></canvas>
     </div>
 </div>
 
@@ -224,7 +240,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v22.2 (DEBUG)</div>
+<div class="version-text">v22.3 (DEBUG)</div>
 
 <script>
     let gameState = 'splash'; 
@@ -366,11 +382,11 @@
         menuCtx.clearRect(0, 0, menuCanvas.width, menuCanvas.height);
         menuCtx.save();
         
-        // Опускаем байк вниз и центрируем по горизонтали
-        menuCtx.translate(menuCanvas.width / 2, menuCanvas.height - 150);
+        // Точка отрисовки по центру по X и чуть выше низа по Y
+        menuCtx.translate(menuCanvas.width / 2, menuCanvas.height - 100);
         
-        // Масштаб 9.5 (вместо 18.0) - байк будет огромным, но влезет целиком
-        menuCtx.scale(9.5, 9.5); 
+        // Масштаб 12 (байк будет огромным, но влезет в новые пропорции 1200x800)
+        menuCtx.scale(12.0, 12.0); 
         
         if (bikeImage.complete && bikeImage.naturalWidth !== 0) menuCtx.drawImage(bikeImage, -45, -45, 90, 54);
         
@@ -582,4 +598,4 @@
     checkOrientation(); resizeCanvas(); update();
 </script>
 </body>
-    </html>
+</html>
