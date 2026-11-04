@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v23.1 - Sky Fixed)</title>
+    <title>Nyxride (v23.3 - Stable Sky & Birds)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
@@ -61,13 +61,7 @@
         .stats-left { display: flex; flex-direction: column; gap: 5px; }
         .stat-text { font-size: 16px; font-weight: 600; color: rgba(255,255,255,0.8); text-transform: uppercase; }
         
-        .stats-right { 
-            display: flex; 
-            flex-direction: row; 
-            align-items: center; 
-            gap: 15px; 
-        }
-        
+        .stats-right { display: flex; flex-direction: row; align-items: center; gap: 15px; }
         .score { font-size: 36px; font-weight: bold; color: white; text-shadow: 0 2px 5px #000; }
         
         .btn-game { position: absolute; width: 50px; height: 50px; border-radius: 50%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); pointer-events: auto; color: white; display: flex; align-items: center; justify-content: center; }
@@ -254,7 +248,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v23.1 (DEBUG)</div>
+<div class="version-text">v23.3 (DEBUG)</div>
 
 <script>
     let gameState = 'splash'; 
@@ -556,16 +550,15 @@
         if (isAudioInitialized) { idleGain.gain.setValueAtTime(0, audioCtx.currentTime); revGain.gain.setValueAtTime(0, audioCtx.currentTime); windGain.gain.setValueAtTime(0, audioCtx.currentTime); }
     }
 
-    // --- НОВОЕ: ФУНКЦИИ ДЛЯ ПТИЦ ---
     function updateBirds(dt) {
         birdSpawnTimer -= dt;
         if (birdSpawnTimer <= 0) {
             let flockSize = Math.floor(Math.random() * 3) + 2;
-            let startX = cameraX + canvas.width + 50;
+            let spawnX = cameraX + canvas.width + 50; 
             let startY = groundY - 150 - Math.random() * 100;
             for (let i = 0; i < flockSize; i++) {
                 birds.push({
-                    x: startX + Math.random() * 60,
+                    x: spawnX + Math.random() * 60,
                     y: startY + Math.random() * 40,
                     speed: 30 + Math.random() * 20,
                     wingPhase: Math.random() * Math.PI * 2,
@@ -599,7 +592,7 @@
         }
     }
 
-    // ИСПРАВЛЕНА ФУНКЦИЯ ГОР
+    // ВОЗВРАЩЕНА БЕЗОПАСНАЯ ФУНКЦИЯ ГОР
     function drawMountainLayer(yOff, h, c, p) { 
         ctx.fillStyle = c; 
         ctx.beginPath(); 
@@ -608,7 +601,6 @@
         ctx.moveTo(sx, groundY + 2000); 
         for (let x = sx; x <= ex; x += 10) { 
             let wx = x + p; 
-            // Сделали горы более острыми и низкими
             let j = Math.pow(Math.abs(Math.sin(wx * 0.005)), 1.2) * h + Math.abs(Math.cos(wx * 0.012)) * (h * 0.3);
             ctx.lineTo(x, groundY - yOff - j); 
         } 
@@ -663,7 +655,6 @@
             ctx.fillStyle = g; 
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // Подняли солнце выше
             let sx = canvas.width * 0.75; 
             let sy = canvas.height * 0.35; 
             let sg = ctx.createRadialGradient(sx, sy, 10, sx, sy, 200);
@@ -682,13 +673,14 @@
             ctx.save(); 
             ctx.scale(zoom, zoom); 
             ctx.translate(-cameraX, cameraY); 
-            // ИСПРАВЛЕНЫ ВЫСОТЫ ГОР (стали меньше)
+            
             drawMountainLayer(canvas.height * 0.15, canvas.height * 0.12, '#5d2a5b', cameraX * 0.05); 
             drawMountainLayer(canvas.height * 0.1, canvas.height * 0.18, '#3b1f42', cameraX * 0.15); 
             drawMountainLayer(canvas.height * 0.05, canvas.height * 0.25, '#1a0b2e', cameraX * 0.3); 
-            ctx.restore();
-
+            
             drawBirds();
+            
+            ctx.restore();
 
             ctx.save(); 
             ctx.scale(zoom, zoom); 
@@ -713,4 +705,4 @@
     checkOrientation(); resizeCanvas(); update();
 </script>
 </body>
-</html>
+            </html>
