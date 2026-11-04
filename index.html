@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v20.2 - Big Menu)</title>
+    <title>Nyxride (v21.1 - Big UI)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
@@ -31,38 +31,28 @@
             position: relative; overflow: hidden;
         }
         
-        /* --- КНОПКИ МЕНЮ (Увеличены) --- */
+        /* --- КНОПКИ МЕНЮ (Огромные и прижаты к стенам) --- */
         .menu-btn {
             position: absolute;
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: center;
-            pointer-events: auto; 
             cursor: pointer;
             z-index: 10;
             touch-action: manipulation;
-            border: 1px dashed rgba(255, 255, 255, 0.3); /* Рамки для отладки */
-            box-sizing: border-box;
         }
 
-        /* Левая колонка (Настройки, Квесты, Магазин) */
+        /* Левая колонка (прижата к левой стене) */
         #btn-settings { 
-            top: 6%; left: 2%; width: 45%; height: 12%; 
-            background-image: url('btn_gear.png'); 
+            top: 5%; left: 1%; width: 55vw; 
         }
         #btn-quests { 
-            top: 20%; left: 2%; width: 45%; height: 12%; 
-            background-image: url('btn_quests.png'); 
+            top: 18%; left: 1%; width: 55vw; 
         }
         #btn-shop { 
-            top: 34%; left: 2%; width: 45%; height: 12%; 
-            background-image: url('btn_shop.png'); 
+            top: 31%; left: 1%; width: 55vw; 
         }
 
-        /* Правая колонка (PLAY - еще больше) */
+        /* Правая колонка (PLAY прижата к правой стене) */
         #btn-play { 
-            bottom: 8%; right: 2%; width: 55%; height: 15%; 
-            background-image: url('btn_play.png'); 
+            bottom: 8%; right: 1%; width: 65vw; 
         }
 
         /* --- ВЕРХНИЙ ПРАВЫЙ БЛОК (Рекорд и Монеты) --- */
@@ -79,11 +69,11 @@
         .ui-text-row.coins { font-size: 28px; color: #fff; }
         .ui-text-row.coins img { height: 32px; }
 
-        /* --- БЛОК БАЙКА (Огромный и внизу) --- */
+        /* --- БЛОК БАЙКА (Поднят выше, чтобы не задевать PLAY) --- */
         #bike-block {
             position: absolute;
-            bottom: 0%; left: 50%; transform: translateX(-50%); 
-            width: 100vw; height: 60vh; 
+            bottom: 15%; left: 50%; transform: translateX(-50%); 
+            width: 100vw; height: 50vh; /* Уменьшил высоту блока, чтобы он не улетал вверх */
             pointer-events: none;
             z-index: 5;
         }
@@ -168,11 +158,13 @@
 
 <div class="hidden" id="mainMenu">
     
+    <!-- Здесь ты можешь вставить свой баннер -->
+
     <!-- Кнопки меню -->
-    <div class="menu-btn" id="btn-settings"></div>
-    <div class="menu-btn" id="btn-quests"></div>
-    <div class="menu-btn" id="btn-shop"></div>
-    <div class="menu-btn" id="btn-play"></div>
+    <img class="menu-btn" id="btn-settings" src="btn_gear.png" alt="Settings">
+    <img class="menu-btn" id="btn-quests" src="btn_quests.png" alt="Quests">
+    <img class="menu-btn" id="btn-shop" src="btn_shop.png" alt="Shop">
+    <img class="menu-btn" id="btn-play" src="btn_play.png" alt="Play">
 
     <!-- Верхний правый блок (Рекорд и Монеты) -->
     <div id="top-right-ui">
@@ -185,7 +177,7 @@
         </div>
     </div>
 
-    <!-- Байк (огромный, внизу) -->
+    <!-- Байк (поднят выше) -->
     <div id="bike-block">
         <canvas id="menuBikeCanvas" width="1000" height="1000"></canvas>
     </div>
@@ -242,7 +234,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v20.2 (DEBUG)</div>
+<div class="version-text">v21.1 (DEBUG)</div>
 
 <script>
     let gameState = 'splash'; 
@@ -384,11 +376,11 @@
         menuCtx.clearRect(0, 0, menuCanvas.width, menuCanvas.height);
         menuCtx.save();
         
-        // Опускаем байк вниз холста (ближе к земле)
-        menuCtx.translate(menuCanvas.width / 2, menuCanvas.height - 150);
+        // Центрируем байк ровно по центру его блока
+        menuCtx.translate(menuCanvas.width / 2, menuCanvas.height / 2);
         
-        // Увеличиваем масштаб (с 4.5 до 7.0)
-        menuCtx.scale(7.0, 7.0); 
+        // Сильно увеличиваем (если обрежется сверху - уменьши до 10.0)
+        menuCtx.scale(12.0, 12.0); 
         
         if (bikeImage.complete && bikeImage.naturalWidth !== 0) menuCtx.drawImage(bikeImage, -45, -45, 90, 54);
         
@@ -573,4 +565,4 @@
     checkOrientation(); resizeCanvas(); update();
 </script>
 </body>
-            </html>
+    </html>
