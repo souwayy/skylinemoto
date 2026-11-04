@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v20.0 - New Menu Layout)</title>
+    <title>Nyxride (v20.2 - Big Menu)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
@@ -23,7 +23,7 @@
         #splashScreen img { width: 100vw; height: 100dvh; object-fit: contain; padding: 10vh 0; box-sizing: border-box; animation: pulseLogo 2s ease-in-out infinite; }
         @keyframes pulseLogo { 0%, 100% { transform: scale(1); opacity: 0.85; } 50% { transform: scale(1.03); opacity: 1; } }
 
-        /* --- ГЛАВНОЕ МЕНЮ (ПОЛНОЭКРАННОЕ) --- */
+        /* --- ГЛАВНОЕ МЕНЮ --- */
         #mainMenu {
             background: url('menu_bg_new.jpg') no-repeat center center;
             background-size: cover;
@@ -31,7 +31,7 @@
             position: relative; overflow: hidden;
         }
         
-        /* --- КНОПКИ МЕНЮ --- */
+        /* --- КНОПКИ МЕНЮ (Увеличены) --- */
         .menu-btn {
             position: absolute;
             background-size: contain;
@@ -41,28 +41,27 @@
             cursor: pointer;
             z-index: 10;
             touch-action: manipulation;
-            /* Временные рамки для отладки, удалим позже */
-            border: 1px dashed rgba(255, 255, 255, 0.3); 
+            border: 1px dashed rgba(255, 255, 255, 0.3); /* Рамки для отладки */
             box-sizing: border-box;
         }
 
         /* Левая колонка (Настройки, Квесты, Магазин) */
         #btn-settings { 
-            top: 8%; left: 4%; width: 26%; height: 9%; 
+            top: 6%; left: 2%; width: 45%; height: 12%; 
             background-image: url('btn_gear.png'); 
         }
         #btn-quests { 
-            top: 19%; left: 4%; width: 26%; height: 9%; 
+            top: 20%; left: 2%; width: 45%; height: 12%; 
             background-image: url('btn_quests.png'); 
         }
         #btn-shop { 
-            top: 30%; left: 4%; width: 26%; height: 9%; 
+            top: 34%; left: 2%; width: 45%; height: 12%; 
             background-image: url('btn_shop.png'); 
         }
 
-        /* Правая колонка (PLAY) */
+        /* Правая колонка (PLAY - еще больше) */
         #btn-play { 
-            bottom: 8%; right: 4%; width: 35%; height: 12%; 
+            bottom: 8%; right: 2%; width: 55%; height: 15%; 
             background-image: url('btn_play.png'); 
         }
 
@@ -80,32 +79,15 @@
         .ui-text-row.coins { font-size: 28px; color: #fff; }
         .ui-text-row.coins img { height: 32px; }
 
-        /* --- ЛОГОТИП NYXRIDE --- */
-        #game-logo {
-            position: absolute;
-            bottom: 10%; left: 5%;
-            font-size: 9vw; /* Адаптивный размер */
-            font-weight: 900;
-            font-style: italic;
-            color: #fff;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            text-shadow: 0 0 15px rgba(255, 100, 0, 0.8), 0 5px 10px rgba(0,0,0,0.8);
-            pointer-events: none;
-            z-index: 10;
-            transform: skewX(-10deg);
-        }
-
-        /* --- БЛОК БАЙКА --- */
+        /* --- БЛОК БАЙКА (Огромный и внизу) --- */
         #bike-block {
             position: absolute;
-            bottom: 10%; left: 50%; transform: translateX(-50%); 
-            width: 50%; height: 45%;
+            bottom: 0%; left: 50%; transform: translateX(-50%); 
+            width: 100vw; height: 60vh; 
             pointer-events: none;
             z-index: 5;
-            /* border: 1px dashed rgba(0,0,255,0.5); /* Для отладки байка */
         }
-        #menuBikeCanvas { width: 100%; height: 100%; filter: drop-shadow(0px 15px 20px rgba(0,0,0,1)); }
+        #menuBikeCanvas { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0px 15px 20px rgba(0,0,0,0.8)); }
 
         /* --- ИГРОВОЙ ИНТЕРФЕЙС --- */
         .ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
@@ -186,9 +168,6 @@
 
 <div class="hidden" id="mainMenu">
     
-    <!-- Логотип игры -->
-    <div id="game-logo">NYXRIDE</div>
-
     <!-- Кнопки меню -->
     <div class="menu-btn" id="btn-settings"></div>
     <div class="menu-btn" id="btn-quests"></div>
@@ -206,9 +185,9 @@
         </div>
     </div>
 
-    <!-- Байк (в центре) -->
+    <!-- Байк (огромный, внизу) -->
     <div id="bike-block">
-        <canvas id="menuBikeCanvas" width="600" height="400"></canvas>
+        <canvas id="menuBikeCanvas" width="1000" height="1000"></canvas>
     </div>
 
 </div>
@@ -263,7 +242,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v20.0 (DEBUG)</div>
+<div class="version-text">v20.2 (DEBUG)</div>
 
 <script>
     let gameState = 'splash'; 
@@ -405,8 +384,11 @@
         menuCtx.clearRect(0, 0, menuCanvas.width, menuCanvas.height);
         menuCtx.save();
         
-        menuCtx.translate(menuCanvas.width / 2, menuCanvas.height / 2);
-        menuCtx.scale(3.5, 3.5); 
+        // Опускаем байк вниз холста (ближе к земле)
+        menuCtx.translate(menuCanvas.width / 2, menuCanvas.height - 150);
+        
+        // Увеличиваем масштаб (с 4.5 до 7.0)
+        menuCtx.scale(7.0, 7.0); 
         
         if (bikeImage.complete && bikeImage.naturalWidth !== 0) menuCtx.drawImage(bikeImage, -45, -45, 90, 54);
         
@@ -591,4 +573,4 @@
     checkOrientation(); resizeCanvas(); update();
 </script>
 </body>
-    </html>
+            </html>
