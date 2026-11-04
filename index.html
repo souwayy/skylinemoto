@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v21.1 - Big UI)</title>
+    <title>Nyxride (v21.2 - Fixed Layout)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
@@ -31,7 +31,7 @@
             position: relative; overflow: hidden;
         }
         
-        /* --- КНОПКИ МЕНЮ (Огромные и прижаты к стенам) --- */
+        /* --- КНОПКИ МЕНЮ (Адекватные размеры) --- */
         .menu-btn {
             position: absolute;
             cursor: pointer;
@@ -39,20 +39,20 @@
             touch-action: manipulation;
         }
 
-        /* Левая колонка (прижата к левой стене) */
+        /* Левая колонка (ровная) */
         #btn-settings { 
-            top: 5%; left: 1%; width: 55vw; 
+            top: 8%; left: 2%; width: 38vw; 
         }
         #btn-quests { 
-            top: 18%; left: 1%; width: 55vw; 
+            top: 20%; left: 2%; width: 38vw; 
         }
         #btn-shop { 
-            top: 31%; left: 1%; width: 55vw; 
+            top: 32%; left: 2%; width: 38vw; 
         }
 
-        /* Правая колонка (PLAY прижата к правой стене) */
+        /* Правая колонка (PLAY) */
         #btn-play { 
-            bottom: 8%; right: 1%; width: 65vw; 
+            bottom: 8%; right: 2%; width: 48vw; 
         }
 
         /* --- ВЕРХНИЙ ПРАВЫЙ БЛОК (Рекорд и Монеты) --- */
@@ -69,11 +69,11 @@
         .ui-text-row.coins { font-size: 28px; color: #fff; }
         .ui-text-row.coins img { height: 32px; }
 
-        /* --- БЛОК БАЙКА (Поднят выше, чтобы не задевать PLAY) --- */
+        /* --- БЛОК БАЙКА (По центру, не задевает кнопки) --- */
         #bike-block {
             position: absolute;
             bottom: 15%; left: 50%; transform: translateX(-50%); 
-            width: 100vw; height: 50vh; /* Уменьшил высоту блока, чтобы он не улетал вверх */
+            width: 80vw; height: 40vh; 
             pointer-events: none;
             z-index: 5;
         }
@@ -177,7 +177,7 @@
         </div>
     </div>
 
-    <!-- Байк (поднят выше) -->
+    <!-- Байк (по центру) -->
     <div id="bike-block">
         <canvas id="menuBikeCanvas" width="1000" height="1000"></canvas>
     </div>
@@ -234,7 +234,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v21.1 (DEBUG)</div>
+<div class="version-text">v21.2 (DEBUG)</div>
 
 <script>
     let gameState = 'splash'; 
@@ -376,11 +376,11 @@
         menuCtx.clearRect(0, 0, menuCanvas.width, menuCanvas.height);
         menuCtx.save();
         
-        // Центрируем байк ровно по центру его блока
-        menuCtx.translate(menuCanvas.width / 2, menuCanvas.height / 2);
+        // Опускаем байк чуть ниже центра
+        menuCtx.translate(menuCanvas.width / 2, menuCanvas.height / 2 + 50);
         
-        // Сильно увеличиваем (если обрежется сверху - уменьши до 10.0)
-        menuCtx.scale(12.0, 12.0); 
+        // Оптимальный масштаб (если нужно больше - ставь 8.0)
+        menuCtx.scale(6.5, 6.5); 
         
         if (bikeImage.complete && bikeImage.naturalWidth !== 0) menuCtx.drawImage(bikeImage, -45, -45, 90, 54);
         
