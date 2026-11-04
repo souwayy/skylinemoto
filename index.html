@@ -3,18 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v24.0 - Final Polish)</title>
+    <title>Nyxride (v24.2 - Bug Fixes)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
         .hidden { display: none !important; }
 
-        /* --- ЭКРАН ПОВОРОТА --- */
         #rotateDevice { position: fixed; inset: 0; background: #000; z-index: 100000; display: none; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; }
         #rotateDevice svg { width: 100px; height: 100px; fill: none; stroke: white; stroke-width: 4; margin-bottom: 30px; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 15px rgba(255,255,255,0.3)); }
         #rotateDevice h2 { font-size: 24px; font-weight: 600; margin: 0; padding: 0 20px; }
 
-        /* --- ЗАСТАВКА --- */
         #splashScreen {
             position: fixed; inset: 0; background-color: #000; z-index: 99999;
             display: flex; align-items: center; justify-content: center;
@@ -23,7 +21,6 @@
         #splashScreen img { width: 100vw; height: 100dvh; object-fit: contain; padding: 10vh 0; box-sizing: border-box; animation: pulseLogo 2s ease-in-out infinite; }
         @keyframes pulseLogo { 0%, 100% { transform: scale(1); opacity: 0.85; } 50% { transform: scale(1.03); opacity: 1; } }
 
-        /* --- ГЛАВНОЕ МЕНЮ --- */
         #mainMenu {
             background: url('menu_bg_new.jpg') no-repeat center center;
             background-size: cover;
@@ -55,7 +52,6 @@
         }
         #menuBikeCanvas { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0px 15px 20px rgba(0,0,0,0.8)); }
 
-        /* --- ИГРОВОЙ ИНТЕРФЕЙС --- */
         .ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
         .top-bar { display: flex; justify-content: space-between; padding: 20px; align-items: flex-start; }
         .stats-left { display: flex; flex-direction: column; gap: 5px; }
@@ -79,7 +75,6 @@
         }
         #btnPause svg { width: 20px; height: 20px; }
 
-        /* --- ЭКРАНЫ ПАУЗЫ И СМЕРТИ --- */
         #pauseScreen, #gameOverScreen {
             position: absolute; top: 0; left: 0; width: 100vw; height: 100dvh;
             background: #0a050f; display: none; flex-direction: column; justify-content: center; align-items: center; pointer-events: auto; z-index: 60; padding: 10px 0; box-sizing: border-box;
@@ -190,7 +185,6 @@
     </div>
 </div>
 
-<!-- МЕНЮ ПАУЗЫ С 4 КНОПКАМИ -->
 <div class="hidden" id="pauseScreen">
     <div class="pause-title">PAUSED</div>
     <button class="pause-btn" id="btnResume">CONTINUE</button>
@@ -241,7 +235,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v24.0 (FINAL)</div>
+<div class="version-text">v24.2 (FINAL)</div>
 
 <script>
     let gameState = 'splash'; 
@@ -272,7 +266,6 @@
     let terrainOffset = 0; 
     let cameraX = 0, cameraY = 0; 
     
-    // ДИНАМИЧЕСКИЙ ЗУМ
     let zoom = 1.6; 
     const minZoom = 1.1; 
     const maxZoom = 1.6; 
@@ -422,9 +415,9 @@
         drawMenuBike();
     }
 
-    document.getElementById('btn-shop').addEventListener('click', () => { alert('Магазин в разработке'); });
-    document.getElementById('btn-quests').addEventListener('click', () => { alert('Квесты в разработке'); });
-    document.getElementById('btn-settings').addEventListener('click', () => { alert('Настройки в разработке'); });
+    document.getElementById('btn-shop').addEventListener('click', () => { console.log('Магазин в разработке'); });
+    document.getElementById('btn-quests').addEventListener('click', () => { console.log('Квесты в разработке'); });
+    document.getElementById('btn-settings').addEventListener('click', () => { console.log('Настройки в разработке'); });
 
     document.getElementById('btn-play').addEventListener('click', () => {
         initAudio(); 
@@ -486,9 +479,9 @@
     bindBtn('btnGas', 'isGas'); bindBtn('btnBrake', 'isBrake'); bindBtn('btnLeanBack', 'isLeanBack'); bindBtn('btnLeanForward', 'isLeanForward');
 
     document.getElementById('btnPause').addEventListener('click', () => { if (gameState === 'playing') { gameState = 'paused'; document.getElementById('pauseScreen').style.display = 'flex'; } });
-    document.getElementById('btnResume').addEventListener('click', () => { gameState = 'playing'; document.getElementById('pauseScreen').style.display = 'none'; });
+    document.getElementById('btnResume').addEventListener('click', () => { gameState = 'playing'; document.getElementById('pauseScreen').style.display = 'none'; lastTime = performance.now(); });
     document.getElementById('btnRestartPause').addEventListener('click', () => { document.getElementById('pauseScreen').style.display = 'none'; gameState = 'playing'; resetGame(); });
-    document.getElementById('btnSettingsPause').addEventListener('click', () => { alert('Настройки в разработке'); });
+    document.getElementById('btnSettingsPause').addEventListener('click', () => { console.log('Настройки в разработке'); });
     document.getElementById('btnHomePause').addEventListener('click', () => { document.getElementById('pauseScreen').style.display = 'none'; document.getElementById('gameUI').classList.add('hidden'); document.getElementById('mainMenu').classList.remove('hidden'); gameState = 'menu'; updateMenuUI(); });
     document.getElementById('btnRestartGameOver').addEventListener('click', () => { document.getElementById('gameOverScreen').style.display = 'none'; gameState = 'playing'; resetGame(); });
     document.getElementById('btnHomeGameOver').addEventListener('click', () => { document.getElementById('gameOverScreen').style.display = 'none'; document.getElementById('gameUI').classList.add('hidden'); document.getElementById('mainMenu').classList.remove('hidden'); gameState = 'menu'; updateMenuUI(); });
@@ -502,7 +495,7 @@
         accumulatedRotation = 0; lastAngle = chassis.getAngle(); maxWheelieTime = 0; currentWheelieTime = 0;
         maxStoppieTime = 0; currentStoppieTime = 0; particles = []; dustTimer = 0; popTimer = 0;
         birds = []; birdSpawnTimer = 3;
-        zoom = maxZoom; // Сбрасываем зум при рестарте
+        zoom = maxZoom;
         document.getElementById('coinBalanceText').innerText = totalCoins; document.getElementById('distanceText').innerText = "0";
         if (isAudioInitialized) { idleGain.gain.setValueAtTime(0.4, audioCtx.currentTime); revGain.gain.setValueAtTime(0, audioCtx.currentTime); windGain.gain.setValueAtTime(0, audioCtx.currentTime); if (revFilter) revFilter.frequency.value = 2500; startRevSound(); }
     }
@@ -546,7 +539,7 @@
         if (birdSpawnTimer <= 0) {
             let flockSize = Math.floor(Math.random() * 3) + 2;
             let spawnX = cameraX + canvas.width + 50; 
-            let startY = canvas.height * 0.2 + Math.random() * 60;
+            let startY = canvas.height * 0.15 + Math.random() * 50; 
             for (let i = 0; i < flockSize; i++) {
                 birds.push({
                     x: spawnX + Math.random() * 60,
@@ -589,10 +582,11 @@
         let sx = Math.floor(cameraX) - 100; 
         let ex = Math.floor(cameraX) + (canvas.width / zoom) + 100; 
         ctx.moveTo(sx, groundY + 2000); 
-        for (let x = sx; x <= ex; x += 10) { 
+        for (let x = sx; x <= ex; x += 5) { 
             let wx = x + p; 
-            let j = Math.sin(wx * 0.002) * h + Math.cos(wx * 0.005) * h * 0.5;
-            ctx.lineTo(x, groundY - yOff - Math.abs(j)); 
+            let jagged = Math.pow(Math.abs(Math.sin(wx * 0.004)), 1.5) * h;
+            let noise = Math.abs(Math.sin(wx * 0.012)) * (h * 0.3);
+            ctx.lineTo(x, groundY - yOff - jagged - noise); 
         } 
         ctx.lineTo(ex, groundY + 2000); 
         ctx.closePath(); 
@@ -607,8 +601,14 @@
 
     let lastTime = performance.now();
     function update() {
+        requestAnimationFrame(update); 
+        
+        // Замораживаем игру на паузе, не давая dt накопиться
+        if (gameState === 'paused') {
+            return; 
+        }
+
         try {
-            requestAnimationFrame(update); 
             let dt = (performance.now() - lastTime) / 1000; lastTime = performance.now(); if (dt > 0.1) dt = 0.1; 
 
             if (gameState === 'playing' && chassis) {
@@ -628,12 +628,11 @@
                 if (isAudioInitialized) { if (window.isGas) { idleGain.gain.cancelScheduledValues(audioCtx.currentTime); idleGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.05); } else { idleGain.gain.cancelScheduledValues(audioCtx.currentTime); idleGain.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + 0.1); } let tr = window.isGas ? 0.8 : 0; let tw = Math.min(0.3, 0.05 + ws * 0.15); revGain.gain.setTargetAtTime(tr, audioCtx.currentTime, 0.1); windGain.gain.setTargetAtTime(tw, audioCtx.currentTime, 0.1); if (window.isGas && revSource) { let trate = 1.0 + (ws * 0.3); let frate = Math.min(1.3, trate); revSource.playbackRate.setTargetAtTime(frate, audioCtx.currentTime, 0.1); let tf = Math.max(1000, 2500 - (ws * 1000)); revFilter.frequency.setTargetAtTime(tf, audioCtx.currentTime, 0.1); previousGasState = true; } else { previousGasState = false; } if (!window.isGas && ws > 2) { popTimer += dt; if (popTimer > 1.0 && Math.random() < 0.02) { playPop(); popTimer = 0; } } else { popTimer = 0; } }
                 if (chassis.getPosition().y > groundY + 1000) triggerGameOver();
                 
-                // ДИНАМИЧЕСКИЙ ЗУМ
-                let targetZoom = maxZoom - Math.min(0.5, ls * 0.012); 
-                zoom += (targetZoom - zoom) * 0.05; 
+                let targetZoom = maxZoom - Math.min(0.4, ls * 0.008); 
+                zoom += (targetZoom - zoom) * 0.02; 
 
-                let tcx = (chassis.getPosition().x * SCALE) - ((canvas.width * 0.25) / zoom); cameraX += (tcx - cameraX) * 0.1; 
-                let tcy = (canvas.height * 0.65) - (chassis.getPosition().y * SCALE); cameraY += (tcy - cameraY) * 0.1;
+                let tcx = (chassis.getPosition().x * SCALE) - ((canvas.width * 0.3) / zoom); cameraX += (tcx - cameraX) * 0.1; 
+                let tcy = (canvas.height * 0.55) - (chassis.getPosition().y * SCALE); cameraY += (tcy - cameraY) * 0.1;
                 
                 generateTerrain(); cleanupTerrain(); updateParticles(dt);
                 updateBirds(dt);
@@ -642,7 +641,7 @@
                 if (cd > maxDistance) { maxDistance = cd; localStorage.setItem('bestDistance', maxDistance); document.getElementById('bestDistanceText').innerText = maxDistance; }
             }
 
-            if (gameState === 'playing' || gameState === 'gameover' || gameState === 'paused') {
+            if (gameState === 'playing' || gameState === 'gameover') {
                 ctx.clearRect(0, 0, canvas.width, canvas.height); 
                 
                 const g = ctx.createLinearGradient(0, 0, 0, canvas.height);
@@ -668,6 +667,12 @@
                 ctx.arc(sx, sy, 28, 0, Math.PI * 2); 
                 ctx.fill();
 
+                // Птицы (Рисуются до гор, чтобы они были на фоне неба)
+                ctx.save();
+                ctx.translate(-cameraX * 0.1, 0); 
+                drawBirds();
+                ctx.restore();
+
                 ctx.save(); 
                 ctx.scale(zoom, zoom); 
                 ctx.translate(-cameraX, cameraY); 
@@ -675,8 +680,6 @@
                 drawMountainLayer(120, 80, '#5d2a5b', cameraX * 0.05); 
                 drawMountainLayer(80, 120, '#3b1f42', cameraX * 0.15); 
                 drawMountainLayer(40, 160, '#1a0b2e', cameraX * 0.3); 
-                
-                drawBirds();
                 
                 ctx.restore();
 
@@ -706,4 +709,4 @@
     checkOrientation(); resizeCanvas(); update();
 </script>
 </body>
-</html>
+            </html>
