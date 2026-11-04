@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v22.3 - Big Bike & Icon Fix)</title>
+    <title>Nyxride (v22.4 - Wheels Fixed)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
@@ -47,7 +47,7 @@
         .ui-text-row.coins { font-size: 28px; color: #fff; }
         .ui-text-row.coins img { height: 32px; }
 
-        /* Блок байка (увеличен) */
+        /* Блок байка */
         #bike-block {
             position: absolute;
             bottom: 5%; left: 50%; transform: translateX(-50%); 
@@ -158,7 +158,6 @@
     </div>
 
     <div id="bike-block">
-        <!-- Изменены пропорции холста для широкого экрана -->
         <canvas id="menuBikeCanvas" width="1200" height="800"></canvas>
     </div>
 </div>
@@ -240,7 +239,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v22.3 (DEBUG)</div>
+<div class="version-text">v22.4 (DEBUG)</div>
 
 <script>
     let gameState = 'splash'; 
@@ -382,10 +381,11 @@
         menuCtx.clearRect(0, 0, menuCanvas.width, menuCanvas.height);
         menuCtx.save();
         
-        // Точка отрисовки по центру по X и чуть выше низа по Y
-        menuCtx.translate(menuCanvas.width / 2, menuCanvas.height - 100);
+        // Опускаем байк вниз и центрируем по горизонтали.
+        // ИЗМЕНЕНО: height - 200 (вместо - 100), чтобы поднять байк и не обрезать колеса
+        menuCtx.translate(menuCanvas.width / 2, menuCanvas.height - 200);
         
-        // Масштаб 12 (байк будет огромным, но влезет в новые пропорции 1200x800)
+        // Масштаб 12
         menuCtx.scale(12.0, 12.0); 
         
         if (bikeImage.complete && bikeImage.naturalWidth !== 0) menuCtx.drawImage(bikeImage, -45, -45, 90, 54);
