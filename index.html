@@ -3,16 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v23.5 - Camera & Sky Fix)</title>
+    <title>Nyxride (v24.0 - Final Polish)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
         .hidden { display: none !important; }
 
+        /* --- ЭКРАН ПОВОРОТА --- */
         #rotateDevice { position: fixed; inset: 0; background: #000; z-index: 100000; display: none; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; }
         #rotateDevice svg { width: 100px; height: 100px; fill: none; stroke: white; stroke-width: 4; margin-bottom: 30px; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 15px rgba(255,255,255,0.3)); }
         #rotateDevice h2 { font-size: 24px; font-weight: 600; margin: 0; padding: 0 20px; }
 
+        /* --- ЗАСТАВКА --- */
         #splashScreen {
             position: fixed; inset: 0; background-color: #000; z-index: 99999;
             display: flex; align-items: center; justify-content: center;
@@ -21,6 +23,7 @@
         #splashScreen img { width: 100vw; height: 100dvh; object-fit: contain; padding: 10vh 0; box-sizing: border-box; animation: pulseLogo 2s ease-in-out infinite; }
         @keyframes pulseLogo { 0%, 100% { transform: scale(1); opacity: 0.85; } 50% { transform: scale(1.03); opacity: 1; } }
 
+        /* --- ГЛАВНОЕ МЕНЮ --- */
         #mainMenu {
             background: url('menu_bg_new.jpg') no-repeat center center;
             background-size: cover;
@@ -52,6 +55,7 @@
         }
         #menuBikeCanvas { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0px 15px 20px rgba(0,0,0,0.8)); }
 
+        /* --- ИГРОВОЙ ИНТЕРФЕЙС --- */
         .ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
         .top-bar { display: flex; justify-content: space-between; padding: 20px; align-items: flex-start; }
         .stats-left { display: flex; flex-direction: column; gap: 5px; }
@@ -75,19 +79,20 @@
         }
         #btnPause svg { width: 20px; height: 20px; }
 
+        /* --- ЭКРАНЫ ПАУЗЫ И СМЕРТИ --- */
         #pauseScreen, #gameOverScreen {
             position: absolute; top: 0; left: 0; width: 100vw; height: 100dvh;
-            background: #0a050f; display: none; flex-direction: column; justify-content: space-evenly; align-items: center; pointer-events: auto; z-index: 60; padding: 10px 0; box-sizing: border-box;
+            background: #0a050f; display: none; flex-direction: column; justify-content: center; align-items: center; pointer-events: auto; z-index: 60; padding: 10px 0; box-sizing: border-box;
         }
         
-        .go-header { text-align: center; }
+        .go-header { text-align: center; margin-bottom: 10px; }
         .go-title { font-size: 16px; color: #aaa; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; }
         .go-distance { font-size: 38px; font-weight: 900; color: #fff; font-style: italic; text-shadow: 0 0 15px rgba(255,100,0,0.5); line-height: 1; }
         
         .go-stats-list {
             display: flex; flex-direction: column; gap: 4px; 
             background: rgba(255,255,255,0.05); padding: 10px 20px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);
-            min-width: 320px;
+            min-width: 320px; margin-bottom: 15px;
         }
         .go-row { display: flex; justify-content: space-between; align-items: center; font-size: 14px; color: #ddd; font-weight: 600; }
         .go-row .stat-name { flex: 1.2; text-align: left; }
@@ -95,7 +100,7 @@
         .go-row .stat-coins { flex: 1; text-align: right; color: #ffd700; font-weight: 900; display: flex; align-items: center; justify-content: flex-end; gap: 4px; font-size: 16px;}
         .go-row .stat-coins img { height: 14px; }
 
-        .go-total-reward { display: flex; align-items: center; gap: 8px; font-size: 26px; font-weight: 900; color: #fff; text-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
+        .go-total-reward { display: flex; align-items: center; gap: 8px; font-size: 26px; font-weight: 900; color: #fff; text-shadow: 0 0 10px rgba(255, 215, 0, 0.5); margin-bottom: 15px; }
         .go-total-reward img { height: 32px; }
 
         .go-buttons { display: flex; gap: 15px; }
@@ -107,8 +112,9 @@
         }
         .btn-neon:active { transform: scale(0.95); box-shadow: 0 0 20px rgba(255,85,0,0.8); }
 
-        .pause-title { color: #fff; font-size: 45px; font-weight: 900; margin-bottom: 40px; letter-spacing: 5px; font-style: italic; }
-        .pause-btn { background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3); color: #fff; padding: 15px 40px; margin: 10px; border-radius: 10px; font-size: 20px; font-weight: bold; cursor: pointer; width: 250px; text-align: center; text-transform: uppercase; }
+        .pause-title { color: #fff; font-size: 45px; font-weight: 900; margin-bottom: 30px; letter-spacing: 5px; font-style: italic; }
+        .pause-btn { background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3); color: #fff; padding: 12px 40px; margin: 8px; border-radius: 10px; font-size: 18px; font-weight: bold; cursor: pointer; width: 250px; text-align: center; text-transform: uppercase; }
+        .pause-btn:active { background: rgba(255,255,255,0.2); }
         
         .version-text { position: absolute; bottom: 5px; right: 5px; color: rgba(255,255,255,0.3); font-size: 12px; z-index: 100; }
     </style>
@@ -184,10 +190,12 @@
     </div>
 </div>
 
+<!-- МЕНЮ ПАУЗЫ С 4 КНОПКАМИ -->
 <div class="hidden" id="pauseScreen">
     <div class="pause-title">PAUSED</div>
     <button class="pause-btn" id="btnResume">CONTINUE</button>
     <button class="pause-btn" id="btnRestartPause">RESTART</button>
+    <button class="pause-btn" id="btnSettingsPause">SETTINGS</button>
     <button class="pause-btn" id="btnHomePause">MAIN MENU</button>
 </div>
 
@@ -233,7 +241,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v23.5 (DEBUG)</div>
+<div class="version-text">v24.0 (FINAL)</div>
 
 <script>
     let gameState = 'splash'; 
@@ -263,7 +271,11 @@
     const startX = 50000;
     let terrainOffset = 0; 
     let cameraX = 0, cameraY = 0; 
-    const zoom = 1.1; 
+    
+    // ДИНАМИЧЕСКИЙ ЗУМ
+    let zoom = 1.6; 
+    const minZoom = 1.1; 
+    const maxZoom = 1.6; 
 
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
@@ -476,6 +488,7 @@
     document.getElementById('btnPause').addEventListener('click', () => { if (gameState === 'playing') { gameState = 'paused'; document.getElementById('pauseScreen').style.display = 'flex'; } });
     document.getElementById('btnResume').addEventListener('click', () => { gameState = 'playing'; document.getElementById('pauseScreen').style.display = 'none'; });
     document.getElementById('btnRestartPause').addEventListener('click', () => { document.getElementById('pauseScreen').style.display = 'none'; gameState = 'playing'; resetGame(); });
+    document.getElementById('btnSettingsPause').addEventListener('click', () => { alert('Настройки в разработке'); });
     document.getElementById('btnHomePause').addEventListener('click', () => { document.getElementById('pauseScreen').style.display = 'none'; document.getElementById('gameUI').classList.add('hidden'); document.getElementById('mainMenu').classList.remove('hidden'); gameState = 'menu'; updateMenuUI(); });
     document.getElementById('btnRestartGameOver').addEventListener('click', () => { document.getElementById('gameOverScreen').style.display = 'none'; gameState = 'playing'; resetGame(); });
     document.getElementById('btnHomeGameOver').addEventListener('click', () => { document.getElementById('gameOverScreen').style.display = 'none'; document.getElementById('gameUI').classList.add('hidden'); document.getElementById('mainMenu').classList.remove('hidden'); gameState = 'menu'; updateMenuUI(); });
@@ -489,6 +502,7 @@
         accumulatedRotation = 0; lastAngle = chassis.getAngle(); maxWheelieTime = 0; currentWheelieTime = 0;
         maxStoppieTime = 0; currentStoppieTime = 0; particles = []; dustTimer = 0; popTimer = 0;
         birds = []; birdSpawnTimer = 3;
+        zoom = maxZoom; // Сбрасываем зум при рестарте
         document.getElementById('coinBalanceText').innerText = totalCoins; document.getElementById('distanceText').innerText = "0";
         if (isAudioInitialized) { idleGain.gain.setValueAtTime(0.4, audioCtx.currentTime); revGain.gain.setValueAtTime(0, audioCtx.currentTime); windGain.gain.setValueAtTime(0, audioCtx.currentTime); if (revFilter) revFilter.frequency.value = 2500; startRevSound(); }
     }
@@ -513,19 +527,14 @@
         }
 
         document.getElementById('go-distance').innerText = dist;
-        
         document.getElementById('go-wheelie').innerText = maxWheelieTime.toFixed(1) + "s";
         document.getElementById('go-coins-wheelie').innerText = coinsWheelie;
-        
         document.getElementById('go-stoppie').innerText = maxStoppieTime.toFixed(1) + "s";
         document.getElementById('go-coins-stoppie').innerText = coinsStoppie;
-        
         document.getElementById('go-frontflips').innerText = frontflipCount;
         document.getElementById('go-coins-front').innerText = coinsFront;
-        
         document.getElementById('go-backflips').innerText = backflipCount;
         document.getElementById('go-coins-back').innerText = coinsBack;
-        
         document.getElementById('go-total-coins').innerText = totalEarned;
 
         document.getElementById('gameOverScreen').style.display = 'flex';
@@ -537,7 +546,6 @@
         if (birdSpawnTimer <= 0) {
             let flockSize = Math.floor(Math.random() * 3) + 2;
             let spawnX = cameraX + canvas.width + 50; 
-            // Ограничили высоту птиц, чтобы они не летали у земли
             let startY = canvas.height * 0.2 + Math.random() * 60;
             for (let i = 0; i < flockSize; i++) {
                 birds.push({
@@ -583,7 +591,6 @@
         ctx.moveTo(sx, groundY + 2000); 
         for (let x = sx; x <= ex; x += 10) { 
             let wx = x + p; 
-            // Плавная формула без резких скачков
             let j = Math.sin(wx * 0.002) * h + Math.cos(wx * 0.005) * h * 0.5;
             ctx.lineTo(x, groundY - yOff - Math.abs(j)); 
         } 
@@ -620,9 +627,14 @@
                 let tp = 20; let mts = 2.5; if (window.isLeanBack) { if (chassis.getAngularVelocity() > -mts) chassis.applyTorque(-tp, true); } else if (window.isLeanForward) { if (chassis.getAngularVelocity() < mts) chassis.applyTorque(tp, true); }
                 if (isAudioInitialized) { if (window.isGas) { idleGain.gain.cancelScheduledValues(audioCtx.currentTime); idleGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.05); } else { idleGain.gain.cancelScheduledValues(audioCtx.currentTime); idleGain.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + 0.1); } let tr = window.isGas ? 0.8 : 0; let tw = Math.min(0.3, 0.05 + ws * 0.15); revGain.gain.setTargetAtTime(tr, audioCtx.currentTime, 0.1); windGain.gain.setTargetAtTime(tw, audioCtx.currentTime, 0.1); if (window.isGas && revSource) { let trate = 1.0 + (ws * 0.3); let frate = Math.min(1.3, trate); revSource.playbackRate.setTargetAtTime(frate, audioCtx.currentTime, 0.1); let tf = Math.max(1000, 2500 - (ws * 1000)); revFilter.frequency.setTargetAtTime(tf, audioCtx.currentTime, 0.1); previousGasState = true; } else { previousGasState = false; } if (!window.isGas && ws > 2) { popTimer += dt; if (popTimer > 1.0 && Math.random() < 0.02) { playPop(); popTimer = 0; } } else { popTimer = 0; } }
                 if (chassis.getPosition().y > groundY + 1000) triggerGameOver();
-                let tcx = (chassis.getPosition().x * SCALE) - ((canvas.width * 0.3) / zoom); cameraX += (tcx - cameraX) * 0.1; 
-                // КАМЕРА: Сместили фокус вниз (0.7 вместо 0.5), чтобы байк был ниже, а неба больше
-                let tcy = (canvas.height * 0.7) - (chassis.getPosition().y * SCALE); cameraY += (tcy - cameraY) * 0.1;
+                
+                // ДИНАМИЧЕСКИЙ ЗУМ
+                let targetZoom = maxZoom - Math.min(0.5, ls * 0.012); 
+                zoom += (targetZoom - zoom) * 0.05; 
+
+                let tcx = (chassis.getPosition().x * SCALE) - ((canvas.width * 0.25) / zoom); cameraX += (tcx - cameraX) * 0.1; 
+                let tcy = (canvas.height * 0.65) - (chassis.getPosition().y * SCALE); cameraY += (tcy - cameraY) * 0.1;
+                
                 generateTerrain(); cleanupTerrain(); updateParticles(dt);
                 updateBirds(dt);
 
@@ -641,7 +653,6 @@
                 ctx.fillStyle = g; 
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 
-                // СОЛНЦЕ: Уменьшили и подняли выше
                 let sx = canvas.width * 0.75; 
                 let sy = canvas.height * 0.25; 
                 let sg = ctx.createRadialGradient(sx, sy, 10, sx, sy, 150);
@@ -688,7 +699,6 @@
             }
         } catch (error) {
             console.error(error);
-            alert("Ошибка в игровом цикле: " + error.message);
         }
     }
 
@@ -696,4 +706,4 @@
     checkOrientation(); resizeCanvas(); update();
 </script>
 </body>
-    </html>
+</html>
