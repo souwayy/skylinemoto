@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v21.3 - Balanced UI)</title>
+    <title>Nyxride (v22.1 - Stats List)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
@@ -31,51 +31,27 @@
             position: relative; overflow: hidden;
         }
         
-        /* --- КНОПКИ МЕНЮ (Уменьшены и разнесены) --- */
-        .menu-btn {
-            position: absolute;
-            cursor: pointer;
-            z-index: 10;
-            touch-action: manipulation;
-        }
+        .menu-btn { position: absolute; cursor: pointer; z-index: 10; touch-action: manipulation; }
+        #btn-settings { top: 6%; left: 2%; width: 20vw; }
+        #btn-quests { top: 20%; left: 2%; width: 20vw; }
+        #btn-shop { top: 34%; left: 2%; width: 20vw; }
+        #btn-play { bottom: 8%; right: 2%; width: 28vw; }
 
-        /* Левая колонка */
-        #btn-settings { 
-            top: 6%; left: 2%; width: 20vw; 
-        }
-        #btn-quests { 
-            top: 20%; left: 2%; width: 20vw; 
-        }
-        #btn-shop { 
-            top: 34%; left: 2%; width: 20vw; 
-        }
-
-        /* Правая колонка (PLAY) */
-        #btn-play { 
-            bottom: 8%; right: 2%; width: 28vw; 
-        }
-
-        /* --- ВЕРХНИЙ ПРАВЫЙ БЛОК (Рекорд и Монеты) --- */
         #top-right-ui {
-            position: absolute;
-            top: 6%; right: 4%;
+            position: absolute; top: 6%; right: 4%;
             display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
-            pointer-events: none;
-            z-index: 11;
-            text-shadow: 2px 2px 4px #000, 0 0 10px #000;
+            pointer-events: none; z-index: 11; text-shadow: 2px 2px 4px #000, 0 0 10px #000;
         }
         .ui-text-row { display: flex; align-items: center; gap: 8px; font-weight: bold; color: #fff; }
         .ui-text-row.best { font-size: 20px; color: #ccc; }
         .ui-text-row.coins { font-size: 28px; color: #fff; }
         .ui-text-row.coins img { height: 32px; }
 
-        /* --- БЛОК БАЙКА (Увеличен) --- */
         #bike-block {
             position: absolute;
-            bottom: 15%; left: 50%; transform: translateX(-50%); 
+            bottom: 2%; left: 50%; transform: translateX(-50%); 
             width: 80vw; height: 50vh; 
-            pointer-events: none;
-            z-index: 5;
+            pointer-events: none; z-index: 5;
         }
         #menuBikeCanvas { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0px 15px 20px rgba(0,0,0,0.8)); }
 
@@ -87,14 +63,7 @@
         .stats-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
         .score { font-size: 36px; font-weight: bold; color: white; text-shadow: 0 2px 5px #000; }
         
-        /* Кнопки управления */
-        .btn-game { 
-            position: absolute; width: 50px; height: 50px; border-radius: 50%; 
-            background: rgba(0,0,0,0.3); 
-            border: 1px solid rgba(255,255,255,0.2); 
-            pointer-events: auto; color: white; 
-            display: flex; align-items: center; justify-content: center; 
-        }
+        .btn-game { position: absolute; width: 50px; height: 50px; border-radius: 50%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); pointer-events: auto; color: white; display: flex; align-items: center; justify-content: center; }
         .btn-game svg { width: 25px; height: 25px; stroke: rgba(255,255,255,0.8); stroke-width: 2.5; }
         
         #btnLeanBack { bottom: 100px; left: 20px; } 
@@ -102,33 +71,51 @@
         #btnGas { bottom: 100px; right: 20px; } 
         #btnBrake { bottom: 30px; right: 70px; }
 
-        /* Кнопка паузы */
-        #btnPause { 
-            position: absolute; top: 25px; right: 160px; 
-            width: 40px; height: 40px; 
-            pointer-events: auto; 
-            background: rgba(0,0,0,0.3); 
-            border: 1px solid rgba(255,255,255,0.2); 
-            border-radius: 8px; 
-            display: flex; align-items: center; justify-content: center;
-        }
+        #btnPause { position: absolute; top: 25px; right: 160px; width: 40px; height: 40px; pointer-events: auto; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
         #btnPause svg { width: 20px; height: 20px; }
 
-        /* Экраны паузы и смерти */
+        /* --- ЭКРАН СМЕРТИ (НЕПРОЗРАЧНЫЙ) --- */
         #pauseScreen, #gameOverScreen {
             position: absolute; top: 0; left: 0; width: 100vw; height: 100dvh;
-            background: rgba(10,5,15,0.95); display: none; flex-direction: column; justify-content: center; align-items: center; pointer-events: auto; z-index: 60;
+            background: #0a050f; /* Сплошной темный фон */
+            display: none; flex-direction: column; justify-content: center; align-items: center; pointer-events: auto; z-index: 60;
         }
-        .pause-title { color: #fff; font-size: 45px; font-weight: 900; margin-bottom: 40px; letter-spacing: 5px; font-style: italic;}
+        
+        .go-title { font-size: 20px; color: #aaa; font-weight: bold; letter-spacing: 2px; margin-bottom: 5px; text-transform: uppercase; }
+        .go-distance { font-size: 50px; font-weight: 900; color: #fff; margin-bottom: 20px; font-style: italic; text-shadow: 0 0 15px rgba(255,100,0,0.5); }
+        
+        /* Новая таблица статистики (построчно) */
+        .go-stats-list {
+            display: flex; flex-direction: column; gap: 8px; 
+            background: rgba(255,255,255,0.05); padding: 15px 25px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 25px; min-width: 320px;
+        }
+        .go-row { display: flex; justify-content: space-between; align-items: center; font-size: 16px; color: #ddd; font-weight: 600; }
+        .go-row .stat-name { flex: 1; text-align: left; }
+        .go-row .stat-value { flex: 1; text-align: center; color: #fff; font-weight: 900; margin-right: 20px; font-size: 18px; }
+        .go-row .stat-coins { flex: 1; text-align: right; color: #ffd700; font-weight: 900; display: flex; align-items: center; justify-content: flex-end; gap: 4px; font-size: 18px;}
+        .go-row .stat-coins img { height: 16px; }
+
+        /* Итоговая награда */
+        .go-total-reward {
+            display: flex; align-items: center; gap: 10px; font-size: 32px; font-weight: 900; color: #fff; margin-bottom: 30px;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+        .go-total-reward img { height: 40px; }
+
+        /* Кнопки Меню и Рестарт */
+        .go-buttons { display: flex; gap: 20px; }
+        .btn-neon {
+            background: linear-gradient(135deg, #1a1a1a, #333); color: #fff; border: 2px solid #ff5500;
+            padding: 12px 30px; border-radius: 8px; font-size: 18px; font-weight: bold; text-transform: uppercase;
+            cursor: pointer; box-shadow: 0 0 10px rgba(255,85,0,0.5), inset 0 0 10px rgba(255,85,0,0.2);
+            transition: all 0.2s; font-style: italic; letter-spacing: 1px;
+        }
+        .btn-neon:active { transform: scale(0.95); box-shadow: 0 0 20px rgba(255,85,0,0.8); }
+
+        .pause-title { color: #fff; font-size: 45px; font-weight: 900; margin-bottom: 40px; letter-spacing: 5px; font-style: italic; }
         .pause-btn { background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3); color: #fff; padding: 15px 40px; margin: 10px; border-radius: 10px; font-size: 20px; font-weight: bold; cursor: pointer; width: 250px; text-align: center; text-transform: uppercase; }
-        .score-header { font-size: 36px; font-weight: 900; color: #fff; margin-bottom: 20px; font-style: italic; letter-spacing: 3px; }
-        .score-list { width: 100%; max-width: 500px; padding: 0 30px; }
-        .score-row { display: flex; justify-content: space-between; padding: 12px 0; font-size: 18px; color: #ddd; border-bottom: 1px solid rgba(255,255,255,0.1); }
-        .score-row.high-score { font-size: 22px; font-weight: bold; color: #fff; border: none; margin-top: 15px; }
-        .score-row.reward-row { font-size: 26px; font-weight: bold; color: #ffd700; border: none; margin-top: 10px; align-items: center; }
-        .gameover-buttons { display: flex; gap: 30px; margin-top: 40px; }
-        .icon-btn { cursor: pointer; width: 80px; height: 80px; border-radius: 50%; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center; }
-        .icon-btn svg { width: 40px; height: 40px; stroke: #fff; stroke-width: 2.5; }
+        
         .version-text { position: absolute; bottom: 5px; right: 5px; color: rgba(255,255,255,0.3); font-size: 12px; z-index: 100; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/planck-js@0.3/dist/planck.min.js"></script>
@@ -136,19 +123,6 @@
 <body>
 
 <div id="rotateDevice">
-    <svg viewBox="0 0 100 100">
-        <g fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="35" y="20" width="30" height="60" rx="4" ry="4">
-                <animateTransform attributeName="transform" type="rotate" values="0 50 50; 90 50 50; 90 50 50; 0 50 50" keyTimes="0; 0.4; 0.6; 1" dur="3s" repeatCount="indefinite" />
-            </rect>
-            <circle cx="50" cy="72" r="2">
-                <animateTransform attributeName="transform" type="rotate" values="0 50 50; 90 50 50; 90 50 50; 0 50 50" keyTimes="0; 0.4; 0.6; 1" dur="3s" repeatCount="indefinite" />
-            </circle>
-            <line x1="45" y1="26" x2="55" y2="26">
-                <animateTransform attributeName="transform" type="rotate" values="0 50 50; 90 50 50; 90 50 50; 0 50 50" keyTimes="0; 0.4; 0.6; 1" dur="3s" repeatCount="indefinite" />
-            </line>
-        </g>
-    </svg>
     <h2>Пожалуйста, поверните устройство</h2>
 </div>
 
@@ -157,16 +131,11 @@
 </div>
 
 <div class="hidden" id="mainMenu">
-    
-    <!-- Здесь ты можешь вставить свой баннер -->
-
-    <!-- Кнопки меню -->
     <img class="menu-btn" id="btn-settings" src="btn_gear.png" alt="Settings">
     <img class="menu-btn" id="btn-quests" src="btn_quests.png" alt="Quests">
     <img class="menu-btn" id="btn-shop" src="btn_shop.png" alt="Shop">
     <img class="menu-btn" id="btn-play" src="btn_play.png" alt="Play">
 
-    <!-- Верхний правый блок (Рекорд и Монеты) -->
     <div id="top-right-ui">
         <div class="ui-text-row best">
             <span>BEST:</span> <span id="menuBestDistance">0</span>M
@@ -177,11 +146,9 @@
         </div>
     </div>
 
-    <!-- Байк (по центру, увеличен) -->
     <div id="bike-block">
         <canvas id="menuBikeCanvas" width="1000" height="1000"></canvas>
     </div>
-
 </div>
 
 <!-- ИГРОВОЙ ИНТЕРФЕЙС -->
@@ -218,23 +185,48 @@
     <button class="pause-btn" id="btnHomePause">MAIN MENU</button>
 </div>
 
-<div id="gameOverScreen" style="display: none;">
-    <div class="score-header">SCORE</div>
-    <div class="score-list">
-        <div class="score-row"><span>Distance</span><span><span id="go-distance">0m</span></span></div>
-        <div class="score-row"><span>Max Air Time</span><span><span id="go-airtime">0.0s</span></span></div>
-        <div class="score-row"><span>Total Flips</span><span><span id="go-flips">0</span></span></div>
-        <div class="score-row high-score"><span>BEST DISTANCE</span><span id="go-highscore">0</span></div>
-        <div class="score-row reward-row"><span>REWARD</span><span><span id="go-coins">0</span> <img src="coin.png" style="height: 28px; vertical-align: middle;"></span></div>
+<!-- НОВЫЙ ЭКРАН СМЕРТИ -->
+<div id="gameOverScreen">
+    <div class="go-title">Distance</div>
+    <div class="go-distance"><span id="go-distance">0</span> M</div>
+    
+    <div class="go-stats-list">
+        <div class="go-row">
+            <span class="stat-name">MAX WHEELIE</span>
+            <span class="stat-value" id="go-wheelie">0.0s</span>
+            <span class="stat-coins">+<span id="go-coins-wheelie">0</span> <img src="coin.png" onerror="this.style.display='none'"></span>
+        </div>
+        <div class="go-row">
+            <span class="stat-name">MAX STOPPIE</span>
+            <span class="stat-value" id="go-stoppie">0.0s</span>
+            <span class="stat-coins">+<span id="go-coins-stoppie">0</span> <img src="coin.png" onerror="this.style.display='none'"></span>
+        </div>
+        <div class="go-row">
+            <span class="stat-name">FRONTFLIPS</span>
+            <span class="stat-value" id="go-frontflips">0</span>
+            <span class="stat-coins">+<span id="go-coins-front">0</span> <img src="coin.png" onerror="this.style.display='none'"></span>
+        </div>
+        <div class="go-row">
+            <span class="stat-name">BACKFLIPS</span>
+            <span class="stat-value" id="go-backflips">0</span>
+            <span class="stat-coins">+<span id="go-coins-back">0</span> <img src="coin.png" onerror="this.style.display='none'"></span>
+        </div>
     </div>
-    <div class="gameover-buttons">
-        <div class="icon-btn" id="btnHomeGameOver"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
-        <div class="icon-btn" id="btnRestartGameOver"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></div>
+
+    <div class="go-total-reward">
+        <span>TOTAL REWARD:</span>
+        <img src="coin.png" onerror="this.style.display='none'">
+        <span id="go-total-coins">0</span>
+    </div>
+
+    <div class="go-buttons">
+        <button class="btn-neon" id="btnHomeGameOver">MENU</button>
+        <button class="btn-neon" id="btnRestartGameOver">RESTART</button>
     </div>
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v21.3 (DEBUG)</div>
+<div class="version-text">v22.1 (DEBUG)</div>
 
 <script>
     let gameState = 'splash'; 
@@ -376,11 +368,8 @@
         menuCtx.clearRect(0, 0, menuCanvas.width, menuCanvas.height);
         menuCtx.save();
         
-        // Опускаем байк чуть ниже центра
-        menuCtx.translate(menuCanvas.width / 2, menuCanvas.height / 2 + 50);
-        
-        // УВЕЛИЧИЛИ МАСШТАБ (было 6.5, стало 10.0)
-        menuCtx.scale(10.0, 10.0); 
+        menuCtx.translate(menuCanvas.width / 2, menuCanvas.height / 2 + 150);
+        menuCtx.scale(18.0, 18.0); 
         
         if (bikeImage.complete && bikeImage.naturalWidth !== 0) menuCtx.drawImage(bikeImage, -45, -45, 90, 54);
         
@@ -500,12 +489,40 @@
     function triggerGameOver() {
         gameState = 'gameover'; window.isGas = false; 
         let dist = Math.max(0, Math.floor(((chassis.getPosition().x * SCALE) - startX) / 10));
-        let earnedCoins = Math.floor(dist / 100) + Math.floor(maxAirTime) + (frontflipCount + backflipCount) * 10;
-        totalCoins += earnedCoins; localStorage.setItem('totalCoins', totalCoins);
-        if (dist > maxDistance) { maxDistance = dist; localStorage.setItem('bestDistance', maxDistance); }
-        document.getElementById('go-distance').innerText = dist + "m"; document.getElementById('go-airtime').innerText = maxAirTime.toFixed(1) + "s";
-        document.getElementById('go-flips').innerText = (frontflipCount + backflipCount); document.getElementById('go-highscore').innerText = maxDistance + "m";
-        document.getElementById('go-coins').innerText = earnedCoins; document.getElementById('gameOverScreen').style.display = 'flex';
+        
+        let coinsDist = Math.floor(dist / 100);
+        let coinsWheelie = Math.floor(maxWheelieTime) * 2;
+        let coinsStoppie = Math.floor(maxStoppieTime) * 2;
+        let coinsFront = frontflipCount * 10;
+        let coinsBack = backflipCount * 10;
+        let totalEarned = coinsDist + coinsWheelie + coinsStoppie + coinsFront + coinsBack;
+
+        totalCoins += totalEarned; 
+        localStorage.setItem('totalCoins', totalCoins);
+        
+        if (dist > maxDistance) { 
+            maxDistance = dist; 
+            localStorage.setItem('bestDistance', maxDistance); 
+        }
+
+        document.getElementById('go-distance').innerText = dist;
+        
+        // Заполняем строки: сначала результат, потом монеты
+        document.getElementById('go-wheelie').innerText = maxWheelieTime.toFixed(1) + "s";
+        document.getElementById('go-coins-wheelie').innerText = coinsWheelie;
+        
+        document.getElementById('go-stoppie').innerText = maxStoppieTime.toFixed(1) + "s";
+        document.getElementById('go-coins-stoppie').innerText = coinsStoppie;
+        
+        document.getElementById('go-frontflips').innerText = frontflipCount;
+        document.getElementById('go-coins-front').innerText = coinsFront;
+        
+        document.getElementById('go-backflips').innerText = backflipCount;
+        document.getElementById('go-coins-back').innerText = coinsBack;
+        
+        document.getElementById('go-total-coins').innerText = totalEarned;
+
+        document.getElementById('gameOverScreen').style.display = 'flex';
         if (isAudioInitialized) { idleGain.gain.setValueAtTime(0, audioCtx.currentTime); revGain.gain.setValueAtTime(0, audioCtx.currentTime); windGain.gain.setValueAtTime(0, audioCtx.currentTime); }
     }
 
@@ -565,4 +582,4 @@
     checkOrientation(); resizeCanvas(); update();
 </script>
 </body>
-    </html>
+            </html>
