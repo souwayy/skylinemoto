@@ -3,15 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v22.1 - Stats List)</title>
+    <title>Nyxride (v22.2 - UI Fixes)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
         .hidden { display: none !important; }
 
-        /* --- ЭКРАН ПОВОРОТА --- */
+        /* --- ЭКРАН ПОВОРОТА (Без иконки) --- */
         #rotateDevice { position: fixed; inset: 0; background: #000; z-index: 100000; display: none; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; }
-        #rotateDevice svg { width: 100px; height: 100px; fill: none; stroke: white; stroke-width: 4; margin-bottom: 30px; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 15px rgba(255,255,255,0.3)); }
         #rotateDevice h2 { font-size: 24px; font-weight: 600; margin: 0; padding: 0 20px; }
 
         /* --- ЗАСТАВКА --- */
@@ -49,8 +48,8 @@
 
         #bike-block {
             position: absolute;
-            bottom: 2%; left: 50%; transform: translateX(-50%); 
-            width: 80vw; height: 50vh; 
+            bottom: 5%; left: 50%; transform: translateX(-50%); 
+            width: 90vw; height: 50vh; 
             pointer-events: none; z-index: 5;
         }
         #menuBikeCanvas { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0px 15px 20px rgba(0,0,0,0.8)); }
@@ -74,40 +73,37 @@
         #btnPause { position: absolute; top: 25px; right: 160px; width: 40px; height: 40px; pointer-events: auto; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
         #btnPause svg { width: 20px; height: 20px; }
 
-        /* --- ЭКРАН СМЕРТИ (НЕПРОЗРАЧНЫЙ) --- */
+        /* --- ЭКРАН СМЕРТИ (КОМПАКТНЫЙ) --- */
         #pauseScreen, #gameOverScreen {
             position: absolute; top: 0; left: 0; width: 100vw; height: 100dvh;
-            background: #0a050f; /* Сплошной темный фон */
-            display: none; flex-direction: column; justify-content: center; align-items: center; pointer-events: auto; z-index: 60;
+            background: #0a050f; display: none; flex-direction: column; justify-content: space-evenly; align-items: center; pointer-events: auto; z-index: 60; padding: 10px 0; box-sizing: border-box;
         }
         
-        .go-title { font-size: 20px; color: #aaa; font-weight: bold; letter-spacing: 2px; margin-bottom: 5px; text-transform: uppercase; }
-        .go-distance { font-size: 50px; font-weight: 900; color: #fff; margin-bottom: 20px; font-style: italic; text-shadow: 0 0 15px rgba(255,100,0,0.5); }
+        .go-header { text-align: center; }
+        .go-title { font-size: 16px; color: #aaa; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; }
+        .go-distance { font-size: 38px; font-weight: 900; color: #fff; font-style: italic; text-shadow: 0 0 15px rgba(255,100,0,0.5); line-height: 1; }
         
-        /* Новая таблица статистики (построчно) */
         .go-stats-list {
-            display: flex; flex-direction: column; gap: 8px; 
-            background: rgba(255,255,255,0.05); padding: 15px 25px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.1);
-            margin-bottom: 25px; min-width: 320px;
+            display: flex; flex-direction: column; gap: 4px; 
+            background: rgba(255,255,255,0.05); padding: 10px 20px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);
+            min-width: 320px;
         }
-        .go-row { display: flex; justify-content: space-between; align-items: center; font-size: 16px; color: #ddd; font-weight: 600; }
-        .go-row .stat-name { flex: 1; text-align: left; }
-        .go-row .stat-value { flex: 1; text-align: center; color: #fff; font-weight: 900; margin-right: 20px; font-size: 18px; }
-        .go-row .stat-coins { flex: 1; text-align: right; color: #ffd700; font-weight: 900; display: flex; align-items: center; justify-content: flex-end; gap: 4px; font-size: 18px;}
-        .go-row .stat-coins img { height: 16px; }
+        .go-row { display: flex; justify-content: space-between; align-items: center; font-size: 14px; color: #ddd; font-weight: 600; }
+        .go-row .stat-name { flex: 1.2; text-align: left; }
+        .go-row .stat-value { flex: 1; text-align: center; color: #fff; font-weight: 900; font-size: 16px; }
+        .go-row .stat-coins { flex: 1; text-align: right; color: #ffd700; font-weight: 900; display: flex; align-items: center; justify-content: flex-end; gap: 4px; font-size: 16px;}
+        .go-row .stat-coins img { height: 14px; }
 
-        /* Итоговая награда */
         .go-total-reward {
-            display: flex; align-items: center; gap: 10px; font-size: 32px; font-weight: 900; color: #fff; margin-bottom: 30px;
+            display: flex; align-items: center; gap: 8px; font-size: 26px; font-weight: 900; color: #fff;
             text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
         }
-        .go-total-reward img { height: 40px; }
+        .go-total-reward img { height: 32px; }
 
-        /* Кнопки Меню и Рестарт */
-        .go-buttons { display: flex; gap: 20px; }
+        .go-buttons { display: flex; gap: 15px; }
         .btn-neon {
             background: linear-gradient(135deg, #1a1a1a, #333); color: #fff; border: 2px solid #ff5500;
-            padding: 12px 30px; border-radius: 8px; font-size: 18px; font-weight: bold; text-transform: uppercase;
+            padding: 10px 25px; border-radius: 8px; font-size: 16px; font-weight: bold; text-transform: uppercase;
             cursor: pointer; box-shadow: 0 0 10px rgba(255,85,0,0.5), inset 0 0 10px rgba(255,85,0,0.2);
             transition: all 0.2s; font-style: italic; letter-spacing: 1px;
         }
@@ -185,10 +181,12 @@
     <button class="pause-btn" id="btnHomePause">MAIN MENU</button>
 </div>
 
-<!-- НОВЫЙ ЭКРАН СМЕРТИ -->
+<!-- ЭКРАН СМЕРТИ -->
 <div id="gameOverScreen">
-    <div class="go-title">Distance</div>
-    <div class="go-distance"><span id="go-distance">0</span> M</div>
+    <div class="go-header">
+        <div class="go-title">Distance</div>
+        <div class="go-distance"><span id="go-distance">0</span> M</div>
+    </div>
     
     <div class="go-stats-list">
         <div class="go-row">
@@ -226,7 +224,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v22.1 (DEBUG)</div>
+<div class="version-text">v22.2 (DEBUG)</div>
 
 <script>
     let gameState = 'splash'; 
@@ -368,8 +366,11 @@
         menuCtx.clearRect(0, 0, menuCanvas.width, menuCanvas.height);
         menuCtx.save();
         
-        menuCtx.translate(menuCanvas.width / 2, menuCanvas.height / 2 + 150);
-        menuCtx.scale(18.0, 18.0); 
+        // Опускаем байк вниз и центрируем по горизонтали
+        menuCtx.translate(menuCanvas.width / 2, menuCanvas.height - 150);
+        
+        // Масштаб 9.5 (вместо 18.0) - байк будет огромным, но влезет целиком
+        menuCtx.scale(9.5, 9.5); 
         
         if (bikeImage.complete && bikeImage.naturalWidth !== 0) menuCtx.drawImage(bikeImage, -45, -45, 90, 54);
         
@@ -507,7 +508,6 @@
 
         document.getElementById('go-distance').innerText = dist;
         
-        // Заполняем строки: сначала результат, потом монеты
         document.getElementById('go-wheelie').innerText = maxWheelieTime.toFixed(1) + "s";
         document.getElementById('go-coins-wheelie').innerText = coinsWheelie;
         
@@ -582,4 +582,4 @@
     checkOrientation(); resizeCanvas(); update();
 </script>
 </body>
-            </html>
+    </html>
