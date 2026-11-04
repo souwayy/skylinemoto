@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v23.0 - Sky & Birds)</title>
+    <title>Nyxride (v23.1 - Sky Fixed)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
@@ -61,12 +61,11 @@
         .stats-left { display: flex; flex-direction: column; gap: 5px; }
         .stat-text { font-size: 16px; font-weight: 600; color: rgba(255,255,255,0.8); text-transform: uppercase; }
         
-        /* НОВЫЙ КОНТЕЙНЕР ДЛЯ ПАУЗЫ И МЕТРОВ */
         .stats-right { 
             display: flex; 
-            flex-direction: row; /* Ставим в ряд */
+            flex-direction: row; 
             align-items: center; 
-            gap: 15px; /* Расстояние */
+            gap: 15px; 
         }
         
         .score { font-size: 36px; font-weight: bold; color: white; text-shadow: 0 2px 5px #000; }
@@ -79,7 +78,6 @@
         #btnGas { bottom: 100px; right: 20px; } 
         #btnBrake { bottom: 30px; right: 70px; }
 
-        /* ОБНОВЛЕННАЯ КНОПКА ПАУЗЫ (теперь без абсолютного позиционирования) */
         #btnPause { 
             position: relative; 
             width: 40px; height: 40px; 
@@ -88,7 +86,7 @@
             border: 1px solid rgba(255,255,255,0.2); 
             border-radius: 8px; 
             display: flex; align-items: center; justify-content: center;
-            flex-shrink: 0; /* Запрещаем сжиматься */
+            flex-shrink: 0;
         }
         #btnPause svg { width: 20px; height: 20px; }
 
@@ -190,7 +188,6 @@
             </div>
         </div>
         
-        <!-- НОВЫЙ БЛОК: Пауза и метры в одном ряду -->
         <div class="stats-right">
             <button id="btnPause">
                 <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
@@ -257,7 +254,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v23.0 (DEBUG)</div>
+<div class="version-text">v23.1 (DEBUG)</div>
 
 <script>
     let gameState = 'splash'; 
@@ -280,7 +277,6 @@
     let maxStoppieTime = 0, currentStoppieTime = 0;
     let particles = [], dustTimer = 0;
     
-    // --- НОВОЕ: МАССИВ ДЛЯ ПТИЦ ---
     let birds = [], birdSpawnTimer = 3;
 
     const SCALE = 30; 
@@ -516,7 +512,7 @@
         maxAirTime = 0; currentAirTime = 0; frontflipCount = 0; backflipCount = 0; flipCounted = false;
         accumulatedRotation = 0; lastAngle = chassis.getAngle(); maxWheelieTime = 0; currentWheelieTime = 0;
         maxStoppieTime = 0; currentStoppieTime = 0; particles = []; dustTimer = 0; popTimer = 0;
-        birds = []; birdSpawnTimer = 3; // Сброс птиц
+        birds = []; birdSpawnTimer = 3;
         document.getElementById('coinBalanceText').innerText = totalCoins; document.getElementById('distanceText').innerText = "0";
         if (isAudioInitialized) { idleGain.gain.setValueAtTime(0.4, audioCtx.currentTime); revGain.gain.setValueAtTime(0, audioCtx.currentTime); windGain.gain.setValueAtTime(0, audioCtx.currentTime); if (revFilter) revFilter.frequency.value = 2500; startRevSound(); }
     }
@@ -564,9 +560,9 @@
     function updateBirds(dt) {
         birdSpawnTimer -= dt;
         if (birdSpawnTimer <= 0) {
-            let flockSize = Math.floor(Math.random() * 3) + 2; // 2-4 птицы
+            let flockSize = Math.floor(Math.random() * 3) + 2;
             let startX = cameraX + canvas.width + 50;
-            let startY = groundY - 150 - Math.random() * 150; // Высота в небе
+            let startY = groundY - 150 - Math.random() * 100;
             for (let i = 0; i < flockSize; i++) {
                 birds.push({
                     x: startX + Math.random() * 60,
@@ -576,14 +572,13 @@
                     wingSpeed: 8 + Math.random() * 4
                 });
             }
-            birdSpawnTimer = 8 + Math.random() * 10; // Следующая стая через 8-18 сек
+            birdSpawnTimer = 8 + Math.random() * 10;
         }
 
         for (let i = birds.length - 1; i >= 0; i--) {
             let b = birds[i];
             b.x -= b.speed * dt;
             b.wingPhase += b.wingSpeed * dt;
-            // Если птица улетела далеко влево за пределы экрана - удаляем
             if (b.x < cameraX - 200) {
                 birds.splice(i, 1);
             }
@@ -591,11 +586,11 @@
     }
 
     function drawBirds() {
-        ctx.strokeStyle = '#2a1533'; // Темный силуэт, сливающийся с небом
+        ctx.strokeStyle = '#2a1533';
         ctx.lineWidth = 2;
         ctx.lineCap = 'round';
         for (let b of birds) {
-            let flap = Math.sin(b.wingPhase) * 6; // Взмах крыльев
+            let flap = Math.sin(b.wingPhase) * 6;
             ctx.beginPath();
             ctx.moveTo(b.x - 10, b.y - flap);
             ctx.quadraticCurveTo(b.x - 5, b.y, b.x, b.y);
@@ -604,6 +599,7 @@
         }
     }
 
+    // ИСПРАВЛЕНА ФУНКЦИЯ ГОР
     function drawMountainLayer(yOff, h, c, p) { 
         ctx.fillStyle = c; 
         ctx.beginPath(); 
@@ -612,10 +608,9 @@
         ctx.moveTo(sx, groundY + 2000); 
         for (let x = sx; x <= ex; x += 10) { 
             let wx = x + p; 
-            // Сделали горы более пологими и плавными
-            let j = Math.pow(Math.abs(Math.sin(wx * 0.003)), 1.5) * h; 
-            let n = Math.sin(wx * 0.015) * (h * 0.1) + Math.cos(wx * 0.008) * (h * 0.15); 
-            ctx.lineTo(x, groundY - yOff - j - n); 
+            // Сделали горы более острыми и низкими
+            let j = Math.pow(Math.abs(Math.sin(wx * 0.005)), 1.2) * h + Math.abs(Math.cos(wx * 0.012)) * (h * 0.3);
+            ctx.lineTo(x, groundY - yOff - j); 
         } 
         ctx.lineTo(ex, groundY + 2000); 
         ctx.closePath(); 
@@ -651,8 +646,6 @@
             let tcx = (chassis.getPosition().x * SCALE) - ((canvas.width * 0.3) / zoom); cameraX += (tcx - cameraX) * 0.1; 
             let tcy = (canvas.height * 0.5) - (chassis.getPosition().y * SCALE); cameraY += (tcy - cameraY) * 0.1;
             generateTerrain(); cleanupTerrain(); updateParticles(dt);
-            
-            // НОВОЕ: Обновляем птиц
             updateBirds(dt);
 
             let cd = Math.max(0, Math.floor(((chassis.getPosition().x * SCALE) - startX) / 10)); document.getElementById('distanceText').innerText = cd; document.getElementById('coinBalanceText').innerText = totalCoins + Math.floor(cd / 100);
@@ -662,24 +655,23 @@
         if (gameState === 'playing' || gameState === 'gameover' || gameState === 'paused') {
             ctx.clearRect(0, 0, canvas.width, canvas.height); 
             
-            // НОВОЕ: Цвета неба как на фоне меню
             const g = ctx.createLinearGradient(0, 0, 0, canvas.height);
-            g.addColorStop(0, '#1a0b2e'); // Темно-фиолетовый
-            g.addColorStop(0.3, '#4a154b'); // Малиновый
-            g.addColorStop(0.6, '#e63946'); // Красно-оранжевый
-            g.addColorStop(1, '#ff9f1c'); // Желто-оранжевый
+            g.addColorStop(0, '#1a0b2e'); 
+            g.addColorStop(0.3, '#4a154b'); 
+            g.addColorStop(0.6, '#e63946'); 
+            g.addColorStop(1, '#ff9f1c'); 
             ctx.fillStyle = g; 
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // НОВОЕ: Солнце с мощной аурой
+            // Подняли солнце выше
             let sx = canvas.width * 0.75; 
-            let sy = canvas.height * 0.45; 
-            let sg = ctx.createRadialGradient(sx, sy, 10, sx, sy, 250);
+            let sy = canvas.height * 0.35; 
+            let sg = ctx.createRadialGradient(sx, sy, 10, sx, sy, 200);
             sg.addColorStop(0, 'rgba(255, 230, 150, 0.6)'); 
             sg.addColorStop(1, 'rgba(255, 230, 150, 0)'); 
             ctx.fillStyle = sg; 
             ctx.beginPath(); 
-            ctx.arc(sx, sy, 250, 0, Math.PI * 2); 
+            ctx.arc(sx, sy, 200, 0, Math.PI * 2); 
             ctx.fill();
             
             ctx.fillStyle = '#ffe680'; 
@@ -687,19 +679,15 @@
             ctx.arc(sx, sy, 40, 0, Math.PI * 2); 
             ctx.fill();
 
-            // НОВОЕ: Три слоя гор (ниже и плавнее) + Птицы
             ctx.save(); 
             ctx.scale(zoom, zoom); 
             ctx.translate(-cameraX, cameraY); 
-            // Дальние горы (фиолетовые)
-            drawMountainLayer(120, 80, '#3b1f42', cameraX * 0.05); 
-            // Средние горы (темно-фиолетовые)
-            drawMountainLayer(70, 120, '#26122e', cameraX * 0.15); 
-            // Ближние горы (почти черные)
-            drawMountainLayer(20, 160, '#110615', cameraX * 0.3); 
+            // ИСПРАВЛЕНЫ ВЫСОТЫ ГОР (стали меньше)
+            drawMountainLayer(canvas.height * 0.15, canvas.height * 0.12, '#5d2a5b', cameraX * 0.05); 
+            drawMountainLayer(canvas.height * 0.1, canvas.height * 0.18, '#3b1f42', cameraX * 0.15); 
+            drawMountainLayer(canvas.height * 0.05, canvas.height * 0.25, '#1a0b2e', cameraX * 0.3); 
             ctx.restore();
 
-            // Отрисовка птиц (в мировом пространстве)
             drawBirds();
 
             ctx.save(); 
