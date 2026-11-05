@@ -1,9 +1,9 @@
-<!DOCTYPE HTML>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v24.2 - Bug Fixes)</title>
+    <title>Nyxride (v26.0 - Dynamic Sky)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
@@ -118,19 +118,6 @@
 <body>
 
 <div id="rotateDevice">
-    <svg viewBox="0 0 100 100">
-        <g fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="35" y="20" width="30" height="60" rx="4" ry="4">
-                <animateTransform attributeName="transform" type="rotate" values="0 50 50; 90 50 50; 90 50 50; 0 50 50" keyTimes="0; 0.4; 0.6; 1" dur="3s" repeatCount="indefinite" />
-            </rect>
-            <circle cx="50" cy="72" r="2">
-                <animateTransform attributeName="transform" type="rotate" values="0 50 50; 90 50 50; 90 50 50; 0 50 50" keyTimes="0; 0.4; 0.6; 1" dur="3s" repeatCount="indefinite" />
-            </circle>
-            <line x1="45" y1="26" x2="55" y2="26">
-                <animateTransform attributeName="transform" type="rotate" values="0 50 50; 90 50 50; 90 50 50; 0 50 50" keyTimes="0; 0.4; 0.6; 1" dur="3s" repeatCount="indefinite" />
-            </line>
-        </g>
-    </svg>
     <h2>Пожалуйста, поверните устройство</h2>
 </div>
 
@@ -235,7 +222,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v24.2 (FINAL)</div>
+<div class="version-text">v26.0 (DYNAMIC SKY)</div>
 
 <script>
     let gameState = 'splash'; 
@@ -259,6 +246,9 @@
     let particles = [], dustTimer = 0;
     
     let birds = [], birdSpawnTimer = 3;
+    let stars = [];
+    let shootingStars = [];
+    let shootingStarTimer = 5;
 
     const SCALE = 30; 
     let groundY = 0; 
@@ -273,11 +263,68 @@
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     
+    // --- СИСТЕМА ВРЕМЕНИ СУТОК ---
+    let gameTime = 0;
+    const cycleDuration = 360; // 6 минут (360 секунд)
+    let ambientLight = 1.0; // 1.0 - день, 0.1 - ночь
+    
+    // Палитры цветов: [Утро, День, Вечер, Ночь]
+    const skyPalettes = [
+        { top: '#3b2b4a', mid: '#7a4b5a', bot: '#ffb07a', sun: '#fff3d4', m1: '#4a3a50', m2: '#2a1a30', m3: '#0a0510' }, // Утро
+        { top: '#2b5c8f', mid: '#5c8fbf', bot: '#ffd700', sun: '#ffffff', m1: '#3a5a7a', m2: '#1f2f4a', m3: '#0a1020' }, // День
+        { top: '#1a0b2e', mid: '#4a154b', bot: '#e63946', sun: '#ffe680', m1: '#5d2a5b', m2: '#3b1f42', m3: '#1a0b2e' }, // Вечер
+        { top: '#050510', mid: '#0a0a20', bot: '#101035', sun: '#e0e0ff', m1: '#151525', m2: '#0a0a15', m3: '#000000' }  // Ночь
+    ];
+    let currentSky = { ...skyPalettes[0] };
+
+    // --- ФУНКЦИИ ДЛЯ ЦВЕТА (LERP) ---
+    function hexToRgb(hex) {
+        let result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : { r: 0, g: 0, b: 0 };
+    }
+    function lerpColor(c1, c2, t) {
+        let rgb1 = hexToRgb(c1);
+        let rgb2 = hexToRgb(c2);
+        let r = Math.round(rgb1.r + (rgb2.r - rgb1.r) * t);
+        let g = Math.round(rgb1.g + (rgb2.g - rgb1.g) * t);
+        let b = Math.round(rgb1.b + (rgb2.b - rgb1.b) * t);
+        return `rgb(${r},${g},${b})`;
+    }
+
+    // --- ГЕНЕРАЦИЯ ГОР (Шум + Дымка) ---
+    function hashNoise(n) { let s = Math.sin(n) * 43758.5453123; return s - Math.floor(s); }
+    function noise1D(x) {
+        let i = Math.floor(x); let f = x - i;
+        let u = f * f * (3.0 - 2.0 * f);
+        return (hashNoise(i) * (1 - u) + hashNoise(i + 1) * u) * 2.0 - 1.0;
+    }
+    function fbm(x) {
+        let value = 0.0; let amp = 1.0; let freq = 1.0;
+        for (let i = 0; i < 4; i++) {
+            value += amp * noise1D(x * freq);
+            freq *= 2.0; amp *= 0.5;
+        }
+        return value;
+    }
+
     function resizeCanvas() {
         if (window.innerHeight > window.innerWidth) return;
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
         groundY = canvas.height - 80; 
+        generateStars();
+    }
+
+    function generateStars() {
+        stars = [];
+        for (let i = 0; i < 80; i++) {
+            stars.push({
+                x: Math.random() * window.innerWidth,
+                y: Math.random() * (window.innerHeight * 0.6),
+                radius: Math.random() * 1.5 + 0.5,
+                phase: Math.random() * Math.PI * 2
+            });
+        }
     }
 
     function startSplashSequence() {
@@ -460,16 +507,18 @@
     function getTerrainY(x) { let my = getTerrainYNoErosion(x); let z = getZonesCached(Math.floor(x / 10000)); for (let n of z) { if (x >= n.start && x <= n.end) { for (let h of n.holes) { let lx = x - h.x; if (lx >= 0 && lx <= h.entryW + h.floorW + h.exitW) my += erosionProfile(lx, h.entryW, h.floorW, h.exitW, h.depth, h.slope); } } } return my; }
 
     let terrainBodies = [], lastGeneratedX = startX - 1500; 
-    function generateTerrain() { while (lastGeneratedX < cameraX + (canvas.width / zoom) + 1000) { let v = []; for (let i = 0; i <= 200; i++) v.push(pl.Vec2((lastGeneratedX + i) / SCALE, getTerrainY(lastGeneratedX + i) / SCALE)); const c = world.createBody(); let f = c.createFixture(pl.Chain(v, false), { friction: 1.0, restitution: 0.0 }); f.setUserData('terrain'); terrainBodies.push({ body: c, endX: lastGeneratedX + 200 }); lastGeneratedX += 200; } }
+    function generateTerrain() { while (lastGeneratedX < cameraX + (canvas.width / zoom) + 1000) { let v = []; for (let i = 0; i <= 200; i += 5) v.push(pl.Vec2((lastGeneratedX + i) / SCALE, getTerrainY(lastGeneratedX + i) / SCALE)); const c = world.createBody(); let f = c.createFixture(pl.Chain(v, false), { friction: 1.0, restitution: 0.0 }); f.setUserData('terrain'); terrainBodies.push({ body: c, endX: lastGeneratedX + 200 }); lastGeneratedX += 200; } }
     function cleanupTerrain() { for (let i = terrainBodies.length - 1; i >= 0; i--) { if (terrainBodies[i].endX < cameraX - 1500) { world.destroyBody(terrainBodies[i].body); terrainBodies.splice(i, 1); } } }
 
     const wheelRadius = 10 / SCALE; const wheelBase = 23 / SCALE; let chassis, wheelRear, wheelFront, jointRear, jointFront;
+    let currentSpeed = 0; // ПЕРЕМЕННАЯ ДЛЯ ПЛАВНОГО РАЗГОНА
+
     function createBike(x, y) {
         if (chassis) { world.destroyBody(chassis); world.destroyBody(wheelRear); world.destroyBody(wheelFront); }
         chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic', bullet: true }); chassis.createFixture(pl.Box(53 / SCALE / 2, 6 / SCALE / 2, pl.Vec2(0, -18 / SCALE)), { density: currentBike.density, friction: 0.3 });
         let hs = pl.Circle(8 / SCALE); hs.m_p.set(0, -35 / SCALE); let hf = chassis.createFixture(hs, { isSensor: true }); hf.setUserData('head');
-        wheelRear = world.createBody({ position: pl.Vec2((x - wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic', bullet: true }); wheelRear.createFixture(pl.Circle(wheelRadius), { density: 1.0, friction: 1.0 });
-        wheelFront = world.createBody({ position: pl.Vec2((x + wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic', bullet: true }); wheelFront.createFixture(pl.Circle(wheelRadius), { density: 1.0, friction: 1.0 });
+        wheelRear = world.createBody({ position: pl.Vec2((x - wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic', bullet: true }); wheelRear.createFixture(pl.Circle(wheelRadius), { density: 1.0, friction: 0.8 });
+        wheelFront = world.createBody({ position: pl.Vec2((x + wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic', bullet: true }); wheelFront.createFixture(pl.Circle(wheelRadius), { density: 1.0, friction: 0.8 });
         jointRear = world.createJoint(pl.WheelJoint({ motorSpeed: 0, maxMotorTorque: currentBike.motor.torque, enableMotor: true, frequencyHz: currentBike.suspension.freq, dampingRatio: currentBike.suspension.damp }, chassis, wheelRear, wheelRear.getPosition(), pl.Vec2(0, 1)));
         jointFront = world.createJoint(pl.WheelJoint({ motorSpeed: 0, maxMotorTorque: currentBike.motor.torque, enableMotor: true, frequencyHz: currentBike.suspension.freq, dampingRatio: currentBike.suspension.damp }, chassis, wheelFront, wheelFront.getPosition(), pl.Vec2(0, 1)));
     }
@@ -494,7 +543,7 @@
         maxAirTime = 0; currentAirTime = 0; frontflipCount = 0; backflipCount = 0; flipCounted = false;
         accumulatedRotation = 0; lastAngle = chassis.getAngle(); maxWheelieTime = 0; currentWheelieTime = 0;
         maxStoppieTime = 0; currentStoppieTime = 0; particles = []; dustTimer = 0; popTimer = 0;
-        birds = []; birdSpawnTimer = 3;
+        birds = []; birdSpawnTimer = 3; gameTime = 0; currentSpeed = 0; shootingStars = [];
         zoom = maxZoom;
         document.getElementById('coinBalanceText').innerText = totalCoins; document.getElementById('distanceText').innerText = "0";
         if (isAudioInitialized) { idleGain.gain.setValueAtTime(0.4, audioCtx.currentTime); revGain.gain.setValueAtTime(0, audioCtx.currentTime); windGain.gain.setValueAtTime(0, audioCtx.currentTime); if (revFilter) revFilter.frequency.value = 2500; startRevSound(); }
@@ -502,7 +551,7 @@
 
     function triggerGameOver() {
         gameState = 'gameover'; window.isGas = false; 
-        let dist = Math.max(0, Math.floor(((chassis.getPosition().x * SCALE) - startX) / 10));
+        let dist = Math.max(0, Math.floor(((chassis.getPosition().x * SCALE) - startX) / 14)); // ДЕЛИТЕЛЬ 14 (МЕТРЫ)
         
         let coinsDist = Math.floor(dist / 100);
         let coinsWheelie = Math.floor(maxWheelieTime) * 2;
@@ -539,79 +588,136 @@
         if (birdSpawnTimer <= 0) {
             let flockSize = Math.floor(Math.random() * 3) + 2;
             let spawnX = cameraX + canvas.width + 50; 
-            let startY = canvas.height * 0.15 + Math.random() * 50; 
+            let startY = canvas.height * 0.2 + Math.random() * 60;
             for (let i = 0; i < flockSize; i++) {
-                birds.push({
-                    x: spawnX + Math.random() * 60,
-                    y: startY + Math.random() * 40,
-                    speed: 30 + Math.random() * 20,
-                    wingPhase: Math.random() * Math.PI * 2,
-                    wingSpeed: 8 + Math.random() * 4
-                });
+                birds.push({ x: spawnX + Math.random() * 60, y: startY + Math.random() * 40, speed: 30 + Math.random() * 20, wingPhase: Math.random() * Math.PI * 2, wingSpeed: 8 + Math.random() * 4 });
             }
             birdSpawnTimer = 8 + Math.random() * 10;
         }
-
         for (let i = birds.length - 1; i >= 0; i--) {
             let b = birds[i];
-            b.x -= b.speed * dt;
-            b.wingPhase += b.wingSpeed * dt;
-            if (b.x < cameraX - 200) {
-                birds.splice(i, 1);
-            }
+            b.x -= b.speed * dt; b.wingPhase += b.wingSpeed * dt;
+            if (b.x < cameraX - 200) birds.splice(i, 1);
         }
     }
 
     function drawBirds() {
-        ctx.strokeStyle = '#2a1533';
+        ctx.strokeStyle = `rgba(42, 21, 51, ${ambientLight})`;
         ctx.lineWidth = 2;
         ctx.lineCap = 'round';
         for (let b of birds) {
             let flap = Math.sin(b.wingPhase) * 6;
-            ctx.beginPath();
-            ctx.moveTo(b.x - 10, b.y - flap);
-            ctx.quadraticCurveTo(b.x - 5, b.y, b.x, b.y);
-            ctx.quadraticCurveTo(b.x + 5, b.y, b.x + 10, b.y - flap);
-            ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(b.x - 10, b.y - flap); ctx.quadraticCurveTo(b.x - 5, b.y, b.x, b.y); ctx.quadraticCurveTo(b.x + 5, b.y, b.x + 10, b.y - flap); ctx.stroke();
         }
     }
 
-    function drawMountainLayer(yOff, h, c, p) { 
-        ctx.fillStyle = c; 
+    function drawMountainLayer(yOff, h, colorBase, p, fogAlpha) { 
         ctx.beginPath(); 
         let sx = Math.floor(cameraX) - 100; 
         let ex = Math.floor(cameraX) + (canvas.width / zoom) + 100; 
         ctx.moveTo(sx, groundY + 2000); 
         for (let x = sx; x <= ex; x += 5) { 
             let wx = x + p; 
-            let jagged = Math.pow(Math.abs(Math.sin(wx * 0.004)), 1.5) * h;
-            let noise = Math.abs(Math.sin(wx * 0.012)) * (h * 0.3);
-            ctx.lineTo(x, groundY - yOff - jagged - noise); 
+            let noiseVal = fbm(wx * 0.002); 
+            let mountainHeight = (noiseVal + 1) * 0.5 * h; 
+            mountainHeight = Math.pow(mountainHeight, 1.5); 
+            ctx.lineTo(x, groundY - yOff - mountainHeight); 
         } 
         ctx.lineTo(ex, groundY + 2000); 
         ctx.closePath(); 
+        
+        let grad = ctx.createLinearGradient(0, groundY - yOff - h, 0, groundY - yOff + 50);
+        grad.addColorStop(0, `rgba(255, 255, 255, 0)`); 
+        grad.addColorStop(1, colorBase); 
+        
+        ctx.fillStyle = grad; 
         ctx.fill(); 
     }
     
-    function drawTerrain() { ctx.fillStyle = '#000'; ctx.strokeStyle = '#000'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(cameraX - 100, groundY + 2000); let sx = Math.floor(cameraX) - 100; let ex = Math.floor(cameraX) + (canvas.width / zoom) + 100; for (let x = sx; x <= ex; x += 2) ctx.lineTo(x, getTerrainY(x)); ctx.lineTo(ex, groundY + 2000); ctx.closePath(); ctx.fill(); ctx.stroke(); }
+    function drawTerrain() { 
+        ctx.fillStyle = lerpColor('#000000', currentSky.m3, ambientLight * 0.5); 
+        ctx.strokeStyle = ctx.fillStyle; 
+        ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(cameraX - 100, groundY + 2000); 
+        let sx = Math.floor(cameraX) - 100; let ex = Math.floor(cameraX) + (canvas.width / zoom) + 100; 
+        for (let x = sx; x <= ex; x += 2) ctx.lineTo(x, getTerrainY(x)); 
+        ctx.lineTo(ex, groundY + 2000); ctx.closePath(); ctx.fill(); ctx.stroke(); 
+    }
+    
     function drawWheel(wheel) { ctx.save(); ctx.translate(wheel.getPosition().x * SCALE, wheel.getPosition().y * SCALE); ctx.rotate(wheel.getAngle()); let r = wheelRadius * SCALE; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fillStyle = '#000'; ctx.fill(); if (currentBike.name === "CTM 300 EXC") { ctx.strokeStyle = '#111'; ctx.lineWidth = 2; for (let i = 0; i < 16; i++) { let angle = (i / 16) * Math.PI * 2; ctx.beginPath(); ctx.moveTo(Math.cos(angle) * (r - 1.5), Math.sin(angle) * (r - 1.5)); ctx.lineTo(Math.cos(angle) * (r + 1), Math.sin(angle) * (r + 1)); ctx.stroke(); } } ctx.beginPath(); ctx.arc(0, 0, r - 3.5, 0, Math.PI * 2); ctx.strokeStyle = '#222'; ctx.lineWidth = 2; ctx.stroke(); ctx.strokeStyle = '#555'; ctx.lineWidth = 1; let spokes = currentBike.name === "CTM 300 EXC" ? 6 : 8; for (let i = 0; i < spokes; i++) { let angle = (i / spokes) * Math.PI * 2; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(angle) * (r - 3.5), Math.sin(angle) * (r - 3.5)); ctx.stroke(); } ctx.beginPath(); ctx.arc(0, 0, 2, 0, Math.PI * 2); ctx.fillStyle = '#444'; ctx.fill(); ctx.restore(); }
     function spawnDust(x, y, sx, t) { if (particles.length > 80) return; let c = t === 'brake' ? 2 : 1, bvy = t === 'brake' ? -5 : -2; for (let i = 0; i < c; i++) { particles.push({ x: x + (Math.random() - 0.5) * 8, y: y, baseVx: -Math.random() * 3, vy: bvy, radius: 3 + Math.random() * 4, growth: 1 + Math.random(), alphaMax: 0.4, alpha: 0.4, age: 0, maxAge: 1.0 + Math.random() }); } }
     function updateParticles(dt) { for (let i = particles.length - 1; i >= 0; i--) { let p = particles[i]; p.age += dt; let pr = p.age / p.maxAge; if (pr >= 1) { particles.splice(i, 1); continue; } p.x += p.baseVx * (1 + pr); p.vy += 0.15; p.y += p.vy; p.radius += p.growth; p.alpha = p.alphaMax * Math.pow(1 - pr, 1.5); if (p.alpha <= 0.01) particles.splice(i, 1); } }
-    function drawParticles() { for (let p of particles) { let g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius); g.addColorStop(0, `rgba(140, 105, 75, ${p.alpha})`); g.addColorStop(1, 'rgba(200, 160, 120, 0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fill(); } }
+    function drawParticles() { for (let p of particles) { let g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius); g.addColorStop(0, `rgba(140, 105, 75, ${p.alpha * ambientLight})`); g.addColorStop(1, 'rgba(200, 160, 120, 0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fill(); } }
 
     let lastTime = performance.now();
     function update() {
         requestAnimationFrame(update); 
         
-        // Замораживаем игру на паузе, не давая dt накопиться
-        if (gameState === 'paused') {
-            return; 
-        }
+        if (gameState === 'paused') return; 
 
         try {
             let dt = (performance.now() - lastTime) / 1000; lastTime = performance.now(); if (dt > 0.1) dt = 0.1; 
 
             if (gameState === 'playing' && chassis) {
+                // --- ВРЕМЯ СУТОК ---
+                gameTime += dt;
+                let timePhase = (gameTime % cycleDuration) / cycleDuration;
+                
+                // Определяем текущую и следующую фазу для интерполяции
+                let phaseIndex = Math.floor(timePhase * 4);
+                let nextPhaseIndex = (phaseIndex + 1) % 4;
+                let t = (timePhase * 4) - phaseIndex; // Коэффициент перехода от 0 до 1
+
+                // Плавная интерполяция цветов
+                let p1 = skyPalettes[phaseIndex];
+                let p2 = skyPalettes[nextPhaseIndex];
+                currentSky.top = lerpColor(p1.top, p2.top, t);
+                currentSky.mid = lerpColor(p1.mid, p2.mid, t);
+                currentSky.bot = lerpColor(p1.bot, p2.bot, t);
+                currentSky.sun = lerpColor(p1.sun, p2.sun, t);
+                currentSky.m1 = lerpColor(p1.m1, p2.m1, t);
+                currentSky.m2 = lerpColor(p1.m2, p2.m2, t);
+                currentSky.m3 = lerpColor(p1.m3, p2.m3, t);
+
+                // Определяем уровень освещенности (1.0 - день, 0.1 - ночь)
+                // Ночь это 3-я фаза (индекс 3)
+                if (phaseIndex === 3) {
+                    ambientLight = 1.0 - (t * 0.9); // 1.0 -> 0.1
+                } else if (phaseIndex === 0) {
+                    ambientLight = 0.1 + (t * 0.9); // 0.1 -> 1.0
+                } else {
+                    ambientLight = 1.0; // День и Вечер - ярко
+                }
+                if (ambientLight < 0.3) ambientLight = 0.3; // Не делаем полностью черным
+
+                // --- ПАДАЮЩИЕ ЗВЕЗДЫ ---
+                if (ambientLight < 0.5) {
+                    shootingStarTimer -= dt;
+                    if (shootingStarTimer <= 0) {
+                        shootingStars.push({
+                            x: cameraX + canvas.width + Math.random() * 200,
+                            y: Math.random() * (canvas.height * 0.4),
+                            vx: -300 - Math.random() * 200,
+                            vy: 150 + Math.random() * 100,
+                            life: 1.0
+                        });
+                        shootingStarTimer = 10 + Math.random() * 15; // Раз в 10-25 секунд
+                    }
+                }
+
+                for (let i = shootingStars.length - 1; i >= 0; i--) {
+                    let ss = shootingStars[i];
+                    ss.x += ss.vx * dt; ss.y += ss.vy * dt; ss.life -= dt * 0.8;
+                    if (ss.life <= 0) shootingStars.splice(i, 1);
+                }
+
+                // --- ПЛАВНЫЙ РАЗГОН ---
+                if (window.isGas) { currentSpeed += 40 * dt; } 
+                else if (window.isBrake) { currentSpeed -= 100 * dt; } 
+                else { currentSpeed -= 10 * dt; } // Естественное замедление
+                
+                if (currentSpeed > currentBike.motor.speed) currentSpeed = currentBike.motor.speed;
+                if (currentSpeed < 0) currentSpeed = 0;
+
                 world.step(1/60, dt, 3); let ws = Math.abs(wheelRear.getAngularVelocity()); let ls = Math.abs(chassis.getLinearVelocity().x) * SCALE; 
                 let cx = chassis.getPosition().x * SCALE; let cy = chassis.getPosition().y * SCALE; let gu = getTerrainY(cx); let ia = (cy < gu - 25); 
                 let a = chassis.getAngle(); let da = a - lastAngle; if (da > Math.PI) da -= 2 * Math.PI; if (da < -Math.PI) da += 2 * Math.PI;
@@ -623,7 +729,7 @@
                     if (ls > 5) { dustTimer += dt; if (dustTimer > 0.06) { let wp = wheelRear.getPosition(); let dx = wp.x * SCALE; let dy = wp.y * SCALE + (wheelRadius * SCALE); if (window.isBrake && ls > 10) spawnDust(dx, dy, chassis.getLinearVelocity().x * SCALE, 'brake'); else if (window.isGas) spawnDust(dx, dy, chassis.getLinearVelocity().x * SCALE, 'gas'); else if (ls > 15) spawnDust(dx, dy, chassis.getLinearVelocity().x * SCALE, 'roll'); dustTimer = 0; } } else { dustTimer = 0.05; }
                 }
                 lastAngle = a; 
-                if (window.isGas) { jointRear.setMotorSpeed(currentBike.motor.speed); jointFront.setMotorSpeed(currentBike.motor.speed); jointRear.setMaxMotorTorque(currentBike.motor.torque); jointFront.setMaxMotorTorque(currentBike.motor.torque); } else if (window.isBrake) { jointRear.setMotorSpeed(0); jointFront.setMotorSpeed(0); jointRear.setMaxMotorTorque(currentBike.motor.brake); jointFront.setMaxMotorTorque(currentBike.motor.brake); } else { jointRear.setMaxMotorTorque(0); jointFront.setMaxMotorTorque(0); }
+                if (window.isGas) { jointRear.setMotorSpeed(currentSpeed); jointFront.setMotorSpeed(currentSpeed); jointRear.setMaxMotorTorque(currentBike.motor.torque); jointFront.setMaxMotorTorque(currentBike.motor.torque); } else if (window.isBrake) { jointRear.setMotorSpeed(0); jointFront.setMotorSpeed(0); jointRear.setMaxMotorTorque(currentBike.motor.brake); jointFront.setMaxMotorTorque(currentBike.motor.brake); } else { jointRear.setMaxMotorTorque(0); jointFront.setMaxMotorTorque(0); }
                 let tp = 20; let mts = 2.5; if (window.isLeanBack) { if (chassis.getAngularVelocity() > -mts) chassis.applyTorque(-tp, true); } else if (window.isLeanForward) { if (chassis.getAngularVelocity() < mts) chassis.applyTorque(tp, true); }
                 if (isAudioInitialized) { if (window.isGas) { idleGain.gain.cancelScheduledValues(audioCtx.currentTime); idleGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.05); } else { idleGain.gain.cancelScheduledValues(audioCtx.currentTime); idleGain.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + 0.1); } let tr = window.isGas ? 0.8 : 0; let tw = Math.min(0.3, 0.05 + ws * 0.15); revGain.gain.setTargetAtTime(tr, audioCtx.currentTime, 0.1); windGain.gain.setTargetAtTime(tw, audioCtx.currentTime, 0.1); if (window.isGas && revSource) { let trate = 1.0 + (ws * 0.3); let frate = Math.min(1.3, trate); revSource.playbackRate.setTargetAtTime(frate, audioCtx.currentTime, 0.1); let tf = Math.max(1000, 2500 - (ws * 1000)); revFilter.frequency.setTargetAtTime(tf, audioCtx.currentTime, 0.1); previousGasState = true; } else { previousGasState = false; } if (!window.isGas && ws > 2) { popTimer += dt; if (popTimer > 1.0 && Math.random() < 0.02) { playPop(); popTimer = 0; } } else { popTimer = 0; } }
                 if (chassis.getPosition().y > groundY + 1000) triggerGameOver();
@@ -637,49 +743,67 @@
                 generateTerrain(); cleanupTerrain(); updateParticles(dt);
                 updateBirds(dt);
 
-                let cd = Math.max(0, Math.floor(((chassis.getPosition().x * SCALE) - startX) / 10)); document.getElementById('distanceText').innerText = cd; document.getElementById('coinBalanceText').innerText = totalCoins + Math.floor(cd / 100);
+                let cd = Math.max(0, Math.floor(((chassis.getPosition().x * SCALE) - startX) / 14)); document.getElementById('distanceText').innerText = cd; document.getElementById('coinBalanceText').innerText = totalCoins + Math.floor(cd / 100);
                 if (cd > maxDistance) { maxDistance = cd; localStorage.setItem('bestDistance', maxDistance); document.getElementById('bestDistanceText').innerText = maxDistance; }
             }
 
             if (gameState === 'playing' || gameState === 'gameover') {
                 ctx.clearRect(0, 0, canvas.width, canvas.height); 
                 
+                // Отрисовка неба
                 const g = ctx.createLinearGradient(0, 0, 0, canvas.height);
-                g.addColorStop(0, '#1a0b2e'); 
-                g.addColorStop(0.3, '#4a154b'); 
-                g.addColorStop(0.6, '#e63946'); 
-                g.addColorStop(1, '#ff9f1c'); 
+                g.addColorStop(0, currentSky.top); 
+                g.addColorStop(0.3, currentSky.mid); 
+                g.addColorStop(0.6, currentSky.bot); 
+                g.addColorStop(1, currentSky.sun); 
                 ctx.fillStyle = g; 
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 
-                let sx = canvas.width * 0.75; 
-                let sy = canvas.height * 0.25; 
-                let sg = ctx.createRadialGradient(sx, sy, 10, sx, sy, 150);
-                sg.addColorStop(0, 'rgba(255, 230, 150, 0.6)'); 
-                sg.addColorStop(1, 'rgba(255, 230, 150, 0)'); 
-                ctx.fillStyle = sg; 
-                ctx.beginPath(); 
-                ctx.arc(sx, sy, 150, 0, Math.PI * 2); 
-                ctx.fill();
-                
-                ctx.fillStyle = '#ffe680'; 
-                ctx.beginPath(); 
-                ctx.arc(sx, sy, 28, 0, Math.PI * 2); 
-                ctx.fill();
+                // Звезды
+                if (ambientLight < 0.6) {
+                    ctx.fillStyle = '#fff';
+                    for (let s of stars) {
+                        ctx.globalAlpha = (1 - ambientLight) * (0.5 + Math.sin(gameTime * 2 + s.phase) * 0.5);
+                        ctx.beginPath(); ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2); ctx.fill();
+                    }
+                    ctx.globalAlpha = 1.0;
+                }
 
-                // Птицы (Рисуются до гор, чтобы они были на фоне неба)
-                ctx.save();
-                ctx.translate(-cameraX * 0.1, 0); 
-                drawBirds();
-                ctx.restore();
+                // Луна / Солнце
+                let sx = canvas.width * 0.75; 
+                let sy = canvas.height * (0.25 + (1 - ambientLight) * 0.1); 
+                let sg = ctx.createRadialGradient(sx, sy, 10, sx, sy, 150);
+                sg.addColorStop(0, currentSky.sun); 
+                sg.addColorStop(1, 'rgba(255, 255, 255, 0)'); 
+                ctx.fillStyle = sg; 
+                ctx.beginPath(); ctx.arc(sx, sy, 150, 0, Math.PI * 2); ctx.fill();
+                
+                ctx.fillStyle = currentSky.sun; 
+                ctx.beginPath(); ctx.arc(sx, sy, ambientLight < 0.5 ? 20 : 28, 0, Math.PI * 2); ctx.fill();
+                
+                // Падающие звезды
+                for (let ss of shootingStars) {
+                    ctx.strokeStyle = `rgba(255, 255, 255, ${ss.life})`;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.moveTo(ss.x, ss.y); ctx.lineTo(ss.x - ss.vx * 0.05, ss.y - ss.vy * 0.05); ctx.stroke();
+                }
+
+                // Птицы (только днем)
+                if (ambientLight > 0.5) {
+                    ctx.save();
+                    ctx.translate(-cameraX * 0.1, 0); 
+                    drawBirds();
+                    ctx.restore();
+                }
 
                 ctx.save(); 
                 ctx.scale(zoom, zoom); 
                 ctx.translate(-cameraX, cameraY); 
                 
-                drawMountainLayer(120, 80, '#5d2a5b', cameraX * 0.05); 
-                drawMountainLayer(80, 120, '#3b1f42', cameraX * 0.15); 
-                drawMountainLayer(40, 160, '#1a0b2e', cameraX * 0.3); 
+                // Горы (с учетом освещения)
+                drawMountainLayer(120, 100, lerpColor(currentSky.m1, '#000000', 1 - ambientLight * 0.8), cameraX * 0.05); 
+                drawMountainLayer(70, 140, lerpColor(currentSky.m2, '#000000', 1 - ambientLight * 0.6), cameraX * 0.15); 
+                drawMountainLayer(20, 180, lerpColor(currentSky.m3, '#000000', 1 - ambientLight * 0.4), cameraX * 0.3); 
                 
                 ctx.restore();
 
@@ -689,6 +813,29 @@
                 ctx.translate(-cameraX, 0);
                 drawTerrain();
                 if (gameState !== 'gameover' && chassis) {
+                    // Отрисовка фары
+                    if (ambientLight < 0.5) {
+                        let bx = chassis.getPosition().x * SCALE;
+                        let by = chassis.getPosition().y * SCALE;
+                        let ba = chassis.getAngle();
+                        let fx = bx + Math.cos(ba) * 40;
+                        let fy = by + Math.sin(ba) * 40;
+                        
+                        ctx.save();
+                        ctx.globalCompositeOperation = 'lighter';
+                        let grad = ctx.createLinearGradient(fx, fy, fx + 200, fy + 50);
+                        grad.addColorStop(0, `rgba(255, 240, 150, ${0.6 * (1 - ambientLight * 2)})`);
+                        grad.addColorStop(1, 'rgba(255, 240, 150, 0)');
+                        ctx.fillStyle = grad;
+                        ctx.beginPath();
+                        ctx.moveTo(fx, fy);
+                        ctx.lineTo(fx + 250, fy - 50);
+                        ctx.lineTo(fx + 250, fy + 150);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.restore();
+                    }
+
                     drawParticles(); 
                     ctx.save(); 
                     ctx.translate(chassis.getPosition().x * SCALE, chassis.getPosition().y * SCALE); 
@@ -709,4 +856,4 @@
     checkOrientation(); resizeCanvas(); update();
 </script>
 </body>
-  </html>
+    </html>
