@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v28.3 - Flip Fix & UI Fix)</title>
+    <title>Nyxride (v28.4 - Flip Fix)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
@@ -236,7 +236,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v28.3 (REAL PHYSICS + UI FIX)</div>
+<div class="version-text">v28.4 (REAL PHYSICS + FLIP FIX)</div>
 
 <script>
     let gameState = 'splash'; 
@@ -667,25 +667,20 @@
                 let ls = Math.abs(chassis.getLinearVelocity().x) * SCALE; 
                 let cx = chassis.getPosition().x * SCALE; 
                 let cy = chassis.getPosition().y * SCALE; 
+                let gu = getTerrainY(cx); 
+                
+                // --- НАДЕЖНАЯ ПРОВЕРКА IN AIR (как в v27.1, по центру шасси) ---
+                let inAir = (cy < gu - 25); 
 
-                // --- Контакт колёс с землёй ---
-                // contactTolerance (22px) — для анти-подлёта газа и для inAir (сальто)
-                // trickTolerance (8px)   — для детекта Вилли и Стоппи (чтобы не засчитывалось на кочках)
-                const wrPx = bike.wheelRadius;
                 let wrPos = wheelRear.getPosition();
                 let wfPos = wheelFront.getPosition();
-                let rearBottomY = wrPos.y * SCALE + wrPx;
-                let frontBottomY = wfPos.y * SCALE + wrPx;
+                let rearBottomY = wrPos.y * SCALE + bike.wheelRadius;
+                let frontBottomY = wfPos.y * SCALE + bike.wheelRadius;
                 let rearGroundY = getTerrainY(wrPos.x * SCALE);
                 let frontGroundY = getTerrainY(wfPos.x * SCALE);
 
+                // Для анти-подлёта газа (22px)
                 let rearOnGroundGas = rearBottomY > rearGroundY - bike.antiPop.contactTolerance;
-                let frontOnGroundGas = frontBottomY > frontGroundY - bike.antiPop.contactTolerance;
-                let rearOnGroundTrick = rearBottomY > rearGroundY - bike.antiPop.trickTolerance;
-                let frontOnGroundTrick = frontBottomY > frontGroundY - bike.antiPop.trickTolerance;
-                
-                // Для сальто используем contactTolerance (как в v28.0)
-                let inAir = !rearOnGroundGas && !frontOnGroundGas;
 
                 // --- Угол и дельта ---
                 let a = chassis.getAngle(); 
@@ -693,15 +688,11 @@
                 if (da > Math.PI) da -= 2 * Math.PI; 
                 if (da < -Math.PI) da += 2 * Math.PI;
 
-                // --- Детект трюков (Вилли/Стоппи на 8px, Сальто на 22px) ---
-                let wheelieActive = rearOnGroundTrick && !frontOnGroundTrick && ls > 5 && a < -0.1;
-                let stoppieActive = frontOnGroundTrick && !rearOnGroundTrick && ls > 5 && a > 0.1;
-
+                // --- Детект трюков ---
                 if (inAir) { 
                     accumulatedRotation += da; 
                     currentAirTime += dt; 
                     if (currentAirTime > maxAirTime) maxAirTime = currentAirTime; 
-                    // Вернули проверку времени > 0.3с как в v28.0
                     if (!flipCounted && Math.abs(accumulatedRotation) >= Math.PI * 1.7 && currentAirTime > 0.3) { 
                         if (accumulatedRotation > 0) frontflipCount++; 
                         else backflipCount++; 
@@ -711,23 +702,26 @@
                     currentAirTime = 0; 
                     accumulatedRotation = 0; 
                     flipCounted = false;
-                    if (wheelieActive) { 
+                    
+                    // Вилли и Стоппи по углу (как в v27.1)
+                    if (a < -0.3 && ls > 5) { 
                         currentWheelieTime += dt; 
                         if (currentWheelieTime > maxWheelieTime) maxWheelieTime = currentWheelieTime; 
                     } else { 
                         currentWheelieTime = 0; 
                     }
-                    if (stoppieActive) { 
+                    if (a > 0.3 && ls > 5) { 
                         currentStoppieTime += dt; 
                         if (currentStoppieTime > maxStoppieTime) maxStoppieTime = currentStoppieTime; 
                     } else { 
                         currentStoppieTime = 0; 
                     }
+
                     if (ls > 5) { 
                         dustTimer += dt; 
                         if (dustTimer > 0.06) { 
                             let dx = wrPos.x * SCALE; 
-                            let dy = wrPos.y * SCALE + (wrPx); 
+                            let dy = wrPos.y * SCALE + (bike.wheelRadius); 
                             if (window.isBrake && ls > 10) spawnDust(dx, dy, chassis.getLinearVelocity().x * SCALE, 'brake'); 
                             else if (window.isGas) spawnDust(dx, dy, chassis.getLinearVelocity().x * SCALE, 'gas'); 
                             else if (ls > 15) spawnDust(dx, dy, chassis.getLinearVelocity().x * SCALE, 'roll'); 
@@ -887,4 +881,4 @@
     checkOrientation(); resizeCanvas(); update();
 </script>
 </body>
-                                                                               </html>
+                </html>
