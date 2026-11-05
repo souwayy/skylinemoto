@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v26.0 - Dynamic Sky)</title>
+    <title>Nyxride (v26.3 - Y-Parallax Mountains)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
         .hidden { display: none !important; }
 
         #rotateDevice { position: fixed; inset: 0; background: #000; z-index: 100000; display: none; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; }
-        #rotateDevice svg { width: 100px; height: 100px; fill: none; stroke: white; stroke-width: 4; margin-bottom: 30px; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 15px rgba(255,255,255,0.3)); }
         #rotateDevice h2 { font-size: 24px; font-weight: 600; margin: 0; padding: 0 20px; }
 
         #splashScreen {
@@ -222,7 +221,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v26.0 (DYNAMIC SKY)</div>
+<div class="version-text">v26.3 (PARALLAX FIX)</div>
 
 <script>
     let gameState = 'splash'; 
@@ -263,21 +262,18 @@
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     
-    // --- СИСТЕМА ВРЕМЕНИ СУТОК ---
     let gameTime = 0;
-    const cycleDuration = 360; // 6 минут (360 секунд)
-    let ambientLight = 1.0; // 1.0 - день, 0.1 - ночь
+    const cycleDuration = 360; 
+    let ambientLight = 1.0; 
     
-    // Палитры цветов: [Утро, День, Вечер, Ночь]
     const skyPalettes = [
-        { top: '#3b2b4a', mid: '#7a4b5a', bot: '#ffb07a', sun: '#fff3d4', m1: '#4a3a50', m2: '#2a1a30', m3: '#0a0510' }, // Утро
-        { top: '#2b5c8f', mid: '#5c8fbf', bot: '#ffd700', sun: '#ffffff', m1: '#3a5a7a', m2: '#1f2f4a', m3: '#0a1020' }, // День
-        { top: '#1a0b2e', mid: '#4a154b', bot: '#e63946', sun: '#ffe680', m1: '#5d2a5b', m2: '#3b1f42', m3: '#1a0b2e' }, // Вечер
-        { top: '#050510', mid: '#0a0a20', bot: '#101035', sun: '#e0e0ff', m1: '#151525', m2: '#0a0a15', m3: '#000000' }  // Ночь
+        { top: '#4a3a50', mid: '#9a5b6a', bot: '#ffb07a', sun: '#fff3d4', m1: '#6a5a80', m2: '#3a2a50', m3: '#1a0a20' }, // Утро
+        { top: '#2b5c8f', mid: '#5c8fbf', bot: '#ffd700', sun: '#ffffff', m1: '#5a7a9a', m2: '#2a4a6a', m3: '#0a2040' }, // День
+        { top: '#1a0b2e', mid: '#4a154b', bot: '#e63946', sun: '#ffe680', m1: '#6a2a6a', m2: '#3a1a4a', m3: '#1a0525' }, // Вечер
+        { top: '#050510', mid: '#0a0a20', bot: '#101035', sun: '#e0e0ff', m1: '#1a1a30', m2: '#0a0a15', m3: '#000000' }  // Ночь
     ];
     let currentSky = { ...skyPalettes[0] };
 
-    // --- ФУНКЦИИ ДЛЯ ЦВЕТА (LERP) ---
     function hexToRgb(hex) {
         let result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
         return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : { r: 0, g: 0, b: 0 };
@@ -291,22 +287,6 @@
         return `rgb(${r},${g},${b})`;
     }
 
-    // --- ГЕНЕРАЦИЯ ГОР (Шум + Дымка) ---
-    function hashNoise(n) { let s = Math.sin(n) * 43758.5453123; return s - Math.floor(s); }
-    function noise1D(x) {
-        let i = Math.floor(x); let f = x - i;
-        let u = f * f * (3.0 - 2.0 * f);
-        return (hashNoise(i) * (1 - u) + hashNoise(i + 1) * u) * 2.0 - 1.0;
-    }
-    function fbm(x) {
-        let value = 0.0; let amp = 1.0; let freq = 1.0;
-        for (let i = 0; i < 4; i++) {
-            value += amp * noise1D(x * freq);
-            freq *= 2.0; amp *= 0.5;
-        }
-        return value;
-    }
-
     function resizeCanvas() {
         if (window.innerHeight > window.innerWidth) return;
         canvas.width = window.innerWidth;
@@ -317,11 +297,11 @@
 
     function generateStars() {
         stars = [];
-        for (let i = 0; i < 80; i++) {
+        for (let i = 0; i < 60; i++) {
             stars.push({
                 x: Math.random() * window.innerWidth,
-                y: Math.random() * (window.innerHeight * 0.6),
-                radius: Math.random() * 1.5 + 0.5,
+                y: Math.random() * (window.innerHeight * 0.5),
+                radius: Math.random() * 1.2 + 0.5,
                 phase: Math.random() * Math.PI * 2
             });
         }
@@ -427,14 +407,10 @@
     function drawMenuBike() {
         menuCtx.clearRect(0, 0, menuCanvas.width, menuCanvas.height);
         menuCtx.save();
-        
         menuCtx.translate(menuCanvas.width / 2, menuCanvas.height - 200);
         menuCtx.scale(12.0, 12.0); 
-        
         if (bikeImage.complete && bikeImage.naturalWidth !== 0) menuCtx.drawImage(bikeImage, -45, -45, 90, 54);
-        
         let r = 10; let wheelBase = 23;
-        
         function drawOneWheel(wx) {
             menuCtx.beginPath(); menuCtx.arc(wx, 0, r, 0, Math.PI * 2); menuCtx.fillStyle = '#000'; menuCtx.fill();
             if (currentBike.name === "CTM 300 EXC") {
@@ -447,10 +423,7 @@
             for (let i = 0; i < spokes; i++) { let angle = (i / spokes) * Math.PI * 2; menuCtx.beginPath(); menuCtx.moveTo(wx, 0); menuCtx.lineTo(wx + Math.cos(angle) * (r - 3.5), Math.sin(angle) * (r - 3.5)); menuCtx.stroke(); }
             menuCtx.beginPath(); menuCtx.arc(wx, 0, 2, 0, Math.PI * 2); menuCtx.fillStyle = '#444'; menuCtx.fill();
         }
-
-        drawOneWheel(-wheelBase);
-        drawOneWheel(wheelBase);
-        
+        drawOneWheel(-wheelBase); drawOneWheel(wheelBase);
         menuCtx.restore();
     }
     bikeImage.onload = () => { drawMenuBike(); };
@@ -511,7 +484,7 @@
     function cleanupTerrain() { for (let i = terrainBodies.length - 1; i >= 0; i--) { if (terrainBodies[i].endX < cameraX - 1500) { world.destroyBody(terrainBodies[i].body); terrainBodies.splice(i, 1); } } }
 
     const wheelRadius = 10 / SCALE; const wheelBase = 23 / SCALE; let chassis, wheelRear, wheelFront, jointRear, jointFront;
-    let currentSpeed = 0; // ПЕРЕМЕННАЯ ДЛЯ ПЛАВНОГО РАЗГОНА
+    let currentSpeed = 0;
 
     function createBike(x, y) {
         if (chassis) { world.destroyBody(chassis); world.destroyBody(wheelRear); world.destroyBody(wheelFront); }
@@ -551,7 +524,7 @@
 
     function triggerGameOver() {
         gameState = 'gameover'; window.isGas = false; 
-        let dist = Math.max(0, Math.floor(((chassis.getPosition().x * SCALE) - startX) / 14)); // ДЕЛИТЕЛЬ 14 (МЕТРЫ)
+        let dist = Math.max(0, Math.floor(((chassis.getPosition().x * SCALE) - startX) / 14)); 
         
         let coinsDist = Math.floor(dist / 100);
         let coinsWheelie = Math.floor(maxWheelieTime) * 2;
@@ -603,40 +576,33 @@
 
     function drawBirds() {
         ctx.strokeStyle = `rgba(42, 21, 51, ${ambientLight})`;
-        ctx.lineWidth = 2;
-        ctx.lineCap = 'round';
+        ctx.lineWidth = 2; ctx.lineCap = 'round';
         for (let b of birds) {
             let flap = Math.sin(b.wingPhase) * 6;
             ctx.beginPath(); ctx.moveTo(b.x - 10, b.y - flap); ctx.quadraticCurveTo(b.x - 5, b.y, b.x, b.y); ctx.quadraticCurveTo(b.x + 5, b.y, b.x + 10, b.y - flap); ctx.stroke();
         }
     }
 
-    function drawMountainLayer(yOff, h, colorBase, p, fogAlpha) { 
+    // ИСПРАВЛЕНА ФУНКЦИЯ ГОР (Привязка к мировым координатам)
+    function drawMountainLayer(yOff, h, color, p) { 
+        ctx.fillStyle = color; 
         ctx.beginPath(); 
         let sx = Math.floor(cameraX) - 100; 
         let ex = Math.floor(cameraX) + (canvas.width / zoom) + 100; 
-        ctx.moveTo(sx, groundY + 2000); 
+        
+        ctx.moveTo(sx, groundY + 1000); 
         for (let x = sx; x <= ex; x += 5) { 
             let wx = x + p; 
-            let noiseVal = fbm(wx * 0.002); 
-            let mountainHeight = (noiseVal + 1) * 0.5 * h; 
-            mountainHeight = Math.pow(mountainHeight, 1.5); 
-            ctx.lineTo(x, groundY - yOff - mountainHeight); 
+            let j = Math.sin(wx * 0.002) * h + Math.cos(wx * 0.005) * h * 0.5;
+            ctx.lineTo(x, groundY - yOff - Math.abs(j)); 
         } 
-        ctx.lineTo(ex, groundY + 2000); 
+        ctx.lineTo(ex, groundY + 1000); 
         ctx.closePath(); 
-        
-        let grad = ctx.createLinearGradient(0, groundY - yOff - h, 0, groundY - yOff + 50);
-        grad.addColorStop(0, `rgba(255, 255, 255, 0)`); 
-        grad.addColorStop(1, colorBase); 
-        
-        ctx.fillStyle = grad; 
         ctx.fill(); 
     }
     
     function drawTerrain() { 
-        ctx.fillStyle = lerpColor('#000000', currentSky.m3, ambientLight * 0.5); 
-        ctx.strokeStyle = ctx.fillStyle; 
+        ctx.fillStyle = '#000'; ctx.strokeStyle = '#000'; 
         ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(cameraX - 100, groundY + 2000); 
         let sx = Math.floor(cameraX) - 100; let ex = Math.floor(cameraX) + (canvas.width / zoom) + 100; 
         for (let x = sx; x <= ex; x += 2) ctx.lineTo(x, getTerrainY(x)); 
@@ -658,16 +624,13 @@
             let dt = (performance.now() - lastTime) / 1000; lastTime = performance.now(); if (dt > 0.1) dt = 0.1; 
 
             if (gameState === 'playing' && chassis) {
-                // --- ВРЕМЯ СУТОК ---
                 gameTime += dt;
                 let timePhase = (gameTime % cycleDuration) / cycleDuration;
                 
-                // Определяем текущую и следующую фазу для интерполяции
                 let phaseIndex = Math.floor(timePhase * 4);
                 let nextPhaseIndex = (phaseIndex + 1) % 4;
-                let t = (timePhase * 4) - phaseIndex; // Коэффициент перехода от 0 до 1
+                let t = (timePhase * 4) - phaseIndex; 
 
-                // Плавная интерполяция цветов
                 let p1 = skyPalettes[phaseIndex];
                 let p2 = skyPalettes[nextPhaseIndex];
                 currentSky.top = lerpColor(p1.top, p2.top, t);
@@ -678,42 +641,31 @@
                 currentSky.m2 = lerpColor(p1.m2, p2.m2, t);
                 currentSky.m3 = lerpColor(p1.m3, p2.m3, t);
 
-                // Определяем уровень освещенности (1.0 - день, 0.1 - ночь)
-                // Ночь это 3-я фаза (индекс 3)
                 if (phaseIndex === 3) {
-                    ambientLight = 1.0 - (t * 0.9); // 1.0 -> 0.1
+                    ambientLight = 1.0 - (t * 0.9); 
                 } else if (phaseIndex === 0) {
-                    ambientLight = 0.1 + (t * 0.9); // 0.1 -> 1.0
+                    ambientLight = 0.1 + (t * 0.9); 
                 } else {
-                    ambientLight = 1.0; // День и Вечер - ярко
+                    ambientLight = 1.0; 
                 }
-                if (ambientLight < 0.3) ambientLight = 0.3; // Не делаем полностью черным
+                if (ambientLight < 0.3) ambientLight = 0.3; 
 
-                // --- ПАДАЮЩИЕ ЗВЕЗДЫ ---
                 if (ambientLight < 0.5) {
                     shootingStarTimer -= dt;
                     if (shootingStarTimer <= 0) {
-                        shootingStars.push({
-                            x: cameraX + canvas.width + Math.random() * 200,
-                            y: Math.random() * (canvas.height * 0.4),
-                            vx: -300 - Math.random() * 200,
-                            vy: 150 + Math.random() * 100,
-                            life: 1.0
-                        });
-                        shootingStarTimer = 10 + Math.random() * 15; // Раз в 10-25 секунд
+                        shootingStars.push({ x: cameraX + canvas.width + Math.random() * 200, y: Math.random() * (canvas.height * 0.4), vx: -300 - Math.random() * 200, vy: 150 + Math.random() * 100, life: 1.0 });
+                        shootingStarTimer = 10 + Math.random() * 15;
                     }
                 }
-
                 for (let i = shootingStars.length - 1; i >= 0; i--) {
                     let ss = shootingStars[i];
                     ss.x += ss.vx * dt; ss.y += ss.vy * dt; ss.life -= dt * 0.8;
                     if (ss.life <= 0) shootingStars.splice(i, 1);
                 }
 
-                // --- ПЛАВНЫЙ РАЗГОН ---
                 if (window.isGas) { currentSpeed += 40 * dt; } 
                 else if (window.isBrake) { currentSpeed -= 100 * dt; } 
-                else { currentSpeed -= 10 * dt; } // Естественное замедление
+                else { currentSpeed -= 10 * dt; } 
                 
                 if (currentSpeed > currentBike.motor.speed) currentSpeed = currentBike.motor.speed;
                 if (currentSpeed < 0) currentSpeed = 0;
@@ -738,7 +690,11 @@
                 zoom += (targetZoom - zoom) * 0.02; 
 
                 let tcx = (chassis.getPosition().x * SCALE) - ((canvas.width * 0.3) / zoom); cameraX += (tcx - cameraX) * 0.1; 
-                let tcy = (canvas.height * 0.55) - (chassis.getPosition().y * SCALE); cameraY += (tcy - cameraY) * 0.1;
+                
+                // Камера следует за байком, но не уходит ниже земли
+                let groundLevel = getTerrainY(cx) - 100; 
+                let tcy = (canvas.height * 0.55) - Math.max(chassis.getPosition().y * SCALE, groundLevel); 
+                cameraY += (tcy - cameraY) * 0.1;
                 
                 generateTerrain(); cleanupTerrain(); updateParticles(dt);
                 updateBirds(dt);
@@ -750,16 +706,14 @@
             if (gameState === 'playing' || gameState === 'gameover') {
                 ctx.clearRect(0, 0, canvas.width, canvas.height); 
                 
-                // Отрисовка неба
                 const g = ctx.createLinearGradient(0, 0, 0, canvas.height);
                 g.addColorStop(0, currentSky.top); 
-                g.addColorStop(0.3, currentSky.mid); 
+                g.addColorStop(0.25, currentSky.mid); 
                 g.addColorStop(0.6, currentSky.bot); 
                 g.addColorStop(1, currentSky.sun); 
                 ctx.fillStyle = g; 
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 
-                // Звезды
                 if (ambientLight < 0.6) {
                     ctx.fillStyle = '#fff';
                     for (let s of stars) {
@@ -769,26 +723,23 @@
                     ctx.globalAlpha = 1.0;
                 }
 
-                // Луна / Солнце
                 let sx = canvas.width * 0.75; 
-                let sy = canvas.height * (0.25 + (1 - ambientLight) * 0.1); 
-                let sg = ctx.createRadialGradient(sx, sy, 10, sx, sy, 150);
+                let sy = canvas.height * 0.25; 
+                let sg = ctx.createRadialGradient(sx, sy, 10, sx, sy, 100);
                 sg.addColorStop(0, currentSky.sun); 
                 sg.addColorStop(1, 'rgba(255, 255, 255, 0)'); 
                 ctx.fillStyle = sg; 
-                ctx.beginPath(); ctx.arc(sx, sy, 150, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(sx, sy, 100, 0, Math.PI * 2); ctx.fill();
                 
                 ctx.fillStyle = currentSky.sun; 
                 ctx.beginPath(); ctx.arc(sx, sy, ambientLight < 0.5 ? 20 : 28, 0, Math.PI * 2); ctx.fill();
                 
-                // Падающие звезды
                 for (let ss of shootingStars) {
                     ctx.strokeStyle = `rgba(255, 255, 255, ${ss.life})`;
                     ctx.lineWidth = 2;
                     ctx.beginPath(); ctx.moveTo(ss.x, ss.y); ctx.lineTo(ss.x - ss.vx * 0.05, ss.y - ss.vy * 0.05); ctx.stroke();
                 }
 
-                // Птицы (только днем)
                 if (ambientLight > 0.5) {
                     ctx.save();
                     ctx.translate(-cameraX * 0.1, 0); 
@@ -796,52 +747,63 @@
                     ctx.restore();
                 }
 
+                // Рисуем горы с Y-параллаксом
                 ctx.save(); 
                 ctx.scale(zoom, zoom); 
-                ctx.translate(-cameraX, cameraY); 
-                
-                // Горы (с учетом освещения)
-                drawMountainLayer(120, 100, lerpColor(currentSky.m1, '#000000', 1 - ambientLight * 0.8), cameraX * 0.05); 
-                drawMountainLayer(70, 140, lerpColor(currentSky.m2, '#000000', 1 - ambientLight * 0.6), cameraX * 0.15); 
-                drawMountainLayer(20, 180, lerpColor(currentSky.m3, '#000000', 1 - ambientLight * 0.4), cameraX * 0.3); 
-                
+                // По X двигаем с разной скоростью, по Y — только половину смещения камеры
+                ctx.translate(-cameraX * 0.1, cameraY * 0.5); 
+                drawMountainLayer(120, 80, currentSky.m1, cameraX * 0.05); 
                 ctx.restore();
 
                 ctx.save(); 
                 ctx.scale(zoom, zoom); 
+                ctx.translate(-cameraX * 0.2, cameraY * 0.3); 
+                drawMountainLayer(80, 120, currentSky.m2, cameraX * 0.15); 
+                ctx.restore();
+
+                ctx.save(); 
+                ctx.scale(zoom, zoom); 
+                ctx.translate(-cameraX * 0.3, cameraY * 0.1); 
+                drawMountainLayer(40, 160, currentSky.m3, cameraX * 0.3); 
+                ctx.restore();
+
+                // Земля и Байк
+                ctx.save(); 
+                ctx.scale(zoom, zoom); 
                 ctx.translate(0, cameraY); 
                 ctx.translate(-cameraX, 0);
+                
                 drawTerrain();
+                
                 if (gameState !== 'gameover' && chassis) {
-                    // Отрисовка фары
-                    if (ambientLight < 0.5) {
-                        let bx = chassis.getPosition().x * SCALE;
-                        let by = chassis.getPosition().y * SCALE;
-                        let ba = chassis.getAngle();
-                        let fx = bx + Math.cos(ba) * 40;
-                        let fy = by + Math.sin(ba) * 40;
-                        
-                        ctx.save();
-                        ctx.globalCompositeOperation = 'lighter';
-                        let grad = ctx.createLinearGradient(fx, fy, fx + 200, fy + 50);
-                        grad.addColorStop(0, `rgba(255, 240, 150, ${0.6 * (1 - ambientLight * 2)})`);
-                        grad.addColorStop(1, 'rgba(255, 240, 150, 0)');
-                        ctx.fillStyle = grad;
-                        ctx.beginPath();
-                        ctx.moveTo(fx, fy);
-                        ctx.lineTo(fx + 250, fy - 50);
-                        ctx.lineTo(fx + 250, fy + 150);
-                        ctx.closePath();
-                        ctx.fill();
-                        ctx.restore();
-                    }
-
                     drawParticles(); 
+                    
                     ctx.save(); 
                     ctx.translate(chassis.getPosition().x * SCALE, chassis.getPosition().y * SCALE); 
                     ctx.rotate(chassis.getAngle());
+                    
+                    if (ambientLight < 0.6) {
+                        ctx.save();
+                        ctx.globalCompositeOperation = 'lighter';
+                        let grad = ctx.createLinearGradient(40, 0, 250, 50);
+                        let alpha = (1 - ambientLight * 1.6); 
+                        if (alpha > 0) {
+                            grad.addColorStop(0, `rgba(255, 240, 180, ${alpha})`);
+                            grad.addColorStop(1, 'rgba(255, 240, 180, 0)');
+                            ctx.fillStyle = grad;
+                            ctx.beginPath();
+                            ctx.moveTo(40, -10);
+                            ctx.lineTo(250, -60);
+                            ctx.lineTo(250, 60);
+                            ctx.closePath();
+                            ctx.fill();
+                        }
+                        ctx.restore();
+                    }
+
                     if (bikeImage.complete) ctx.drawImage(bikeImage, -45, -45, 90, 54); 
                     ctx.restore(); 
+                    
                     drawWheel(wheelRear); 
                     drawWheel(wheelFront);
                 }
