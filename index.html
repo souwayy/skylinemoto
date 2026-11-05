@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v27.1 - Pause Fix & Original Physics)</title>
+    <title>Nyxride (v28.0 - Real Physics)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
@@ -185,7 +185,6 @@
     </div>
 </div>
 
-<!-- Убрал класс hidden, чтобы пауза работала -->
 <div id="pauseScreen" style="display: none;">
     <div class="pause-title">PAUSED</div>
     <button class="pause-btn" id="btnResume">CONTINUE</button>
@@ -236,17 +235,46 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v27.1 (ORIGINAL PHYSICS)</div>
+<div class="version-text">v28.0 (REAL PHYSICS)</div>
 
 <script>
     let gameState = 'splash'; 
     let splashStarted = false;
-    
+
+    // ============================================================
+    // КАТАЛОГ БАЙКОВ
+    // Все физические параметры живут здесь. Код физики читает
+    // их через currentBike.* — магических чисел нет.
+    // ============================================================
     const BIKE_CATALOG = [
-        { id: 'cayo', name: "CAYO 125 TRAIL", density: 2.2, suspension: { freq: 4.5, damp: 0.8 }, motor: { speed: 35, torque: 40, brake: 50 } },
-        { id: 'ctm', name: "CTM 300 EXC", density: 1.2, suspension: { freq: 5.5, damp: 0.7 }, motor: { speed: 50, torque: 60, brake: 100 } }
+        {
+            id: 'cayo',
+            name: "CAYO 125 TRAIL",
+            tier: 'starter',
+            density: 1.6,
+            wheelDensity: 0.45,
+            wheelRadius: 10,
+            wheelBase: 23,
+            suspension: { freq: 3.2, damp: 1.0 },
+            motor: { speed: 35, baseTorque: 28, brake: 50 },
+            lean: { torque: 12, maxAngVelLow: 3.0, maxAngVelHigh: 1.8 },
+            antiPop: { contactTolerance: 25, rampMs: 120 }
+        },
+        {
+            id: 'ctm',
+            name: "CTM 300 EXC",
+            tier: 'shop',
+            density: 1.2,
+            wheelDensity: 0.4,
+            wheelRadius: 10,
+            wheelBase: 23,
+            suspension: { freq: 4.0, damp: 0.95 },
+            motor: { speed: 50, baseTorque: 55, brake: 100 },
+            lean: { torque: 18, maxAngVelLow: 2.8, maxAngVelHigh: 2.2 },
+            antiPop: { contactTolerance: 22, rampMs: 100 }
+        }
     ];
-    let currentBikeIndex = 1; 
+    let currentBikeIndex = 1; // 0 = CAYO (слабый старт), 1 = CTM (магазин)
     let currentBike = BIKE_CATALOG[currentBikeIndex];
 
     let totalCoins = parseInt(localStorage.getItem('totalCoins')) || 0;
@@ -258,6 +286,7 @@
     let maxWheelieTime = 0, currentWheelieTime = 0;
     let maxStoppieTime = 0, currentStoppieTime = 0;
     let particles = [], dustTimer = 0;
+    let gasHoldTime = 0;
     
     let birds = [], birdSpawnTimer = 3;
 
@@ -384,7 +413,8 @@
         menuCtx.translate(menuCanvas.width / 2, menuCanvas.height - 200);
         menuCtx.scale(12.0, 12.0); 
         if (bikeImage.complete && bikeImage.naturalWidth !== 0) menuCtx.drawImage(bikeImage, -45, -45, 90, 54);
-        let r = 10; let wheelBase = 23;
+        let r = currentBike.wheelRadius; 
+        let wheelBase = currentBike.wheelBase;
         function drawOneWheel(wx) {
             menuCtx.beginPath(); menuCtx.arc(wx, 0, r, 0, Math.PI * 2); menuCtx.fillStyle = '#000'; menuCtx.fill();
             if (currentBike.name === "CTM 300 EXC") {
@@ -457,16 +487,54 @@
     function generateTerrain() { while (lastGeneratedX < cameraX + (canvas.width / zoom) + 1000) { let v = []; for (let i = 0; i <= 200; i += 5) v.push(pl.Vec2((lastGeneratedX + i) / SCALE, getTerrainY(lastGeneratedX + i) / SCALE)); const c = world.createBody(); let f = c.createFixture(pl.Chain(v, false), { friction: 1.0, restitution: 0.0 }); f.setUserData('terrain'); terrainBodies.push({ body: c, endX: lastGeneratedX + 200 }); lastGeneratedX += 200; } }
     function cleanupTerrain() { for (let i = terrainBodies.length - 1; i >= 0; i--) { if (terrainBodies[i].endX < cameraX - 1500) { world.destroyBody(terrainBodies[i].body); terrainBodies.splice(i, 1); } } }
 
-    const wheelRadius = 10 / SCALE; const wheelBase = 23 / SCALE; let chassis, wheelRear, wheelFront, jointRear, jointFront;
+    // ============================================================
+    // БАЙК: все параметры из currentBike
+    // ============================================================
+    let chassis, wheelRear, wheelFront, jointRear, jointFront;
 
     function createBike(x, y) {
-        if (chassis) { world.destroyBody(chassis); world.destroyBody(wheelRear); world.destroyBody(wheelFront); }
-        chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic', bullet: true }); chassis.createFixture(pl.Box(53 / SCALE / 2, 6 / SCALE / 2, pl.Vec2(0, -18 / SCALE)), { density: currentBike.density, friction: 0.3 });
-        let hs = pl.Circle(8 / SCALE); hs.m_p.set(0, -35 / SCALE); let hf = chassis.createFixture(hs, { isSensor: true }); hf.setUserData('head');
-        wheelRear = world.createBody({ position: pl.Vec2((x - wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic', bullet: true }); wheelRear.createFixture(pl.Circle(wheelRadius), { density: 1.0, friction: 1.0 });
-        wheelFront = world.createBody({ position: pl.Vec2((x + wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic', bullet: true }); wheelFront.createFixture(pl.Circle(wheelRadius), { density: 1.0, friction: 1.0 });
-        jointRear = world.createJoint(pl.WheelJoint({ motorSpeed: 0, maxMotorTorque: currentBike.motor.torque, enableMotor: true, frequencyHz: currentBike.suspension.freq, dampingRatio: currentBike.suspension.damp }, chassis, wheelRear, wheelRear.getPosition(), pl.Vec2(0, 1)));
-        jointFront = world.createJoint(pl.WheelJoint({ motorSpeed: 0, maxMotorTorque: currentBike.motor.torque, enableMotor: true, frequencyHz: currentBike.suspension.freq, dampingRatio: currentBike.suspension.damp }, chassis, wheelFront, wheelFront.getPosition(), pl.Vec2(0, 1)));
+        if (chassis) { 
+            world.destroyBody(chassis); 
+            world.destroyBody(wheelRear); 
+            world.destroyBody(wheelFront); 
+        }
+        const bike = currentBike;
+        const wr = bike.wheelRadius / SCALE;
+        const wb = bike.wheelBase / SCALE;
+
+        // Шасси
+        chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic', bullet: true }); 
+        chassis.createFixture(pl.Box(53 / SCALE / 2, 6 / SCALE / 2, pl.Vec2(0, -18 / SCALE)), { density: bike.density, friction: 0.3 });
+        let hs = pl.Circle(8 / SCALE); 
+        hs.m_p.set(0, -35 / SCALE); 
+        let hf = chassis.createFixture(hs, { isSensor: true }); 
+        hf.setUserData('head');
+
+        // Колёса (реалистичная плотность из каталога)
+        wheelRear = world.createBody({ position: pl.Vec2((x - wb * SCALE) / SCALE, y / SCALE), type: 'dynamic', bullet: true }); 
+        wheelRear.createFixture(pl.Circle(wr), { density: bike.wheelDensity, friction: 1.0 });
+        
+        wheelFront = world.createBody({ position: pl.Vec2((x + wb * SCALE) / SCALE, y / SCALE), type: 'dynamic', bullet: true }); 
+        wheelFront.createFixture(pl.Circle(wr), { density: bike.wheelDensity, friction: 1.0 });
+
+        // Заднее колесо: мотор включён (газ + задний тормоз)
+        jointRear = world.createJoint(pl.WheelJoint({ 
+            motorSpeed: 0, 
+            maxMotorTorque: 0, 
+            enableMotor: false, 
+            frequencyHz: bike.suspension.freq, 
+            dampingRatio: bike.suspension.damp 
+        }, chassis, wheelRear, wheelRear.getPosition(), pl.Vec2(0, 1)));
+
+        // Переднее колесо: мотор выключен по умолчанию (передний привод убран)
+        // Включается только для торможения
+        jointFront = world.createJoint(pl.WheelJoint({ 
+            motorSpeed: 0, 
+            maxMotorTorque: 0, 
+            enableMotor: false, 
+            frequencyHz: bike.suspension.freq, 
+            dampingRatio: bike.suspension.damp 
+        }, chassis, wheelFront, wheelFront.getPosition(), pl.Vec2(0, 1)));
     }
 
     window.isGas = false; window.isBrake = false; window.isLeanBack = false; window.isLeanForward = false;
@@ -484,11 +552,13 @@
     function resetGame() {
         sessionSeed = Math.floor(Math.random() * 0xFFFFFFFF); zoneCache.clear(); terrainOffset = Math.random() * 10000;
         for (let b of terrainBodies) world.destroyBody(b.body); terrainBodies = []; lastGeneratedX = startX - 1500; cameraX = startX - (canvas.width * 0.3);
+        currentBike = BIKE_CATALOG[currentBikeIndex];
         createBike(startX, getTerrainY(startX) - 60); generateTerrain();
         window.isGas = false; window.isBrake = false; window.isLeanBack = false; window.isLeanForward = false;
         maxAirTime = 0; currentAirTime = 0; frontflipCount = 0; backflipCount = 0; flipCounted = false;
         accumulatedRotation = 0; lastAngle = chassis.getAngle(); maxWheelieTime = 0; currentWheelieTime = 0;
         maxStoppieTime = 0; currentStoppieTime = 0; particles = []; dustTimer = 0; popTimer = 0;
+        gasHoldTime = 0;
         birds = []; birdSpawnTimer = 3;
         zoom = maxZoom;
         document.getElementById('coinBalanceText').innerText = totalCoins; document.getElementById('distanceText').innerText = "0";
@@ -580,7 +650,33 @@
         ctx.lineTo(ex, groundY + 2000); ctx.closePath(); ctx.fill(); ctx.stroke(); 
     }
     
-    function drawWheel(wheel) { ctx.save(); ctx.translate(wheel.getPosition().x * SCALE, wheel.getPosition().y * SCALE); ctx.rotate(wheel.getAngle()); let r = wheelRadius * SCALE; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fillStyle = '#000'; ctx.fill(); if (currentBike.name === "CTM 300 EXC") { ctx.strokeStyle = '#111'; ctx.lineWidth = 2; for (let i = 0; i < 16; i++) { let angle = (i / 16) * Math.PI * 2; ctx.beginPath(); ctx.moveTo(Math.cos(angle) * (r - 1.5), Math.sin(angle) * (r - 1.5)); ctx.lineTo(Math.cos(angle) * (r + 1), Math.sin(angle) * (r + 1)); ctx.stroke(); } } ctx.beginPath(); ctx.arc(0, 0, r - 3.5, 0, Math.PI * 2); ctx.strokeStyle = '#222'; ctx.lineWidth = 2; ctx.stroke(); ctx.strokeStyle = '#555'; ctx.lineWidth = 1; let spokes = currentBike.name === "CTM 300 EXC" ? 6 : 8; for (let i = 0; i < spokes; i++) { let angle = (i / spokes) * Math.PI * 2; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(angle) * (r - 3.5), Math.sin(angle) * (r - 3.5)); ctx.stroke(); } ctx.beginPath(); ctx.arc(0, 0, 2, 0, Math.PI * 2); ctx.fillStyle = '#444'; ctx.fill(); ctx.restore(); }
+    function drawWheel(wheel) { 
+        ctx.save(); 
+        ctx.translate(wheel.getPosition().x * SCALE, wheel.getPosition().y * SCALE); 
+        ctx.rotate(wheel.getAngle()); 
+        let r = currentBike.wheelRadius;
+        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fillStyle = '#000'; ctx.fill(); 
+        if (currentBike.name === "CTM 300 EXC") { 
+            ctx.strokeStyle = '#111'; ctx.lineWidth = 2; 
+            for (let i = 0; i < 16; i++) { 
+                let angle = (i / 16) * Math.PI * 2; 
+                ctx.beginPath(); 
+                ctx.moveTo(Math.cos(angle) * (r - 1.5), Math.sin(angle) * (r - 1.5)); 
+                ctx.lineTo(Math.cos(angle) * (r + 1), Math.sin(angle) * (r + 1)); 
+                ctx.stroke(); 
+            } 
+        } 
+        ctx.beginPath(); ctx.arc(0, 0, r - 3.5, 0, Math.PI * 2); ctx.strokeStyle = '#222'; ctx.lineWidth = 2; ctx.stroke(); 
+        ctx.strokeStyle = '#555'; ctx.lineWidth = 1; 
+        let spokes = currentBike.name === "CTM 300 EXC" ? 6 : 8; 
+        for (let i = 0; i < spokes; i++) { 
+            let angle = (i / spokes) * Math.PI * 2; 
+            ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(angle) * (r - 3.5), Math.sin(angle) * (r - 3.5)); ctx.stroke(); 
+        } 
+        ctx.beginPath(); ctx.arc(0, 0, 2, 0, Math.PI * 2); ctx.fillStyle = '#444'; ctx.fill(); 
+        ctx.restore(); 
+    }
+    
     function spawnDust(x, y, sx, t) { if (particles.length > 80) return; let c = t === 'brake' ? 2 : 1, bvy = t === 'brake' ? -5 : -2; for (let i = 0; i < c; i++) { particles.push({ x: x + (Math.random() - 0.5) * 8, y: y, baseVx: -Math.random() * 3, vy: bvy, radius: 3 + Math.random() * 4, growth: 1 + Math.random(), alphaMax: 0.4, alpha: 0.4, age: 0, maxAge: 1.0 + Math.random() }); } }
     function updateParticles(dt) { for (let i = particles.length - 1; i >= 0; i--) { let p = particles[i]; p.age += dt; let pr = p.age / p.maxAge; if (pr >= 1) { particles.splice(i, 1); continue; } p.x += p.baseVx * (1 + pr); p.vy += 0.15; p.y += p.vy; p.radius += p.growth; p.alpha = p.alphaMax * Math.pow(1 - pr, 1.5); if (p.alpha <= 0.01) particles.splice(i, 1); } }
     function drawParticles() { for (let p of particles) { let g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius); g.addColorStop(0, `rgba(140, 105, 75, ${p.alpha})`); g.addColorStop(1, 'rgba(200, 160, 120, 0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fill(); } }
@@ -595,20 +691,152 @@
             let dt = (performance.now() - lastTime) / 1000; lastTime = performance.now(); if (dt > 0.1) dt = 0.1; 
 
             if (gameState === 'playing' && chassis) {
-                world.step(1/60, dt, 3); let ws = Math.abs(wheelRear.getAngularVelocity()); let ls = Math.abs(chassis.getLinearVelocity().x) * SCALE; 
-                let cx = chassis.getPosition().x * SCALE; let cy = chassis.getPosition().y * SCALE; let gu = getTerrainY(cx); let ia = (cy < gu - 25); 
-                let a = chassis.getAngle(); let da = a - lastAngle; if (da > Math.PI) da -= 2 * Math.PI; if (da < -Math.PI) da += 2 * Math.PI;
-                if (ia) { accumulatedRotation += da; currentAirTime += dt; if (currentAirTime > maxAirTime) maxAirTime = currentAirTime; if (!flipCounted && Math.abs(accumulatedRotation) >= Math.PI * 1.7 && currentAirTime > 0.3) { if (accumulatedRotation > 0) frontflipCount++; else backflipCount++; flipCounted = true; } } 
-                else {
-                    currentAirTime = 0; accumulatedRotation = 0; flipCounted = false;
-                    if (a < -0.3 && ls > 5) { currentWheelieTime += dt; if (currentWheelieTime > maxWheelieTime) maxWheelieTime = currentWheelieTime; } else { currentWheelieTime = 0; }
-                    if (a > 0.3 && ls > 5) { currentStoppieTime += dt; if (currentStoppieTime > maxStoppieTime) maxStoppieTime = currentStoppieTime; } else { currentStoppieTime = 0; }
-                    if (ls > 5) { dustTimer += dt; if (dustTimer > 0.06) { let wp = wheelRear.getPosition(); let dx = wp.x * SCALE; let dy = wp.y * SCALE + (wheelRadius * SCALE); if (window.isBrake && ls > 10) spawnDust(dx, dy, chassis.getLinearVelocity().x * SCALE, 'brake'); else if (window.isGas) spawnDust(dx, dy, chassis.getLinearVelocity().x * SCALE, 'gas'); else if (ls > 15) spawnDust(dx, dy, chassis.getLinearVelocity().x * SCALE, 'roll'); dustTimer = 0; } } else { dustTimer = 0.05; }
+                world.step(1/60, dt, 3); 
+
+                const bike = currentBike;
+                let ws = Math.abs(wheelRear.getAngularVelocity()); 
+                let ls = Math.abs(chassis.getLinearVelocity().x) * SCALE; 
+                let cx = chassis.getPosition().x * SCALE; 
+                let cy = chassis.getPosition().y * SCALE; 
+
+                // --- Контакт колёс с землёй ---
+                const wrPx = bike.wheelRadius;
+                let wrPos = wheelRear.getPosition();
+                let wfPos = wheelFront.getPosition();
+                let rearBottomY = wrPos.y * SCALE + wrPx;
+                let frontBottomY = wfPos.y * SCALE + wrPx;
+                let rearGroundY = getTerrainY(wrPos.x * SCALE);
+                let frontGroundY = getTerrainY(wfPos.x * SCALE);
+                let rearOnGround = rearBottomY > rearGroundY - bike.antiPop.contactTolerance;
+                let frontOnGround = frontBottomY > frontGroundY - bike.antiPop.contactTolerance;
+                let inAir = !rearOnGround && !frontOnGround;
+
+                // --- Угол и дельта ---
+                let a = chassis.getAngle(); 
+                let da = a - lastAngle; 
+                if (da > Math.PI) da -= 2 * Math.PI; 
+                if (da < -Math.PI) da += 2 * Math.PI;
+
+                // --- Детект трюков (физичный) ---
+                let wheelieActive = rearOnGround && !frontOnGround && ls > 5 && a < -0.1;
+                let stoppieActive = frontOnGround && !rearOnGround && ls > 5 && a > 0.1;
+
+                if (inAir) { 
+                    accumulatedRotation += da; 
+                    currentAirTime += dt; 
+                    if (currentAirTime > maxAirTime) maxAirTime = currentAirTime; 
+                    if (!flipCounted && Math.abs(accumulatedRotation) >= Math.PI * 1.7 && currentAirTime > 0.3) { 
+                        if (accumulatedRotation > 0) frontflipCount++; 
+                        else backflipCount++; 
+                        flipCounted = true; 
+                    } 
+                } else {
+                    currentAirTime = 0; 
+                    accumulatedRotation = 0; 
+                    flipCounted = false;
+                    if (wheelieActive) { 
+                        currentWheelieTime += dt; 
+                        if (currentWheelieTime > maxWheelieTime) maxWheelieTime = currentWheelieTime; 
+                    } else { 
+                        currentWheelieTime = 0; 
+                    }
+                    if (stoppieActive) { 
+                        currentStoppieTime += dt; 
+                        if (currentStoppieTime > maxStoppieTime) maxStoppieTime = currentStoppieTime; 
+                    } else { 
+                        currentStoppieTime = 0; 
+                    }
+                    if (ls > 5) { 
+                        dustTimer += dt; 
+                        if (dustTimer > 0.06) { 
+                            let dx = wrPos.x * SCALE; 
+                            let dy = wrPos.y * SCALE + (wrPx); 
+                            if (window.isBrake && ls > 10) spawnDust(dx, dy, chassis.getLinearVelocity().x * SCALE, 'brake'); 
+                            else if (window.isGas) spawnDust(dx, dy, chassis.getLinearVelocity().x * SCALE, 'gas'); 
+                            else if (ls > 15) spawnDust(dx, dy, chassis.getLinearVelocity().x * SCALE, 'roll'); 
+                            dustTimer = 0; 
+                        } 
+                    } else { 
+                        dustTimer = 0.05; 
+                    }
                 }
                 lastAngle = a; 
-                if (window.isGas) { jointRear.setMotorSpeed(currentBike.motor.speed); jointFront.setMotorSpeed(currentBike.motor.speed); jointRear.setMaxMotorTorque(currentBike.motor.torque); jointFront.setMaxMotorTorque(currentBike.motor.torque); } else if (window.isBrake) { jointRear.setMotorSpeed(0); jointFront.setMotorSpeed(0); jointRear.setMaxMotorTorque(currentBike.motor.brake); jointFront.setMaxMotorTorque(currentBike.motor.brake); } else { jointRear.setMaxMotorTorque(0); jointFront.setMaxMotorTorque(0); }
-                let tp = 20; let mts = 2.5; if (window.isLeanBack) { if (chassis.getAngularVelocity() > -mts) chassis.applyTorque(-tp, true); } else if (window.isLeanForward) { if (chassis.getAngularVelocity() < mts) chassis.applyTorque(tp, true); }
-                if (isAudioInitialized) { if (window.isGas) { idleGain.gain.cancelScheduledValues(audioCtx.currentTime); idleGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.05); } else { idleGain.gain.cancelScheduledValues(audioCtx.currentTime); idleGain.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + 0.1); } let tr = window.isGas ? 0.8 : 0; let tw = Math.min(0.3, 0.05 + ws * 0.15); revGain.gain.setTargetAtTime(tr, audioCtx.currentTime, 0.1); windGain.gain.setTargetAtTime(tw, audioCtx.currentTime, 0.1); if (window.isGas && revSource) { let trate = 1.0 + (ws * 0.3); let frate = Math.min(1.3, trate); revSource.playbackRate.setTargetAtTime(frate, audioCtx.currentTime, 0.1); let tf = Math.max(1000, 2500 - (ws * 1000)); revFilter.frequency.setTargetAtTime(tf, audioCtx.currentTime, 0.1); previousGasState = true; } else { previousGasState = false; } if (!window.isGas && ws > 2) { popTimer += dt; if (popTimer > 1.0 && Math.random() < 0.02) { playPop(); popTimer = 0; } } else { popTimer = 0; } }
+
+                // --- Soft start: rampFactor растёт от 0 до 1 за rampMs ---
+                if (window.isGas) {
+                    gasHoldTime += dt * 1000;
+                } else {
+                    gasHoldTime = 0;
+                }
+                let rampFactor = Math.min(1, gasHoldTime / bike.antiPop.rampMs);
+
+                // --- Привод: газ = заднее колесо, тормоз = оба (перед 70%, зад 40%) ---
+                if (window.isGas) {
+                    let omega = Math.abs(wheelRear.getAngularVelocity());
+                    let maxOmega = bike.motor.speed;
+                    let torqueFactor = Math.max(0, 1 - omega / maxOmega);
+                    let targetTorque = bike.motor.baseTorque * torqueFactor * rampFactor;
+                    if (!rearOnGround) targetTorque = 0; // анти-подлёт: газа в воздухе нет
+
+                    jointRear.enableMotor(true);
+                    jointRear.setMotorSpeed(maxOmega);
+                    jointRear.setMaxMotorTorque(targetTorque);
+
+                    jointFront.enableMotor(false);
+                } else if (window.isBrake) {
+                    jointRear.enableMotor(true);
+                    jointRear.setMotorSpeed(0);
+                    jointRear.setMaxMotorTorque(bike.motor.brake * 0.4);
+
+                    jointFront.enableMotor(true);
+                    jointFront.setMotorSpeed(0);
+                    jointFront.setMaxMotorTorque(bike.motor.brake * 0.7);
+                } else {
+                    jointRear.enableMotor(false);
+                    jointFront.enableMotor(false);
+                }
+
+                // --- Лин: потолок угловой скорости зависит от скорости байка ---
+                let speedRatio = Math.min(1, ls / 40);
+                let maxAngVel = bike.lean.maxAngVelLow * (1 - speedRatio) + bike.lean.maxAngVelHigh * speedRatio;
+
+                if (window.isLeanBack) { 
+                    if (chassis.getAngularVelocity() > -maxAngVel) chassis.applyTorque(-bike.lean.torque, true); 
+                } else if (window.isLeanForward) { 
+                    if (chassis.getAngularVelocity() < maxAngVel) chassis.applyTorque(bike.lean.torque, true); 
+                }
+
+                // --- Аудио ---
+                if (isAudioInitialized) { 
+                    if (window.isGas) { 
+                        idleGain.gain.cancelScheduledValues(audioCtx.currentTime); 
+                        idleGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.05); 
+                    } else { 
+                        idleGain.gain.cancelScheduledValues(audioCtx.currentTime); 
+                        idleGain.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + 0.1); 
+                    } 
+                    let tr = window.isGas ? 0.8 : 0; 
+                    let tw = Math.min(0.3, 0.05 + ws * 0.15); 
+                    revGain.gain.setTargetAtTime(tr, audioCtx.currentTime, 0.1); 
+                    windGain.gain.setTargetAtTime(tw, audioCtx.currentTime, 0.1); 
+                    if (window.isGas && revSource) { 
+                        let trate = 1.0 + (ws * 0.3); 
+                        let frate = Math.min(1.3, trate); 
+                        revSource.playbackRate.setTargetAtTime(frate, audioCtx.currentTime, 0.1); 
+                        let tf = Math.max(1000, 2500 - (ws * 1000)); 
+                        revFilter.frequency.setTargetAtTime(tf, audioCtx.currentTime, 0.1); 
+                        previousGasState = true; 
+                    } else { 
+                        previousGasState = false; 
+                    } 
+                    if (!window.isGas && ws > 2) { 
+                        popTimer += dt; 
+                        if (popTimer > 1.0 && Math.random() < 0.02) { playPop(); popTimer = 0; } 
+                    } else { 
+                        popTimer = 0; 
+                    } 
+                }
+
                 if (chassis.getPosition().y > groundY + 1000) triggerGameOver();
                 
                 let targetZoom = maxZoom - Math.min(0.4, ls * 0.008); 
