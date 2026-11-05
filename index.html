@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v27.0 - Clean Sunset)</title>
+    <title>Nyxride (v27.1 - Pause Fix & Original Physics)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
         .hidden { display: none !important; }
 
         #rotateDevice { position: fixed; inset: 0; background: #000; z-index: 100000; display: none; flex-direction: column; align-items: center; justify-content: center; color: white; text-align: center; }
+        #rotateDevice svg { width: 100px; height: 100px; fill: none; stroke: white; stroke-width: 4; margin-bottom: 30px; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 15px rgba(255,255,255,0.3)); }
         #rotateDevice h2 { font-size: 24px; font-weight: 600; margin: 0; padding: 0 20px; }
 
         #splashScreen {
@@ -117,6 +118,19 @@
 <body>
 
 <div id="rotateDevice">
+    <svg viewBox="0 0 100 100">
+        <g fill="none" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="35" y="20" width="30" height="60" rx="4" ry="4">
+                <animateTransform attributeName="transform" type="rotate" values="0 50 50; 90 50 50; 90 50 50; 0 50 50" keyTimes="0; 0.4; 0.6; 1" dur="3s" repeatCount="indefinite" />
+            </rect>
+            <circle cx="50" cy="72" r="2">
+                <animateTransform attributeName="transform" type="rotate" values="0 50 50; 90 50 50; 90 50 50; 0 50 50" keyTimes="0; 0.4; 0.6; 1" dur="3s" repeatCount="indefinite" />
+            </circle>
+            <line x1="45" y1="26" x2="55" y2="26">
+                <animateTransform attributeName="transform" type="rotate" values="0 50 50; 90 50 50; 90 50 50; 0 50 50" keyTimes="0; 0.4; 0.6; 1" dur="3s" repeatCount="indefinite" />
+            </line>
+        </g>
+    </svg>
     <h2>Пожалуйста, поверните устройство</h2>
 </div>
 
@@ -171,7 +185,8 @@
     </div>
 </div>
 
-<div class="hidden" id="pauseScreen">
+<!-- Убрал класс hidden, чтобы пауза работала -->
+<div id="pauseScreen" style="display: none;">
     <div class="pause-title">PAUSED</div>
     <button class="pause-btn" id="btnResume">CONTINUE</button>
     <button class="pause-btn" id="btnRestartPause">RESTART</button>
@@ -221,7 +236,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v27.0 (CLEAN)</div>
+<div class="version-text">v27.1 (ORIGINAL PHYSICS)</div>
 
 <script>
     let gameState = 'splash'; 
@@ -443,14 +458,13 @@
     function cleanupTerrain() { for (let i = terrainBodies.length - 1; i >= 0; i--) { if (terrainBodies[i].endX < cameraX - 1500) { world.destroyBody(terrainBodies[i].body); terrainBodies.splice(i, 1); } } }
 
     const wheelRadius = 10 / SCALE; const wheelBase = 23 / SCALE; let chassis, wheelRear, wheelFront, jointRear, jointFront;
-    let currentSpeed = 0;
 
     function createBike(x, y) {
         if (chassis) { world.destroyBody(chassis); world.destroyBody(wheelRear); world.destroyBody(wheelFront); }
         chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic', bullet: true }); chassis.createFixture(pl.Box(53 / SCALE / 2, 6 / SCALE / 2, pl.Vec2(0, -18 / SCALE)), { density: currentBike.density, friction: 0.3 });
         let hs = pl.Circle(8 / SCALE); hs.m_p.set(0, -35 / SCALE); let hf = chassis.createFixture(hs, { isSensor: true }); hf.setUserData('head');
-        wheelRear = world.createBody({ position: pl.Vec2((x - wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic', bullet: true }); wheelRear.createFixture(pl.Circle(wheelRadius), { density: 1.0, friction: 0.8 });
-        wheelFront = world.createBody({ position: pl.Vec2((x + wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic', bullet: true }); wheelFront.createFixture(pl.Circle(wheelRadius), { density: 1.0, friction: 0.8 });
+        wheelRear = world.createBody({ position: pl.Vec2((x - wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic', bullet: true }); wheelRear.createFixture(pl.Circle(wheelRadius), { density: 1.0, friction: 1.0 });
+        wheelFront = world.createBody({ position: pl.Vec2((x + wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic', bullet: true }); wheelFront.createFixture(pl.Circle(wheelRadius), { density: 1.0, friction: 1.0 });
         jointRear = world.createJoint(pl.WheelJoint({ motorSpeed: 0, maxMotorTorque: currentBike.motor.torque, enableMotor: true, frequencyHz: currentBike.suspension.freq, dampingRatio: currentBike.suspension.damp }, chassis, wheelRear, wheelRear.getPosition(), pl.Vec2(0, 1)));
         jointFront = world.createJoint(pl.WheelJoint({ motorSpeed: 0, maxMotorTorque: currentBike.motor.torque, enableMotor: true, frequencyHz: currentBike.suspension.freq, dampingRatio: currentBike.suspension.damp }, chassis, wheelFront, wheelFront.getPosition(), pl.Vec2(0, 1)));
     }
@@ -475,7 +489,7 @@
         maxAirTime = 0; currentAirTime = 0; frontflipCount = 0; backflipCount = 0; flipCounted = false;
         accumulatedRotation = 0; lastAngle = chassis.getAngle(); maxWheelieTime = 0; currentWheelieTime = 0;
         maxStoppieTime = 0; currentStoppieTime = 0; particles = []; dustTimer = 0; popTimer = 0;
-        birds = []; birdSpawnTimer = 3; currentSpeed = 0;
+        birds = []; birdSpawnTimer = 3;
         zoom = maxZoom;
         document.getElementById('coinBalanceText').innerText = totalCoins; document.getElementById('distanceText').innerText = "0";
         if (isAudioInitialized) { idleGain.gain.setValueAtTime(0.4, audioCtx.currentTime); revGain.gain.setValueAtTime(0, audioCtx.currentTime); windGain.gain.setValueAtTime(0, audioCtx.currentTime); if (revFilter) revFilter.frequency.value = 2500; startRevSound(); }
@@ -581,13 +595,6 @@
             let dt = (performance.now() - lastTime) / 1000; lastTime = performance.now(); if (dt > 0.1) dt = 0.1; 
 
             if (gameState === 'playing' && chassis) {
-                if (window.isGas) { currentSpeed += 40 * dt; } 
-                else if (window.isBrake) { currentSpeed -= 100 * dt; } 
-                else { currentSpeed -= 10 * dt; } 
-                
-                if (currentSpeed > currentBike.motor.speed) currentSpeed = currentBike.motor.speed;
-                if (currentSpeed < 0) currentSpeed = 0;
-
                 world.step(1/60, dt, 3); let ws = Math.abs(wheelRear.getAngularVelocity()); let ls = Math.abs(chassis.getLinearVelocity().x) * SCALE; 
                 let cx = chassis.getPosition().x * SCALE; let cy = chassis.getPosition().y * SCALE; let gu = getTerrainY(cx); let ia = (cy < gu - 25); 
                 let a = chassis.getAngle(); let da = a - lastAngle; if (da > Math.PI) da -= 2 * Math.PI; if (da < -Math.PI) da += 2 * Math.PI;
@@ -599,7 +606,7 @@
                     if (ls > 5) { dustTimer += dt; if (dustTimer > 0.06) { let wp = wheelRear.getPosition(); let dx = wp.x * SCALE; let dy = wp.y * SCALE + (wheelRadius * SCALE); if (window.isBrake && ls > 10) spawnDust(dx, dy, chassis.getLinearVelocity().x * SCALE, 'brake'); else if (window.isGas) spawnDust(dx, dy, chassis.getLinearVelocity().x * SCALE, 'gas'); else if (ls > 15) spawnDust(dx, dy, chassis.getLinearVelocity().x * SCALE, 'roll'); dustTimer = 0; } } else { dustTimer = 0.05; }
                 }
                 lastAngle = a; 
-                if (window.isGas) { jointRear.setMotorSpeed(currentSpeed); jointFront.setMotorSpeed(currentSpeed); jointRear.setMaxMotorTorque(currentBike.motor.torque); jointFront.setMaxMotorTorque(currentBike.motor.torque); } else if (window.isBrake) { jointRear.setMotorSpeed(0); jointFront.setMotorSpeed(0); jointRear.setMaxMotorTorque(currentBike.motor.brake); jointFront.setMaxMotorTorque(currentBike.motor.brake); } else { jointRear.setMaxMotorTorque(0); jointFront.setMaxMotorTorque(0); }
+                if (window.isGas) { jointRear.setMotorSpeed(currentBike.motor.speed); jointFront.setMotorSpeed(currentBike.motor.speed); jointRear.setMaxMotorTorque(currentBike.motor.torque); jointFront.setMaxMotorTorque(currentBike.motor.torque); } else if (window.isBrake) { jointRear.setMotorSpeed(0); jointFront.setMotorSpeed(0); jointRear.setMaxMotorTorque(currentBike.motor.brake); jointFront.setMaxMotorTorque(currentBike.motor.brake); } else { jointRear.setMaxMotorTorque(0); jointFront.setMaxMotorTorque(0); }
                 let tp = 20; let mts = 2.5; if (window.isLeanBack) { if (chassis.getAngularVelocity() > -mts) chassis.applyTorque(-tp, true); } else if (window.isLeanForward) { if (chassis.getAngularVelocity() < mts) chassis.applyTorque(tp, true); }
                 if (isAudioInitialized) { if (window.isGas) { idleGain.gain.cancelScheduledValues(audioCtx.currentTime); idleGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.05); } else { idleGain.gain.cancelScheduledValues(audioCtx.currentTime); idleGain.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + 0.1); } let tr = window.isGas ? 0.8 : 0; let tw = Math.min(0.3, 0.05 + ws * 0.15); revGain.gain.setTargetAtTime(tr, audioCtx.currentTime, 0.1); windGain.gain.setTargetAtTime(tw, audioCtx.currentTime, 0.1); if (window.isGas && revSource) { let trate = 1.0 + (ws * 0.3); let frate = Math.min(1.3, trate); revSource.playbackRate.setTargetAtTime(frate, audioCtx.currentTime, 0.1); let tf = Math.max(1000, 2500 - (ws * 1000)); revFilter.frequency.setTargetAtTime(tf, audioCtx.currentTime, 0.1); previousGasState = true; } else { previousGasState = false; } if (!window.isGas && ws > 2) { popTimer += dt; if (popTimer > 1.0 && Math.random() < 0.02) { playPop(); popTimer = 0; } } else { popTimer = 0; } }
                 if (chassis.getPosition().y > groundY + 1000) triggerGameOver();
@@ -632,12 +639,12 @@
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 
                 let sx = canvas.width * 0.75; 
-                let sy = canvas.height * 0.35; 
-                let sg = ctx.createRadialGradient(sx, sy, 10, sx, sy, 150);
+                let sy = canvas.height * 0.25; 
+                let sg = ctx.createRadialGradient(sx, sy, 10, sx, sy, 100);
                 sg.addColorStop(0, 'rgba(255, 230, 150, 0.6)'); 
                 sg.addColorStop(1, 'rgba(255, 230, 150, 0)'); 
                 ctx.fillStyle = sg; 
-                ctx.beginPath(); ctx.arc(sx, sy, 150, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(sx, sy, 100, 0, Math.PI * 2); ctx.fill();
                 
                 ctx.fillStyle = '#ffe680'; 
                 ctx.beginPath(); ctx.arc(sx, sy, 28, 0, Math.PI * 2); ctx.fill();
@@ -683,4 +690,4 @@
     checkOrientation(); resizeCanvas(); update();
 </script>
 </body>
-</html>
+    </html>
