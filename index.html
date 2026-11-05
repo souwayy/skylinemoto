@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v28.0 - Real Physics)</title>
+    <title>Nyxride (v28.1 - Real Physics + Flip Fix)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
@@ -235,7 +235,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v28.0 (REAL PHYSICS)</div>
+<div class="version-text">v28.1 (REAL PHYSICS + FLIP FIX)</div>
 
 <script>
     let gameState = 'splash'; 
@@ -243,8 +243,6 @@
 
     // ============================================================
     // КАТАЛОГ БАЙКОВ
-    // Все физические параметры живут здесь. Код физики читает
-    // их через currentBike.* — магических чисел нет.
     // ============================================================
     const BIKE_CATALOG = [
         {
@@ -258,7 +256,7 @@
             suspension: { freq: 3.2, damp: 1.0 },
             motor: { speed: 35, baseTorque: 28, brake: 50 },
             lean: { torque: 12, maxAngVelLow: 3.0, maxAngVelHigh: 1.8 },
-            antiPop: { contactTolerance: 25, rampMs: 120 }
+            antiPop: { contactTolerance: 22, trickTolerance: 8, rampMs: 120 }
         },
         {
             id: 'ctm',
@@ -271,10 +269,10 @@
             suspension: { freq: 4.0, damp: 0.95 },
             motor: { speed: 50, baseTorque: 55, brake: 100 },
             lean: { torque: 18, maxAngVelLow: 2.8, maxAngVelHigh: 2.2 },
-            antiPop: { contactTolerance: 22, rampMs: 100 }
+            antiPop: { contactTolerance: 22, trickTolerance: 8, rampMs: 100 }
         }
     ];
-    let currentBikeIndex = 1; // 0 = CAYO (слабый старт), 1 = CTM (магазин)
+    let currentBikeIndex = 1;
     let currentBike = BIKE_CATALOG[currentBikeIndex];
 
     let totalCoins = parseInt(localStorage.getItem('totalCoins')) || 0;
@@ -487,9 +485,6 @@
     function generateTerrain() { while (lastGeneratedX < cameraX + (canvas.width / zoom) + 1000) { let v = []; for (let i = 0; i <= 200; i += 5) v.push(pl.Vec2((lastGeneratedX + i) / SCALE, getTerrainY(lastGeneratedX + i) / SCALE)); const c = world.createBody(); let f = c.createFixture(pl.Chain(v, false), { friction: 1.0, restitution: 0.0 }); f.setUserData('terrain'); terrainBodies.push({ body: c, endX: lastGeneratedX + 200 }); lastGeneratedX += 200; } }
     function cleanupTerrain() { for (let i = terrainBodies.length - 1; i >= 0; i--) { if (terrainBodies[i].endX < cameraX - 1500) { world.destroyBody(terrainBodies[i].body); terrainBodies.splice(i, 1); } } }
 
-    // ============================================================
-    // БАЙК: все параметры из currentBike
-    // ============================================================
     let chassis, wheelRear, wheelFront, jointRear, jointFront;
 
     function createBike(x, y) {
@@ -502,7 +497,6 @@
         const wr = bike.wheelRadius / SCALE;
         const wb = bike.wheelBase / SCALE;
 
-        // Шасси
         chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic', bullet: true }); 
         chassis.createFixture(pl.Box(53 / SCALE / 2, 6 / SCALE / 2, pl.Vec2(0, -18 / SCALE)), { density: bike.density, friction: 0.3 });
         let hs = pl.Circle(8 / SCALE); 
@@ -510,14 +504,12 @@
         let hf = chassis.createFixture(hs, { isSensor: true }); 
         hf.setUserData('head');
 
-        // Колёса (реалистичная плотность из каталога)
         wheelRear = world.createBody({ position: pl.Vec2((x - wb * SCALE) / SCALE, y / SCALE), type: 'dynamic', bullet: true }); 
         wheelRear.createFixture(pl.Circle(wr), { density: bike.wheelDensity, friction: 1.0 });
         
         wheelFront = world.createBody({ position: pl.Vec2((x + wb * SCALE) / SCALE, y / SCALE), type: 'dynamic', bullet: true }); 
         wheelFront.createFixture(pl.Circle(wr), { density: bike.wheelDensity, friction: 1.0 });
 
-        // Заднее колесо: мотор включён (газ + задний тормоз)
         jointRear = world.createJoint(pl.WheelJoint({ 
             motorSpeed: 0, 
             maxMotorTorque: 0, 
@@ -526,8 +518,6 @@
             dampingRatio: bike.suspension.damp 
         }, chassis, wheelRear, wheelRear.getPosition(), pl.Vec2(0, 1)));
 
-        // Переднее колесо: мотор выключен по умолчанию (передний привод убран)
-        // Включается только для торможения
         jointFront = world.createJoint(pl.WheelJoint({ 
             motorSpeed: 0, 
             maxMotorTorque: 0, 
@@ -626,6 +616,7 @@
         }
     }
 
+    // Оставляем для будущего, не используется сейчас
     function drawMountainLayer(yOff, h, color, p) { 
         ctx.fillStyle = color; 
         ctx.beginPath(); 
@@ -700,6 +691,8 @@
                 let cy = chassis.getPosition().y * SCALE; 
 
                 // --- Контакт колёс с землёй ---
+                // contactTolerance (22px) — для анти-подлёта газа (чтобы газ не дёргался на микро-кочках)
+                // trickTolerance (8px)   — для детекта трюков (чтобы не срезать начало/конец вращения)
                 const wrPx = bike.wheelRadius;
                 let wrPos = wheelRear.getPosition();
                 let wfPos = wheelFront.getPosition();
@@ -707,9 +700,12 @@
                 let frontBottomY = wfPos.y * SCALE + wrPx;
                 let rearGroundY = getTerrainY(wrPos.x * SCALE);
                 let frontGroundY = getTerrainY(wfPos.x * SCALE);
-                let rearOnGround = rearBottomY > rearGroundY - bike.antiPop.contactTolerance;
-                let frontOnGround = frontBottomY > frontGroundY - bike.antiPop.contactTolerance;
-                let inAir = !rearOnGround && !frontOnGround;
+
+                let rearOnGroundGas = rearBottomY > rearGroundY - bike.antiPop.contactTolerance;
+                let frontOnGroundGas = frontBottomY > frontGroundY - bike.antiPop.contactTolerance;
+                let rearOnGroundTrick = rearBottomY > rearGroundY - bike.antiPop.trickTolerance;
+                let frontOnGroundTrick = frontBottomY > frontGroundY - bike.antiPop.trickTolerance;
+                let inAir = !rearOnGroundTrick && !frontOnGroundTrick;
 
                 // --- Угол и дельта ---
                 let a = chassis.getAngle(); 
@@ -717,15 +713,15 @@
                 if (da > Math.PI) da -= 2 * Math.PI; 
                 if (da < -Math.PI) da += 2 * Math.PI;
 
-                // --- Детект трюков (физичный) ---
-                let wheelieActive = rearOnGround && !frontOnGround && ls > 5 && a < -0.1;
-                let stoppieActive = frontOnGround && !rearOnGround && ls > 5 && a > 0.1;
+                // --- Детект трюков ---
+                let wheelieActive = rearOnGroundTrick && !frontOnGroundTrick && ls > 5 && a < -0.1;
+                let stoppieActive = frontOnGroundTrick && !rearOnGroundTrick && ls > 5 && a > 0.1;
 
                 if (inAir) { 
                     accumulatedRotation += da; 
                     currentAirTime += dt; 
                     if (currentAirTime > maxAirTime) maxAirTime = currentAirTime; 
-                    if (!flipCounted && Math.abs(accumulatedRotation) >= Math.PI * 1.7 && currentAirTime > 0.3) { 
+                    if (!flipCounted && Math.abs(accumulatedRotation) >= Math.PI * 1.7) { 
                         if (accumulatedRotation > 0) frontflipCount++; 
                         else backflipCount++; 
                         flipCounted = true; 
@@ -762,7 +758,7 @@
                 }
                 lastAngle = a; 
 
-                // --- Soft start: rampFactor растёт от 0 до 1 за rampMs ---
+                // --- Soft start ---
                 if (window.isGas) {
                     gasHoldTime += dt * 1000;
                 } else {
@@ -770,13 +766,13 @@
                 }
                 let rampFactor = Math.min(1, gasHoldTime / bike.antiPop.rampMs);
 
-                // --- Привод: газ = заднее колесо, тормоз = оба (перед 70%, зад 40%) ---
+                // --- Привод ---
                 if (window.isGas) {
                     let omega = Math.abs(wheelRear.getAngularVelocity());
                     let maxOmega = bike.motor.speed;
                     let torqueFactor = Math.max(0, 1 - omega / maxOmega);
                     let targetTorque = bike.motor.baseTorque * torqueFactor * rampFactor;
-                    if (!rearOnGround) targetTorque = 0; // анти-подлёт: газа в воздухе нет
+                    if (!rearOnGroundGas) targetTorque = 0;
 
                     jointRear.enableMotor(true);
                     jointRear.setMotorSpeed(maxOmega);
@@ -796,7 +792,7 @@
                     jointFront.enableMotor(false);
                 }
 
-                // --- Лин: потолок угловой скорости зависит от скорости байка ---
+                // --- Лин ---
                 let speedRatio = Math.min(1, ls / 40);
                 let maxAngVel = bike.lean.maxAngVelLow * (1 - speedRatio) + bike.lean.maxAngVelHigh * speedRatio;
 
@@ -882,15 +878,7 @@
                 drawBirds();
                 ctx.restore();
 
-                ctx.save(); 
-                ctx.scale(zoom, zoom); 
-                ctx.translate(-cameraX, cameraY); 
-                
-                drawMountainLayer(120, 80, '#5d2a5b', cameraX * 0.05); 
-                drawMountainLayer(80, 120, '#3b1f42', cameraX * 0.15); 
-                drawMountainLayer(40, 160, '#1a0b2e', cameraX * 0.3); 
-                
-                ctx.restore();
+                // Горы временно убраны (вернём позже)
 
                 ctx.save(); 
                 ctx.scale(zoom, zoom); 
