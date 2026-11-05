@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v28.1 - Real Physics + Flip Fix)</title>
+    <title>Nyxride (v28.3 - Flip Fix & UI Fix)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
@@ -107,8 +107,9 @@
         }
         .btn-neon:active { transform: scale(0.95); box-shadow: 0 0 20px rgba(255,85,0,0.8); }
 
-        .pause-title { color: #fff; font-size: 45px; font-weight: 900; margin-bottom: 30px; letter-spacing: 5px; font-style: italic; }
-        .pause-btn { background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3); color: #fff; padding: 12px 40px; margin: 8px; border-radius: 10px; font-size: 18px; font-weight: bold; cursor: pointer; width: 250px; text-align: center; text-transform: uppercase; }
+        /* УМЕНЬШЕННОЕ МЕНЮ ПАУЗЫ */
+        .pause-title { color: #fff; font-size: 32px; font-weight: 900; margin-bottom: 15px; letter-spacing: 3px; font-style: italic; }
+        .pause-btn { background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3); color: #fff; padding: 8px 20px; margin: 5px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; width: 220px; text-align: center; text-transform: uppercase; }
         .pause-btn:active { background: rgba(255,255,255,0.2); }
         
         .version-text { position: absolute; bottom: 5px; right: 5px; color: rgba(255,255,255,0.3); font-size: 12px; z-index: 100; }
@@ -235,7 +236,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v28.1 (REAL PHYSICS + FLIP FIX)</div>
+<div class="version-text">v28.3 (REAL PHYSICS + UI FIX)</div>
 
 <script>
     let gameState = 'splash'; 
@@ -511,19 +512,13 @@
         wheelFront.createFixture(pl.Circle(wr), { density: bike.wheelDensity, friction: 1.0 });
 
         jointRear = world.createJoint(pl.WheelJoint({ 
-            motorSpeed: 0, 
-            maxMotorTorque: 0, 
-            enableMotor: false, 
-            frequencyHz: bike.suspension.freq, 
-            dampingRatio: bike.suspension.damp 
+            motorSpeed: 0, maxMotorTorque: 0, enableMotor: false, 
+            frequencyHz: bike.suspension.freq, dampingRatio: bike.suspension.damp 
         }, chassis, wheelRear, wheelRear.getPosition(), pl.Vec2(0, 1)));
 
         jointFront = world.createJoint(pl.WheelJoint({ 
-            motorSpeed: 0, 
-            maxMotorTorque: 0, 
-            enableMotor: false, 
-            frequencyHz: bike.suspension.freq, 
-            dampingRatio: bike.suspension.damp 
+            motorSpeed: 0, maxMotorTorque: 0, enableMotor: false, 
+            frequencyHz: bike.suspension.freq, dampingRatio: bike.suspension.damp 
         }, chassis, wheelFront, wheelFront.getPosition(), pl.Vec2(0, 1)));
     }
 
@@ -616,23 +611,6 @@
         }
     }
 
-    // Оставляем для будущего, не используется сейчас
-    function drawMountainLayer(yOff, h, color, p) { 
-        ctx.fillStyle = color; 
-        ctx.beginPath(); 
-        let sx = Math.floor(cameraX) - 100; 
-        let ex = Math.floor(cameraX) + (canvas.width / zoom) + 100; 
-        ctx.moveTo(sx, groundY + 2000); 
-        for (let x = sx; x <= ex; x += 5) { 
-            let wx = x + p; 
-            let j = Math.sin(wx * 0.002) * h + Math.cos(wx * 0.005) * h * 0.5;
-            ctx.lineTo(x, groundY - yOff - Math.abs(j)); 
-        } 
-        ctx.lineTo(ex, groundY + 2000); 
-        ctx.closePath(); 
-        ctx.fill(); 
-    }
-    
     function drawTerrain() { 
         ctx.fillStyle = '#000'; ctx.strokeStyle = '#000'; 
         ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(cameraX - 100, groundY + 2000); 
@@ -691,8 +669,8 @@
                 let cy = chassis.getPosition().y * SCALE; 
 
                 // --- Контакт колёс с землёй ---
-                // contactTolerance (22px) — для анти-подлёта газа (чтобы газ не дёргался на микро-кочках)
-                // trickTolerance (8px)   — для детекта трюков (чтобы не срезать начало/конец вращения)
+                // contactTolerance (22px) — для анти-подлёта газа и для inAir (сальто)
+                // trickTolerance (8px)   — для детекта Вилли и Стоппи (чтобы не засчитывалось на кочках)
                 const wrPx = bike.wheelRadius;
                 let wrPos = wheelRear.getPosition();
                 let wfPos = wheelFront.getPosition();
@@ -705,7 +683,9 @@
                 let frontOnGroundGas = frontBottomY > frontGroundY - bike.antiPop.contactTolerance;
                 let rearOnGroundTrick = rearBottomY > rearGroundY - bike.antiPop.trickTolerance;
                 let frontOnGroundTrick = frontBottomY > frontGroundY - bike.antiPop.trickTolerance;
-                let inAir = !rearOnGroundTrick && !frontOnGroundTrick;
+                
+                // Для сальто используем contactTolerance (как в v28.0)
+                let inAir = !rearOnGroundGas && !frontOnGroundGas;
 
                 // --- Угол и дельта ---
                 let a = chassis.getAngle(); 
@@ -713,7 +693,7 @@
                 if (da > Math.PI) da -= 2 * Math.PI; 
                 if (da < -Math.PI) da += 2 * Math.PI;
 
-                // --- Детект трюков ---
+                // --- Детект трюков (Вилли/Стоппи на 8px, Сальто на 22px) ---
                 let wheelieActive = rearOnGroundTrick && !frontOnGroundTrick && ls > 5 && a < -0.1;
                 let stoppieActive = frontOnGroundTrick && !rearOnGroundTrick && ls > 5 && a > 0.1;
 
@@ -721,7 +701,8 @@
                     accumulatedRotation += da; 
                     currentAirTime += dt; 
                     if (currentAirTime > maxAirTime) maxAirTime = currentAirTime; 
-                    if (!flipCounted && Math.abs(accumulatedRotation) >= Math.PI * 1.7) { 
+                    // Вернули проверку времени > 0.3с как в v28.0
+                    if (!flipCounted && Math.abs(accumulatedRotation) >= Math.PI * 1.7 && currentAirTime > 0.3) { 
                         if (accumulatedRotation > 0) frontflipCount++; 
                         else backflipCount++; 
                         flipCounted = true; 
@@ -878,7 +859,7 @@
                 drawBirds();
                 ctx.restore();
 
-                // Горы временно убраны (вернём позже)
+                // Горы убраны
 
                 ctx.save(); 
                 ctx.scale(zoom, zoom); 
@@ -906,4 +887,4 @@
     checkOrientation(); resizeCanvas(); update();
 </script>
 </body>
-    </html>
+                                                                               </html>
