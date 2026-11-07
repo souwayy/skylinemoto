@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v28.5 - Progression & Unique Terrain)</title>
+    <title>Nyxride (v28.6 - Camera Fix & Rare Pits)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
@@ -235,7 +235,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v28.5 (PROGRESSION + UNIQUE TERRAIN)</div>
+<div class="version-text">v28.6 (CAMERA FIX + RARE PITS)</div>
 
 <script>
     let gameState = 'splash'; 
@@ -440,32 +440,26 @@
     function hash32(a, b, c) { let h = (a | 0) ^ Math.imul(b | 0, 0x9E3779B1) ^ Math.imul(c | 0, 0x85EBCA77); h ^= h >>> 16; h = Math.imul(h, 0x85EBCA6B); h ^= h >>> 13; h = Math.imul(h, 0xC2B2AE35); h ^= h >>> 16; return (h >>> 0) / 4294967296; }
     let sessionSeed = 0; const zoneCache = new Map(); 
 
-    // === НОВАЯ ГЕНЕРАЦИЯ СЛОЖНОСТИ ===
     function getDepthForDist(distM) { 
-        if (distM < 500) return null; // Ровный старт
-        if (distM < 1500) return { min: 30, max: 50 }; // Первые ямы
+        if (distM < 500) return null;
+        if (distM < 1500) return { min: 30, max: 50 };
         if (distM < 3000) return { min: 50, max: 80 }; 
         if (distM < 6000) return { min: 80, max: 110 }; 
-        return { min: 110, max: 160 }; // Ад после 6к
+        return { min: 110, max: 160 }; 
     }
     
     function erosionProfile(lx, ew, fw, xw, d, s) { let t = ew + fw + xw; if (lx < 0 || lx > t) return 0; if (lx < ew) { let p = lx / ew; return d * p * p * (3 - 2 * p); } if (lx < ew + fw) { let p = (lx - ew) / fw; return d + s * p; } let p = (lx - ew - fw) / xw; return (d + s) * (1 - p * p * (3 - 2 * p)); }
     
-    // === УНИКАЛЬНЫЙ РЕЛЬЕФ ===
     function getTerrainYNoErosion(x) { 
         let y = groundY; 
         let u = x + terrainOffset; 
         let df = x - startX; 
         let hs = Math.min(2.5, 1.0 + (Math.max(0, df) / 15000)); 
-        
-        // Сумма синусов для уникальности. Убрана мелкая рябь m.
         let bh = (Math.sin(u * 0.001) * 80 + Math.sin(u * 0.0017) * 30 + Math.cos(u * 0.00043) * 50) * hs; 
         let sh = Math.pow(Math.sin(u * 0.003), 3) * 180 * hs; 
         let g = Math.pow(Math.max(0, Math.sin(u * 0.00125)), 6); 
         let k = sh * g; 
-        
         let my = y - bh - k; 
-        
         if (df < 1000) { 
             let f = Math.max(0, df / 1000); 
             let fy = groundY - (df * 0.02); 
@@ -482,11 +476,11 @@
     
     function buildErosionZone(cs, ci, zi, dr, wt) {
         let emin = dr.min * 1.5; let emax = dr.max * 2.5; let xmin = dr.min * 1.2; let xmax = dr.max * 2.0;
-        // Ямы теперь редкие (большие зазоры gmin/gmax)
+        // УВЕЛИЧИЛИ ЗАЗОРЫ (gmin/gmax), чтобы ямы были реже
         let gmin, gmax, cmin, cmax; 
-        if (wt === 1) { gmin = 400; gmax = 800; cmin = 1; cmax = 1; } 
-        else if (wt === 2) { gmin = 300; gmax = 600; cmin = 1; cmax = 2; } 
-        else { gmin = 200; gmax = 500; cmin = 2; cmax = 3; }
+        if (wt === 1) { gmin = 800; gmax = 1500; cmin = 1; cmax = 1; } 
+        else if (wt === 2) { gmin = 600; gmax = 1200; cmin = 1; cmax = 2; } 
+        else { gmin = 500; gmax = 1000; cmin = 1; cmax = 2; }
         
         let zl = 600 + hash32(sessionSeed, ci, 2 + zi * 10) * 600; 
         let zs = cs + 1500 + hash32(sessionSeed, ci, 1 + zi * 10) * 6000;
@@ -518,14 +512,13 @@
         let dr = getDepthForDist(cd); 
         if (!dr) return []; 
         
-        // Усложнение с метрами: зоны и типы ям растут быстрее
+        // Реже включаем дополнительные зоны
         let zc = 1; 
-        if (cd >= 8000) zc = 3; 
-        else if (cd >= 4000) zc = 2; 
+        if (cd >= 8000) zc = 2; 
         
         let wt = 1; 
-        if (cd >= 8000) wt = 3; 
-        else if (cd >= 4000) wt = 2; 
+        if (cd >= 5000) wt = 2; 
+        if (cd >= 10000) wt = 3;
         
         let z = []; 
         for (let i = 0; i < zc; i++) { 
@@ -542,7 +535,6 @@
     function generateTerrain() { 
         while (lastGeneratedX < cameraX + (canvas.width / zoom) + 1000) { 
             let v = []; 
-            // Шаг цепи с 5px на 3px для плавности
             for (let i = 0; i <= 200; i += 3) v.push(pl.Vec2((lastGeneratedX + i) / SCALE, getTerrainY(lastGeneratedX + i) / SCALE)); 
             const c = world.createBody(); 
             let f = c.createFixture(pl.Chain(v, false), { friction: 1.0, restitution: 0.0 }); 
@@ -795,7 +787,10 @@
                 
                 let targetZoom = maxZoom - Math.min(0.4, ls * 0.008); zoom += (targetZoom - zoom) * 0.02; 
                 let tcx = (chassis.getPosition().x * SCALE) - ((canvas.width * 0.3) / zoom); cameraX += (tcx - cameraX) * 0.1; 
-                let groundLevel = getTerrainY(cx) - 100; let tcy = (canvas.height * 0.55) - Math.max(chassis.getPosition().y * SCALE, groundLevel); cameraY += (tcy - cameraY) * 0.1;
+                
+                // ИСПРАВЛЕНИЕ КАМЕРЫ: теперь она следует за байком по Y, а не привязана к земле
+                let tcy = (canvas.height * 0.55) - (chassis.getPosition().y * SCALE); 
+                cameraY += (tcy - cameraY) * 0.1;
                 
                 generateTerrain(); cleanupTerrain(); updateParticles(dt); updateBirds(dt);
 
@@ -837,4 +832,4 @@
     window.addEventListener('load', checkOrientation); checkOrientation(); resizeCanvas(); update();
 </script>
 </body>
-    </html>
+</html>
