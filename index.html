@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v29.7 - Big Wheels)</title>
+    <title>Nyxride (v29.8 - Bigger Rear Wheel)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
@@ -235,7 +235,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v29.7 (BIG WHEELS)</div>
+<div class="version-text">v29.8 (BIGGER REAR WHEEL)</div>
 
 <script>
     let gameState = 'splash'; 
@@ -247,8 +247,8 @@
     const BIKE_CATALOG = [
         {
             id: 'cayo', name: "CAYO 125 BASIC", tier: 'starter', density: 1.6, wheelDensity: 0.45, 
-            // УВЕЛИЧИЛИ РАДИУСЫ КОЛЕС (было 9 и 12)
-            wheelRearRadius: 16, wheelFrontRadius: 20, wheelBase: 26, 
+            // Заднее колесо увеличили до 18 (было 16), переднее оставили 20
+            wheelRearRadius: 18, wheelFrontRadius: 20, wheelBase: 26, 
             suspension: { freq: 3.8, damp: 1.0 }, motor: { speed: 35, baseTorque: 28, brake: 50 },
             lean: { torque: 12, maxAngVelLow: 3.0, maxAngVelHigh: 1.8 }, antiPop: { contactTolerance: 22, trickTolerance: 8, rampMs: 120 },
             
@@ -257,19 +257,19 @@
             wheelFrontImage: 'wheel_cayo_front.png', 
             riderImage: 'rider_default.png',
             
-            // УВЕЛИЧИЛИ КАРТИНКУ И ПОДНЯЛИ ЕЁ ВВЕРХ (bikeOffset.y: -10)
+            // Опустили байк по Y, так как колеса стали больше
             renderWidth: 105, renderHeight: 63,
             bikeScale: 1.0, 
-            bikeOffset: { x: 0, y: -10 }, 
+            bikeOffset: { x: -8, y: -14 }, 
             riderOffset: { x: -2, y: -15 }
         },
         {
             id: 'ctm', name: "CTM 300 EXC", tier: 'shop', density: 1.2, wheelDensity: 0.4,
-            wheelRearRadius: 16, wheelFrontRadius: 20, wheelBase: 26,
+            wheelRearRadius: 18, wheelFrontRadius: 20, wheelBase: 26,
             suspension: { freq: 4.8, damp: 1.0 }, motor: { speed: 50, baseTorque: 55, brake: 100 },
             lean: { torque: 18, maxAngVelLow: 2.8, maxAngVelHigh: 2.2 }, antiPop: { contactTolerance: 22, trickTolerance: 8, rampMs: 100 },
             bikeImage: 'moto_ctm.png', wheelRearImage: 'wheel_ctm_rear.png', wheelFrontImage: 'wheel_ctm_front.png', riderImage: 'rider_default.png',
-            renderWidth: 105, renderHeight: 63, bikeScale: 1.0, bikeOffset: { x: 0, y: -10 }, riderOffset: { x: -2, y: -15 }
+            renderWidth: 105, renderHeight: 63, bikeScale: 1.0, bikeOffset: { x: -8, y: -14 }, riderOffset: { x: -2, y: -15 }
         }
     ];
     
@@ -931,7 +931,7 @@
                     
                     ctx.restore(); 
 
-                    // 4. Переднее колесо (больше)
+                    // 4. Переднее колесо
                     drawWheel(wheelFront, currentBike.wheelFrontRadius);
                 }
                 ctx.restore(); 
@@ -942,4 +942,4 @@
     window.addEventListener('load', checkOrientation); checkOrientation(); resizeCanvas(); update();
 </script>
 </body>
-    </html>
+                                                                         </html>
