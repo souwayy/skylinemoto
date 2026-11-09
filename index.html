@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v30.3 - Full Stable Build)</title>
+    <title>Nyxride (v30.4 - Golden Proportions)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
@@ -235,7 +235,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v30.3 (FULL STABLE BUILD)</div>
+<div class="version-text">v30.4 (GOLDEN PROPORTIONS)</div>
 
 <script>
     let gameState = 'splash'; 
@@ -247,7 +247,8 @@
     const BIKE_CATALOG = [
         {
             id: 'cayo', name: "CAYO 125 BASIC", tier: 'starter', density: 1.6, wheelDensity: 0.45, 
-            wheelRearRadius: 12, wheelFrontRadius: 14, wheelBase: 23, 
+            // ВОЗВРАЩАЕМ БАЗУ КОЛЕС К 23 И РАДИУСЫ 10/12
+            wheelRearRadius: 10, wheelFrontRadius: 12, wheelBase: 23, 
             suspension: { freq: 3.8, damp: 1.0 }, motor: { speed: 35, baseTorque: 28, brake: 50 },
             lean: { torque: 12, maxAngVelLow: 3.0, maxAngVelHigh: 1.8 }, antiPop: { contactTolerance: 22, trickTolerance: 8, rampMs: 120 },
             
@@ -256,18 +257,19 @@
             wheelFrontImage: 'wheel_cayo_front.png', 
             riderImage: 'rider_default.png',
             
-            renderWidth: 100, renderHeight: 60,
+            // ВОЗВРАЩАЕМ РАЗМЕР КАРТИНКИ К 90x54
+            renderWidth: 90, renderHeight: 54,
             bikeScale: 1.0, 
             bikeOffset: { x: 0, y: 0 },
             riderOffset: { x: 0, y: 0 }
         },
         {
             id: 'ctm', name: "CTM 300 EXC", tier: 'shop', density: 1.2, wheelDensity: 0.4,
-            wheelRearRadius: 12, wheelFrontRadius: 14, wheelBase: 23,
+            wheelRearRadius: 10, wheelFrontRadius: 12, wheelBase: 23,
             suspension: { freq: 4.8, damp: 1.0 }, motor: { speed: 50, baseTorque: 55, brake: 100 },
             lean: { torque: 18, maxAngVelLow: 2.8, maxAngVelHigh: 2.2 }, antiPop: { contactTolerance: 22, trickTolerance: 8, rampMs: 100 },
             bikeImage: 'moto_ctm.png', wheelRearImage: 'wheel_ctm_rear.png', wheelFrontImage: 'wheel_ctm_front.png', riderImage: 'rider_default.png',
-            renderWidth: 100, renderHeight: 60, bikeScale: 1.0, bikeOffset: { x: 0, y: 0 }, riderOffset: { x: 0, y: 0 }
+            renderWidth: 90, renderHeight: 54, bikeScale: 1.0, bikeOffset: { x: 0, y: 0 }, riderOffset: { x: 0, y: 0 }
         }
     ];
     
@@ -309,9 +311,10 @@
     let terrainOffset = 0; 
     let cameraX = 0, cameraY = 0; 
     
-    let zoom = 1.0; 
-    const minZoom = 0.8; 
-    const maxZoom = 1.0; 
+    // ВОЗВРАЩАЕМ ЗУМ 1.6
+    let zoom = 1.6; 
+    const minZoom = 1.1; 
+    const maxZoom = 1.6; 
 
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
