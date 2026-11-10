@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v30.8 - Pure Wheels)</title>
+    <title>Nyxride (v31.0 - REAL FIX)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
@@ -235,7 +235,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v30.8 (PURE WHEELS)</div>
+<div class="version-text">v31.0 (REAL FIX)</div>
 
 <script>
     let gameState = 'splash'; 
@@ -247,7 +247,7 @@
     const BIKE_CATALOG = [
         {
             id: 'cayo', name: "CAYO 125 BASIC", tier: 'starter', density: 1.6, wheelDensity: 0.45, 
-            wheelRearRadius: 18, wheelFrontRadius: 22, wheelBase: 35, 
+            wheelRearRadius: 18, wheelFrontRadius: 20, wheelBase: 35, 
             suspension: { freq: 3.8, damp: 1.0 }, motor: { speed: 35, baseTorque: 28, brake: 50 },
             lean: { torque: 12, maxAngVelLow: 3.0, maxAngVelHigh: 1.8 }, antiPop: { contactTolerance: 22, trickTolerance: 8, rampMs: 120 },
             
@@ -258,17 +258,17 @@
             
             renderWidth: 100, renderHeight: 60,
             bikeScale: 1.0, 
-            // ОПУСТИЛИ КАРТИНКУ (y: 25)
-            bikeOffset: { x: 0, y: 25 },
+            // ВОЗВРАЩАЕМ y: -15 (ПОДНЯТЬ КАРТИНКУ ВВЕРХ)
+            bikeOffset: { x: 0, y: -15 },
             riderOffset: { x: 0, y: 0 }
         },
         {
             id: 'ctm', name: "CTM 300 EXC", tier: 'shop', density: 1.2, wheelDensity: 0.4,
-            wheelRearRadius: 18, wheelFrontRadius: 22, wheelBase: 35,
+            wheelRearRadius: 18, wheelFrontRadius: 20, wheelBase: 35,
             suspension: { freq: 4.8, damp: 1.0 }, motor: { speed: 50, baseTorque: 55, brake: 100 },
             lean: { torque: 18, maxAngVelLow: 2.8, maxAngVelHigh: 2.2 }, antiPop: { contactTolerance: 22, trickTolerance: 8, rampMs: 100 },
             bikeImage: 'moto_ctm.png', wheelRearImage: 'wheel_ctm_rear.png', wheelFrontImage: 'wheel_ctm_front.png', riderImage: 'rider_default.png',
-            renderWidth: 100, renderHeight: 60, bikeScale: 1.0, bikeOffset: { x: 0, y: 25 }, riderOffset: { x: 0, y: 0 }
+            renderWidth: 100, renderHeight: 60, bikeScale: 1.0, bikeOffset: { x: 0, y: -15 }, riderOffset: { x: 0, y: 0 }
         }
     ];
     
@@ -548,8 +548,8 @@
 
         chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic', bullet: true }); 
         
-        // ПОДНЯЛИ НЕВИДИМОЕ ФИЗИЧЕСКОЕ ШАССИ ВЫСОКО (y: -30), ЧТОБЫ ОНО НЕ КАСАЛОСЬ ЗЕМЛИ
-        chassis.createFixture(pl.Box(40 / SCALE / 2, 6 / SCALE / 2, pl.Vec2(0, -30 / SCALE)), { density: bike.density, friction: 0.3 });
+        // СТАВИМ ФИЗИЧЕСКОЕ ШАССИ РОВНО В ЦЕНТР (0, 0)
+        chassis.createFixture(pl.Box(40 / SCALE / 2, 6 / SCALE / 2, pl.Vec2(0, 0)), { density: bike.density, friction: 0.3 });
         
         let hs = pl.Circle(8 / SCALE); hs.m_p.set(0, -35 / SCALE); let hf = chassis.createFixture(hs, { isSensor: true }); hf.setUserData('head');
 
@@ -797,4 +797,4 @@
     window.addEventListener('load', checkOrientation); checkOrientation(); resizeCanvas(); update();
 </script>
 </body>
-    </html>
+</html>
