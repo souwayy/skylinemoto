@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v31.5 - Black Spokes)</title>
+    <title>Nyxride (v31.7 - Spoke Hub)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
@@ -235,7 +235,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v31.5 (BLACK SPOKES)</div>
+<div class="version-text">v31.7 (SPOKE HUB)</div>
 
 <script>
     let gameState = 'splash'; 
@@ -656,13 +656,13 @@
         ctx.translate(wheel.getPosition().x * SCALE, wheel.getPosition().y * SCALE); 
         ctx.rotate(wheel.getAngle()); 
         
-        // 1. Рисуем черный круг, чтобы закрыть фон спиц
+        // 1. Рисуем маленький черный круг (ступицу) сзади спиц
         ctx.beginPath(); 
-        ctx.arc(0, 0, radius, 0, Math.PI * 2); 
+        ctx.arc(0, 0, radius * 0.6, 0, Math.PI * 2); 
         ctx.fillStyle = '#000'; 
         ctx.fill(); 
 
-        // 2. Рисуем само колесо
+        // 2. Рисуем картинку колеса
         let wImg = (wheel === wheelRear) ? wheelRearImages[currentBike.id] : wheelFrontImages[currentBike.id];
         if (wImg && wImg.complete && wImg.naturalWidth > 0) { 
             ctx.drawImage(wImg, -radius, -radius, radius * 2, radius * 2); 
@@ -813,4 +813,4 @@
     window.addEventListener('load', checkOrientation); checkOrientation(); resizeCanvas(); update();
 </script>
 </body>
-</html>
+    </html>
