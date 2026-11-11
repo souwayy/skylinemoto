@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v31.0 - REAL FIX)</title>
+    <title>Nyxride (v31.1 - Limit Fix)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
@@ -235,7 +235,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v31.0 (REAL FIX)</div>
+<div class="version-text">v31.1 (LIMIT FIX)</div>
 
 <script>
     let gameState = 'splash'; 
@@ -247,8 +247,11 @@
     const BIKE_CATALOG = [
         {
             id: 'cayo', name: "CAYO 125 BASIC", tier: 'starter', density: 1.6, wheelDensity: 0.45, 
-            wheelRearRadius: 18, wheelFrontRadius: 20, wheelBase: 35, 
-            suspension: { freq: 3.8, damp: 1.0 }, motor: { speed: 35, baseTorque: 28, brake: 50 },
+            // КОЛЕСА 18 и 19
+            wheelRearRadius: 18, wheelFrontRadius: 19, wheelBase: 35, 
+            // ПОДВЕСКА ЖЕСТЧЕ ДЛЯ ПИТБАЙКА
+            suspension: { freq: 6.5, damp: 1.0 }, 
+            motor: { speed: 35, baseTorque: 28, brake: 50 },
             lean: { torque: 12, maxAngVelLow: 3.0, maxAngVelHigh: 1.8 }, antiPop: { contactTolerance: 22, trickTolerance: 8, rampMs: 120 },
             
             bikeImage: 'moto_cayo.png', 
@@ -256,19 +259,20 @@
             wheelFrontImage: 'wheel_cayo_front.png', 
             riderImage: 'rider_default.png',
             
-            renderWidth: 100, renderHeight: 60,
+            renderWidth: 105, renderHeight: 63,
             bikeScale: 1.0, 
-            // ВОЗВРАЩАЕМ y: -15 (ПОДНЯТЬ КАРТИНКУ ВВЕРХ)
-            bikeOffset: { x: 0, y: -15 },
+            bikeOffset: { x: 0, y: -12 },
             riderOffset: { x: 0, y: 0 }
         },
         {
             id: 'ctm', name: "CTM 300 EXC", tier: 'shop', density: 1.2, wheelDensity: 0.4,
-            wheelRearRadius: 18, wheelFrontRadius: 20, wheelBase: 35,
-            suspension: { freq: 4.8, damp: 1.0 }, motor: { speed: 50, baseTorque: 55, brake: 100 },
+            wheelRearRadius: 18, wheelFrontRadius: 19, wheelBase: 35,
+            // ПОДВЕСКА МЯГЧЕ ДЛЯ ЭНДУРО
+            suspension: { freq: 4.5, damp: 1.0 }, 
+            motor: { speed: 50, baseTorque: 55, brake: 100 },
             lean: { torque: 18, maxAngVelLow: 2.8, maxAngVelHigh: 2.2 }, antiPop: { contactTolerance: 22, trickTolerance: 8, rampMs: 100 },
             bikeImage: 'moto_ctm.png', wheelRearImage: 'wheel_ctm_rear.png', wheelFrontImage: 'wheel_ctm_front.png', riderImage: 'rider_default.png',
-            renderWidth: 100, renderHeight: 60, bikeScale: 1.0, bikeOffset: { x: 0, y: -15 }, riderOffset: { x: 0, y: 0 }
+            renderWidth: 105, renderHeight: 63, bikeScale: 1.0, bikeOffset: { x: 0, y: -12 }, riderOffset: { x: 0, y: 0 }
         }
     ];
     
@@ -547,17 +551,24 @@
         const yDiff = rf - rr; 
 
         chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic', bullet: true }); 
-        
-        // СТАВИМ ФИЗИЧЕСКОЕ ШАССИ РОВНО В ЦЕНТР (0, 0)
         chassis.createFixture(pl.Box(40 / SCALE / 2, 6 / SCALE / 2, pl.Vec2(0, 0)), { density: bike.density, friction: 0.3 });
-        
         let hs = pl.Circle(8 / SCALE); hs.m_p.set(0, -35 / SCALE); let hf = chassis.createFixture(hs, { isSensor: true }); hf.setUserData('head');
 
         wheelRear = world.createBody({ position: pl.Vec2((x - wb * SCALE) / SCALE, y / SCALE), type: 'dynamic', bullet: true }); wheelRear.createFixture(pl.Circle(rr), { density: bike.wheelDensity, friction: 1.0 });
         wheelFront = world.createBody({ position: pl.Vec2((x + wb * SCALE) / SCALE, (y - yDiff * SCALE) / SCALE), type: 'dynamic', bullet: true }); wheelFront.createFixture(pl.Circle(rf), { density: bike.wheelDensity, friction: 1.0 });
 
-        jointRear = world.createJoint(pl.WheelJoint({ motorSpeed: 0, maxMotorTorque: 0, enableMotor: false, frequencyHz: bike.suspension.freq, dampingRatio: bike.suspension.damp }, chassis, wheelRear, wheelRear.getPosition(), pl.Vec2(0, 1)));
-        jointFront = world.createJoint(pl.WheelJoint({ motorSpeed: 0, maxMotorTorque: 0, enableMotor: false, frequencyHz: bike.suspension.freq, dampingRatio: bike.suspension.damp }, chassis, wheelFront, wheelFront.getPosition(), pl.Vec2(0, 1)));
+        // ОГРАНИЧЕНИЕ ХОДА ПОДВЕСКИ (enableLimit + lower/upperTranslation)
+        jointRear = world.createJoint(pl.WheelJoint({ 
+            motorSpeed: 0, maxMotorTorque: 0, enableMotor: false, 
+            frequencyHz: bike.suspension.freq, dampingRatio: bike.suspension.damp,
+            enableLimit: true, lowerTranslation: -0.1, upperTranslation: 0.1 
+        }, chassis, wheelRear, wheelRear.getPosition(), pl.Vec2(0, 1)));
+
+        jointFront = world.createJoint(pl.WheelJoint({ 
+            motorSpeed: 0, maxMotorTorque: 0, enableMotor: false, 
+            frequencyHz: bike.suspension.freq, dampingRatio: bike.suspension.damp,
+            enableLimit: true, lowerTranslation: -0.1, upperTranslation: 0.1 
+        }, chassis, wheelFront, wheelFront.getPosition(), pl.Vec2(0, 1)));
     }
 
     window.isGas = false; window.isBrake = false; window.isLeanBack = false; window.isLeanForward = false;
@@ -797,4 +808,4 @@
     window.addEventListener('load', checkOrientation); checkOrientation(); resizeCanvas(); update();
 </script>
 </body>
-</html>
+                </html>
