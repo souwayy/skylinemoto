@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v31.8 - Sunset Spokes & Lifted)</title>
+    <title>Nyxride (v32.2 - Correct Layers)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
@@ -235,7 +235,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v31.8 (SUNSET SPOKES & LIFTED)</div>
+<div class="version-text">v32.2 (CORRECT LAYERS)</div>
 
 <script>
     let gameState = 'splash'; 
@@ -247,7 +247,7 @@
     const BIKE_CATALOG = [
         {
             id: 'cayo', name: "CAYO 125 BASIC", tier: 'starter', density: 1.6, wheelDensity: 0.45, 
-            wheelRearRadius: 18, wheelFrontRadius: 19, wheelBase: 35, 
+            wheelRearRadius: 16, wheelFrontRadius: 17, wheelBase: 35, 
             suspension: { freq: 3.8, damp: 1.0 }, 
             motor: { speed: 35, baseTorque: 28, brake: 50 },
             lean: { torque: 12, maxAngVelLow: 3.0, maxAngVelHigh: 1.8 }, antiPop: { contactTolerance: 22, trickTolerance: 8, rampMs: 120 },
@@ -259,12 +259,12 @@
             
             renderWidth: 105, renderHeight: 63,
             bikeScale: 1.0, 
-            bikeOffset: { x: 0, y: -18 }, // ПОДНЯЛИ БАЙК
+            bikeOffset: { x: 0, y: -18 },
             riderOffset: { x: 0, y: 0 }
         },
         {
             id: 'ctm', name: "CTM 300 EXC", tier: 'shop', density: 1.2, wheelDensity: 0.4,
-            wheelRearRadius: 18, wheelFrontRadius: 19, wheelBase: 35,
+            wheelRearRadius: 16, wheelFrontRadius: 17, wheelBase: 35,
             suspension: { freq: 4.5, damp: 1.0 }, 
             motor: { speed: 50, baseTorque: 55, brake: 100 },
             lean: { torque: 18, maxAngVelLow: 2.8, maxAngVelHigh: 2.2 }, antiPop: { contactTolerance: 22, trickTolerance: 8, rampMs: 100 },
@@ -657,7 +657,6 @@
         let wy = wheel.getPosition().y * SCALE;
         ctx.translate(wx, wy); 
         
-        // Рассчитываем координаты градиента относительно экрана
         let topLocal = -(wy + cameraY);
         let botLocal = (canvas.height / zoom) - (wy + cameraY);
 
@@ -668,7 +667,7 @@
         grad.addColorStop(1, '#ff9f1c');
 
         ctx.beginPath(); 
-        ctx.arc(0, 0, radius, 0, Math.PI * 2); 
+        ctx.arc(0, 0, radius * 0.8, 0, Math.PI * 2); 
         ctx.fillStyle = grad; 
         ctx.fill(); 
 
@@ -789,11 +788,15 @@
                 
                 if (gameState !== 'gameover' && chassis) {
                     drawParticles(); 
-                    drawWheel(wheelRear, currentBike.wheelRearRadius);
+                    
+                    let cx = chassis.getPosition().x * SCALE; 
+                    let cy = chassis.getPosition().y * SCALE; 
+                    let angle = chassis.getAngle();
 
+                    // 1. Кузов байка (СНАЧАЛА)
                     ctx.save(); 
-                    ctx.translate(chassis.getPosition().x * SCALE, chassis.getPosition().y * SCALE); 
-                    ctx.rotate(chassis.getAngle());
+                    ctx.translate(cx, cy); 
+                    ctx.rotate(angle);
                     
                     let bodyImg = bikeImages[currentBike.id];
                     if (bodyImg && bodyImg.complete && bodyImg.naturalWidth > 0) {
@@ -814,6 +817,8 @@
                     }
                     ctx.restore(); 
 
+                    // 2. Колёса (ПОВЕРХ КУЗОВА)
+                    drawWheel(wheelRear, currentBike.wheelRearRadius);
                     drawWheel(wheelFront, currentBike.wheelFrontRadius);
                 }
                 ctx.restore(); 
