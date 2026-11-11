@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v27.5 - Russian Quests)</title>
+    <title>Nyxride (v27.6 - Single Quest)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
@@ -106,7 +106,9 @@
             align-self: flex-end; transition: background 0.2s;
         }
         .quest-card-btn:active { background: #ffaa00; }
-        .quest-card-btn.taken-btn { background: #333; color: #666; cursor: default; }
+        .quest-card-btn:disabled { background: #333; color: #666; cursor: default; }
+        .quest-card-btn.cancel-btn { background: #ff3333; color: #fff; }
+        .quest-card-btn.cancel-btn:active { background: #cc0000; }
 
         .btn-game { position: absolute; width: 50px; height: 50px; border-radius: 50%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); pointer-events: auto; color: white; display: flex; align-items: center; justify-content: center; }
         .btn-game svg { width: 25px; height: 25px; stroke: rgba(255,255,255,0.8); stroke-width: 2.5; }
@@ -299,7 +301,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v27.5 (RUSSIAN QUESTS)</div>
+<div class="version-text">v27.6 (SINGLE QUEST)</div>
 
 <script>
     let gameState = 'splash'; 
@@ -323,17 +325,16 @@
         dist: 0, flips: 0, wheelie: 0, stoppie: 0, total_flips: 0
     };
     let completedQuests = JSON.parse(localStorage.getItem('completedQuests')) || [];
-    let takenQuests = JSON.parse(localStorage.getItem('takenQuests')) || []; // массив ID взятых квестов
+    let activeQuestId = localStorage.getItem('activeQuestId') || null; // Только один квест
 
     let questsPanelOpen = true;
 
     // Взять квест
     function takeQuest(id) {
-        if (takenQuests.includes(id)) return;
+        if (activeQuestId) return; // Уже есть активный квест
         
-        // Если квест уже выполнен по прогрессу - сразу начисляем
         let q = QUEST_POOL.find(x => x.id === id);
-        if (!q) return;
+        if (!q || completedQuests.includes(id)) return;
 
         let progress = questProgress[q.type] || 0;
         if (progress >= q.target) {
@@ -348,69 +349,63 @@
             return;
         }
 
-        takenQuests.push(id);
-        localStorage.setItem('takenQuests', JSON.stringify(takenQuests));
+        activeQuestId = id;
+        localStorage.setItem('activeQuestId', activeQuestId);
         renderMenuQuests();
         updateQuestUI();
     }
 
-    // Проверка выполнения взятых квестов
-    function checkQuestsCompletion() {
-        let changed = false;
-        for (let i = takenQuests.length - 1; i >= 0; i--) {
-            let id = takenQuests[i];
-            let q = QUEST_POOL.find(x => x.id === id);
-            if (!q) continue;
-
-            let progress = questProgress[q.type] || 0;
-            if (progress >= q.target) {
-                // Выполнен!
-                completedQuests.push(id);
-                takenQuests.splice(i, 1);
-                totalCoins += q.reward;
-                changed = true;
-                
-                // Всплывающее уведомление
-                let notif = document.createElement('div');
-                notif.style.cssText = 'position:absolute; top:40%; left:50%; transform:translate(-50%,-50%); color:#00ff00; font-size:22px; font-weight:bold; z-index:100; text-shadow:0 0 10px #000; text-align:center;';
-                notif.innerText = `КВЕСТ ВЫПОЛНЕН!\n+${q.reward} МОНЕТ`;
-                document.body.appendChild(notif);
-                setTimeout(() => notif.remove(), 2500);
-            }
-        }
-        if (changed) {
-            localStorage.setItem('completedQuests', JSON.stringify(completedQuests));
-            localStorage.setItem('takenQuests', JSON.stringify(takenQuests));
-            localStorage.setItem('totalCoins', totalCoins);
-            document.getElementById('coinBalanceText').innerText = totalCoins;
-            document.getElementById('menuCoinBalance').innerText = totalCoins;
+    // Отменить квест
+    function cancelQuest(id) {
+        if (activeQuestId === id) {
+            activeQuestId = null;
+            localStorage.removeItem('activeQuestId');
             renderMenuQuests();
             updateQuestUI();
         }
     }
 
-    // Отрисовка меню квестов (все доступные + взятые)
+    // Проверка выполнения
+    function checkQuestsCompletion() {
+        if (!activeQuestId) return;
+        
+        let q = QUEST_POOL.find(x => x.id === activeQuestId);
+        if (!q) { activeQuestId = null; return; }
+
+        let progress = questProgress[q.type] || 0;
+        if (progress >= q.target) {
+            // Выполнен!
+            completedQuests.push(activeQuestId);
+            activeQuestId = null;
+            totalCoins += q.reward;
+            
+            localStorage.setItem('completedQuests', JSON.stringify(completedQuests));
+            localStorage.setItem('totalCoins', totalCoins);
+            localStorage.removeItem('activeQuestId');
+            
+            document.getElementById('coinBalanceText').innerText = totalCoins;
+            document.getElementById('menuCoinBalance').innerText = totalCoins;
+            
+            let notif = document.createElement('div');
+            notif.style.cssText = 'position:absolute; top:40%; left:50%; transform:translate(-50%,-50%); color:#00ff00; font-size:22px; font-weight:bold; z-index:100; text-shadow:0 0 10px #000; text-align:center;';
+            notif.innerText = `КВЕСТ ВЫПОЛНЕН!\n+${q.reward} МОНЕТ`;
+            document.body.appendChild(notif);
+            setTimeout(() => notif.remove(), 2500);
+            
+            renderMenuQuests();
+            updateQuestUI();
+        }
+    }
+
+    // Отрисовка меню квестов
     function renderMenuQuests() {
         let list = document.getElementById('menuQuestList');
         if (!list) return;
         list.innerHTML = '';
         
-        // Показываем ВСЕ квесты из пула, отсортированные: сначала взятые, потом доступные, потом завершенные
-        let sorted = [...QUEST_POOL].sort((a, b) => {
-            let aTaken = takenQuests.includes(a.id);
-            let bTaken = takenQuests.includes(b.id);
-            let aDone = completedQuests.includes(a.id);
-            let bDone = completedQuests.includes(b.id);
-            if (aDone && !bDone) return 1;
-            if (!aDone && bDone) return -1;
-            if (aTaken && !bTaken) return -1;
-            if (!aTaken && bTaken) return 1;
-            return 0;
-        });
-
-        sorted.forEach(q => {
+        QUEST_POOL.forEach(q => {
             let isDone = completedQuests.includes(q.id);
-            let isTaken = takenQuests.includes(q.id);
+            let isTaken = (activeQuestId === q.id);
             let progress = questProgress[q.type] || 0;
             let percent = Math.min(100, (progress / q.target) * 100);
             
@@ -418,11 +413,13 @@
             let btnHtml = '';
             
             if (isDone) {
-                btnHtml = `<button class="quest-card-btn taken-btn" disabled>ВЫПОЛНЕН</button>`;
+                btnHtml = `<button class="quest-card-btn" disabled>ВЫПОЛНЕН</button>`;
             } else if (isTaken) {
-                btnHtml = `<button class="quest-card-btn taken-btn" disabled>ВЗЯТ</button>`;
+                btnHtml = `<button class="quest-card-btn cancel-btn" onclick="cancelQuest('${q.id}')">ОТМЕНИТЬ</button>`;
             } else {
-                btnHtml = `<button class="quest-card-btn" onclick="takeQuest('${q.id}')">ВЗЯТЬ</button>`;
+                // Если есть активный квест, блокируем кнопку
+                let isBlocked = activeQuestId !== null;
+                btnHtml = `<button class="quest-card-btn" ${isBlocked ? 'disabled' : ''} onclick="takeQuest('${q.id}')">ВЗЯТЬ</button>`;
             }
 
             let html = `
@@ -440,31 +437,30 @@
         });
     }
 
-    // Отрисовка панели в игре (только взятые)
+    // Отрисовка панели в игре
     function updateQuestUI() {
         let panel = document.getElementById('questPanel');
         if (!panel) return;
         
-        if (takenQuests.length === 0) {
-            panel.innerHTML = '<div style="color:#aaa; font-size:12px;">Нет активных квестов.<br>Возьмите квест в меню.</div>';
+        if (!activeQuestId) {
+            panel.innerHTML = '<div style="color:#aaa; font-size:12px;">Нет активного квеста.<br>Возьмите квест в меню.</div>';
             return;
         }
 
-        panel.innerHTML = '';
-        takenQuests.forEach(id => {
-            let q = QUEST_POOL.find(x => x.id === id);
-            if (!q) return;
-            let progress = questProgress[q.type] || 0;
-            let percent = Math.min(100, (progress / q.target) * 100);
-            
-            let html = `
-                <div class="quest-item">
-                    <div>${q.text} (${Math.min(Math.floor(progress), q.target)}/${q.target})</div>
-                    <div class="quest-bar"><div class="quest-fill" style="width: ${percent}%"></div></div>
-                </div>
-            `;
-            panel.innerHTML += html;
-        });
+        let q = QUEST_POOL.find(x => x.id === activeQuestId);
+        if (!q) return;
+
+        let progress = questProgress[q.type] || 0;
+        let percent = Math.min(100, (progress / q.target) * 100);
+        
+        let html = `
+            <div class="quest-item">
+                <div style="font-size: 12px; color: #ffd700; margin-bottom: 2px;">АКТИВНЫЙ КВЕСТ</div>
+                <div>${q.text} (${Math.min(Math.floor(progress), q.target)}/${q.target})</div>
+                <div class="quest-bar"><div class="quest-fill" style="width: ${percent}%"></div></div>
+            </div>
+        `;
+        panel.innerHTML = html;
     }
 
     // Переключение панели
@@ -777,14 +773,12 @@
             localStorage.setItem('bestDistance', maxDistance); 
         }
 
-        // Накапливаем прогресс квестов
         updateQuestProgress('dist', questProgress.dist + dist);
         updateQuestProgress('flips', questProgress.flips + backflipCount);
         updateQuestProgress('total_flips', questProgress.total_flips + backflipCount + frontflipCount);
         updateQuestProgress('wheelie', questProgress.wheelie + maxWheelieTime);
         updateQuestProgress('stoppie', questProgress.stoppie + maxStoppieTime);
 
-        // Проверяем выполнение
         checkQuestsCompletion();
 
         document.getElementById('go-distance').innerText = dist;
@@ -948,4 +942,4 @@
     checkOrientation(); resizeCanvas(); update();
 </script>
 </body>
-</html>
+    </html>
