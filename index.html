@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v31.7 - Spoke Hub)</title>
+    <title>Nyxride (v31.8 - Sunset Spokes & Lifted)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
@@ -235,7 +235,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v31.7 (SPOKE HUB)</div>
+<div class="version-text">v31.8 (SUNSET SPOKES & LIFTED)</div>
 
 <script>
     let gameState = 'splash'; 
@@ -259,7 +259,7 @@
             
             renderWidth: 105, renderHeight: 63,
             bikeScale: 1.0, 
-            bikeOffset: { x: 0, y: -12 },
+            bikeOffset: { x: 0, y: -18 }, // ПОДНЯЛИ БАЙК
             riderOffset: { x: 0, y: 0 }
         },
         {
@@ -269,7 +269,7 @@
             motor: { speed: 50, baseTorque: 55, brake: 100 },
             lean: { torque: 18, maxAngVelLow: 2.8, maxAngVelHigh: 2.2 }, antiPop: { contactTolerance: 22, trickTolerance: 8, rampMs: 100 },
             bikeImage: 'moto_ctm.png', wheelRearImage: 'wheel_ctm_rear.png', wheelFrontImage: 'wheel_ctm_front.png', riderImage: 'rider_default.png',
-            renderWidth: 105, renderHeight: 63, bikeScale: 1.0, bikeOffset: { x: 0, y: -12 }, riderOffset: { x: 0, y: 0 }
+            renderWidth: 105, renderHeight: 63, bikeScale: 1.0, bikeOffset: { x: 0, y: -18 }, riderOffset: { x: 0, y: 0 }
         }
     ];
     
@@ -653,16 +653,27 @@
     
     function drawWheel(wheel, radius) { 
         ctx.save(); 
-        ctx.translate(wheel.getPosition().x * SCALE, wheel.getPosition().y * SCALE); 
-        ctx.rotate(wheel.getAngle()); 
+        let wx = wheel.getPosition().x * SCALE;
+        let wy = wheel.getPosition().y * SCALE;
+        ctx.translate(wx, wy); 
         
-        // 1. Рисуем маленький черный круг (ступицу) сзади спиц
+        // Рассчитываем координаты градиента относительно экрана
+        let topLocal = -(wy + cameraY);
+        let botLocal = (canvas.height / zoom) - (wy + cameraY);
+
+        let grad = ctx.createLinearGradient(0, topLocal, 0, botLocal);
+        grad.addColorStop(0, '#1a0b2e');
+        grad.addColorStop(0.3, '#4a154b');
+        grad.addColorStop(0.6, '#e63946');
+        grad.addColorStop(1, '#ff9f1c');
+
         ctx.beginPath(); 
-        ctx.arc(0, 0, radius * 0.6, 0, Math.PI * 2); 
-        ctx.fillStyle = '#000'; 
+        ctx.arc(0, 0, radius, 0, Math.PI * 2); 
+        ctx.fillStyle = grad; 
         ctx.fill(); 
 
-        // 2. Рисуем картинку колеса
+        ctx.rotate(wheel.getAngle()); 
+
         let wImg = (wheel === wheelRear) ? wheelRearImages[currentBike.id] : wheelFrontImages[currentBike.id];
         if (wImg && wImg.complete && wImg.naturalWidth > 0) { 
             ctx.drawImage(wImg, -radius, -radius, radius * 2, radius * 2); 
