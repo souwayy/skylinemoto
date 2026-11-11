@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v27.6 - Single Quest)</title>
+    <title>Nyxride (v27.7 - Fixes & UI)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
@@ -69,7 +69,7 @@
         #btnToggleQuests {
             background: rgba(0,0,0,0.6); border: 1px solid #ffd700; color: #ffd700;
             width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            pointer-events: auto; cursor: pointer; font-weight: bold; font-size: 16px; transition: transform 0.2s;
+            pointer-events: auto; cursor: pointer; font-weight: bold; font-size: 14px; transition: transform 0.2s;
         }
         #questPanel {
             background: rgba(0,0,0,0.6); border-left: 3px solid #ffd700;
@@ -227,9 +227,9 @@
         </div>
     </div>
     
-    <!-- Панель квестов со стрелкой -->
+    <!-- Панель квестов со стрелкой (теперь верх/низ) -->
     <div id="questWrapper">
-        <div id="btnToggleQuests">◀</div>
+        <div id="btnToggleQuests">▲</div>
         <div id="questPanel">
             <!-- Заполняется через JS -->
         </div>
@@ -301,7 +301,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v27.6 (SINGLE QUEST)</div>
+<div class="version-text">v27.7 (FIXES & UI)</div>
 
 <script>
     let gameState = 'splash'; 
@@ -329,16 +329,14 @@
 
     let questsPanelOpen = true;
 
-    // Взять квест
     function takeQuest(id) {
-        if (activeQuestId) return; // Уже есть активный квест
+        if (activeQuestId) return; 
         
         let q = QUEST_POOL.find(x => x.id === id);
         if (!q || completedQuests.includes(id)) return;
 
         let progress = questProgress[q.type] || 0;
         if (progress >= q.target) {
-            // Уже выполнен - начисляем сразу
             completedQuests.push(id);
             totalCoins += q.reward;
             localStorage.setItem('completedQuests', JSON.stringify(completedQuests));
@@ -355,7 +353,6 @@
         updateQuestUI();
     }
 
-    // Отменить квест
     function cancelQuest(id) {
         if (activeQuestId === id) {
             activeQuestId = null;
@@ -365,7 +362,6 @@
         }
     }
 
-    // Проверка выполнения
     function checkQuestsCompletion() {
         if (!activeQuestId) return;
         
@@ -374,7 +370,6 @@
 
         let progress = questProgress[q.type] || 0;
         if (progress >= q.target) {
-            // Выполнен!
             completedQuests.push(activeQuestId);
             activeQuestId = null;
             totalCoins += q.reward;
@@ -397,7 +392,6 @@
         }
     }
 
-    // Отрисовка меню квестов
     function renderMenuQuests() {
         let list = document.getElementById('menuQuestList');
         if (!list) return;
@@ -417,7 +411,6 @@
             } else if (isTaken) {
                 btnHtml = `<button class="quest-card-btn cancel-btn" onclick="cancelQuest('${q.id}')">ОТМЕНИТЬ</button>`;
             } else {
-                // Если есть активный квест, блокируем кнопку
                 let isBlocked = activeQuestId !== null;
                 btnHtml = `<button class="quest-card-btn" ${isBlocked ? 'disabled' : ''} onclick="takeQuest('${q.id}')">ВЗЯТЬ</button>`;
             }
@@ -437,7 +430,6 @@
         });
     }
 
-    // Отрисовка панели в игре
     function updateQuestUI() {
         let panel = document.getElementById('questPanel');
         if (!panel) return;
@@ -463,12 +455,11 @@
         panel.innerHTML = html;
     }
 
-    // Переключение панели
     document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('btnToggleQuests').addEventListener('click', () => {
             questsPanelOpen = !questsPanelOpen;
             document.getElementById('questPanel').classList.toggle('hidden-quests', !questsPanelOpen);
-            document.getElementById('btnToggleQuests').innerText = questsPanelOpen ? '◀' : '▶';
+            document.getElementById('btnToggleQuests').innerText = questsPanelOpen ? '▲' : '▼';
         });
     });
 
@@ -744,10 +735,9 @@
         zoom = maxZoom;
         document.getElementById('coinBalanceText').innerText = totalCoins; document.getElementById('distanceText').innerText = "0";
         
-        // Панель открыта по умолчанию
         questsPanelOpen = true;
         document.getElementById('questPanel').classList.remove('hidden-quests');
-        document.getElementById('btnToggleQuests').innerText = '◀';
+        document.getElementById('btnToggleQuests').innerText = '▲';
         
         updateQuestUI();
 
@@ -880,8 +870,11 @@
                 } 
                 else {
                     currentAirTime = 0; accumulatedRotation = 0; flipCounted = false;
-                    if (a < -0.3 && ls > 5) { currentWheelieTime += dt; if (currentWheelieTime > maxWheelieTime) maxWheelieTime = currentWheelieTime; } else { currentWheelieTime = 0; }
-                    if (a > 0.3 && ls > 5) { currentStoppieTime += dt; if (currentStoppieTime > maxStoppieTime) maxStoppieTime = currentStoppieTime; } else { currentStoppieTime = 0; }
+                    
+                    // Исправленная логика: a < -0.3 это Стоппи, a > 0.3 это Вилли
+                    if (a < -0.3 && ls > 5) { currentStoppieTime += dt; if (currentStoppieTime > maxStoppieTime) maxStoppieTime = currentStoppieTime; } else { currentStoppieTime = 0; }
+                    if (a > 0.3 && ls > 5) { currentWheelieTime += dt; if (currentWheelieTime > maxWheelieTime) maxWheelieTime = currentWheelieTime; } else { currentWheelieTime = 0; }
+                    
                     if (ls > 5) { dustTimer += dt; if (dustTimer > 0.06) { let wp = wheelRear.getPosition(); let dx = wp.x * SCALE; let dy = wp.y * SCALE + (wheelRadius * SCALE); if (window.isBrake && ls > 10) spawnDust(dx, dy, chassis.getLinearVelocity().x * SCALE, 'brake'); else if (window.isGas) spawnDust(dx, dy, chassis.getLinearVelocity().x * SCALE, 'gas'); else if (ls > 15) spawnDust(dx, dy, chassis.getLinearVelocity().x * SCALE, 'roll'); dustTimer = 0; } } else { dustTimer = 0.05; }
                 }
                 lastAngle = a; 
@@ -942,4 +935,4 @@
     checkOrientation(); resizeCanvas(); update();
 </script>
 </body>
-    </html>
+                                                      </html>
