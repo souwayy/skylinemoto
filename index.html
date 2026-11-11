@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v27.4 - Global Quests + Menu)</title>
+    <title>Nyxride (v27.5 - Russian Quests)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
@@ -61,14 +61,28 @@
         .score { font-size: 36px; font-weight: bold; color: white; text-shadow: 0 2px 5px #000; }
         
         /* UI КВЕСТОВ В ИГРЕ */
+        #questWrapper {
+            position: absolute; top: 80px; left: 10px;
+            display: flex; flex-direction: row; align-items: flex-start;
+            pointer-events: none; z-index: 15;
+        }
+        #btnToggleQuests {
+            background: rgba(0,0,0,0.6); border: 1px solid #ffd700; color: #ffd700;
+            width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            pointer-events: auto; cursor: pointer; font-weight: bold; font-size: 16px; transition: transform 0.2s;
+        }
         #questPanel {
-            position: absolute; top: 80px; left: 20px;
-            background: rgba(0,0,0,0.6); border-left: 4px solid #ffd700;
+            background: rgba(0,0,0,0.6); border-left: 3px solid #ffd700;
             padding: 10px 15px; border-radius: 0 8px 8px 0;
             display: flex; flex-direction: column; gap: 8px;
-            pointer-events: none; z-index: 15; width: 60vw; max-width: 300px;
+            margin-left: 5px; width: 55vw; max-width: 280px;
+            transition: opacity 0.2s, max-height 0.2s;
+            overflow: hidden;
         }
-        .quest-item { color: white; font-size: 14px; font-weight: 600; }
+        #questPanel.hidden-quests {
+            display: none !important;
+        }
+        .quest-item { color: white; font-size: 13px; font-weight: 600; }
         .quest-item.completed { color: #00ff00; text-decoration: line-through; }
         .quest-bar { height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; margin-top: 3px; width: 100%; overflow: hidden;}
         .quest-fill { height: 100%; background: #ffd700; width: 0%; transition: width 0.3s; }
@@ -76,14 +90,23 @@
         /* МЕНЮ КВЕСТОВ */
         #questsScreen {
             position: absolute; top: 0; left: 0; width: 100vw; height: 100dvh;
-            background: rgba(10, 5, 15, 0.95); display: none; flex-direction: column; justify-content: center; align-items: center; pointer-events: auto; z-index: 70; padding: 20px; box-sizing: border-box;
+            background: rgba(10, 5, 15, 0.97); display: none; flex-direction: column; justify-content: center; align-items: center; pointer-events: auto; z-index: 70; padding: 20px; box-sizing: border-box;
         }
         .quests-title { color: #fff; font-size: 32px; font-weight: 900; margin-bottom: 20px; letter-spacing: 3px; font-style: italic; }
         .quests-list { width: 100%; max-width: 500px; display: flex; flex-direction: column; gap: 15px; max-height: 70vh; overflow-y: auto; padding-right: 10px; }
-        .quest-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-left: 4px solid #ffd700; padding: 15px; border-radius: 8px; }
-        .quest-card-title { color: #fff; font-size: 16px; font-weight: bold; margin-bottom: 8px; }
-        .quest-card-reward { color: #ffd700; font-size: 14px; font-weight: bold; float: right; }
-        .quest-card-desc { color: #aaa; font-size: 14px; margin-bottom: 8px; }
+        .quest-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-left: 4px solid #ffd700; padding: 12px 15px; border-radius: 8px; display: flex; flex-direction: column; gap: 6px; }
+        .quest-card.taken { border-left-color: #00ff00; background: rgba(0, 255, 0, 0.05); }
+        .quest-card-header { display: flex; justify-content: space-between; align-items: center; }
+        .quest-card-title { color: #fff; font-size: 15px; font-weight: bold; }
+        .quest-card-reward { color: #ffd700; font-size: 14px; font-weight: bold; }
+        .quest-card-desc { color: #aaa; font-size: 13px; }
+        .quest-card-btn {
+            background: #ffd700; color: #000; border: none; border-radius: 6px;
+            padding: 6px 12px; font-size: 13px; font-weight: bold; cursor: pointer;
+            align-self: flex-end; transition: background 0.2s;
+        }
+        .quest-card-btn:active { background: #ffaa00; }
+        .quest-card-btn.taken-btn { background: #333; color: #666; cursor: default; }
 
         .btn-game { position: absolute; width: 50px; height: 50px; border-radius: 50%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); pointer-events: auto; color: white; display: flex; align-items: center; justify-content: center; }
         .btn-game svg { width: 25px; height: 25px; stroke: rgba(255,255,255,0.8); stroke-width: 2.5; }
@@ -202,8 +225,12 @@
         </div>
     </div>
     
-    <div id="questPanel">
-        <!-- Заполняется через JS -->
+    <!-- Панель квестов со стрелкой -->
+    <div id="questWrapper">
+        <div id="btnToggleQuests">◀</div>
+        <div id="questPanel">
+            <!-- Заполняется через JS -->
+        </div>
     </div>
 
     <div class="controls" id="controls">
@@ -215,64 +242,64 @@
 </div>
 
 <div id="questsScreen">
-    <div class="quests-title">QUESTS</div>
+    <div class="quests-title">КВЕСТЫ</div>
     <div class="quests-list" id="menuQuestList">
         <!-- Заполняется через JS -->
     </div>
-    <button class="pause-btn" id="btnCloseQuests" style="margin-top: 20px;">CLOSE</button>
+    <button class="pause-btn" id="btnCloseQuests" style="margin-top: 20px;">ЗАКРЫТЬ</button>
 </div>
 
 <div id="pauseScreen" style="display: none;">
-    <div class="pause-title">PAUSED</div>
-    <button class="pause-btn" id="btnResume">CONTINUE</button>
-    <button class="pause-btn" id="btnRestartPause">RESTART</button>
-    <button class="pause-btn" id="btnSettingsPause">SETTINGS</button>
-    <button class="pause-btn" id="btnHomePause">MAIN MENU</button>
+    <div class="pause-title">ПАУЗА</div>
+    <button class="pause-btn" id="btnResume">ПРОДОЛЖИТЬ</button>
+    <button class="pause-btn" id="btnRestartPause">РЕСТАРТ</button>
+    <button class="pause-btn" id="btnSettingsPause">НАСТРОЙКИ</button>
+    <button class="pause-btn" id="btnHomePause">В МЕНЮ</button>
 </div>
 
 <div id="gameOverScreen">
     <div class="go-header">
-        <div class="go-title">Distance</div>
-        <div class="go-distance"><span id="go-distance">0</span> M</div>
+        <div class="go-title">Дистанция</div>
+        <div class="go-distance"><span id="go-distance">0</span> М</div>
     </div>
     
     <div class="go-stats-list">
         <div class="go-row">
-            <span class="stat-name">MAX WHEELIE</span>
+            <span class="stat-name">ВИЛЛИ</span>
             <span class="stat-value" id="go-wheelie">0.0s</span>
             <span class="stat-coins">+<span id="go-coins-wheelie">0</span> <img src="coin.png" onerror="this.style.display='none'"></span>
         </div>
         <div class="go-row">
-            <span class="stat-name">MAX STOPPIE</span>
+            <span class="stat-name">СТОППИ</span>
             <span class="stat-value" id="go-stoppie">0.0s</span>
             <span class="stat-coins">+<span id="go-coins-stoppie">0</span> <img src="coin.png" onerror="this.style.display='none'"></span>
         </div>
         <div class="go-row">
-            <span class="stat-name">FRONTFLIPS</span>
+            <span class="stat-name">ФРОНТФЛИП</span>
             <span class="stat-value" id="go-frontflips">0</span>
             <span class="stat-coins">+<span id="go-coins-front">0</span> <img src="coin.png" onerror="this.style.display='none'"></span>
         </div>
         <div class="go-row">
-            <span class="stat-name">BACKFLIPS</span>
+            <span class="stat-name">БЭКФЛИП</span>
             <span class="stat-value" id="go-backflips">0</span>
             <span class="stat-coins">+<span id="go-coins-back">0</span> <img src="coin.png" onerror="this.style.display='none'"></span>
         </div>
     </div>
 
     <div class="go-total-reward">
-        <span>TOTAL REWARD:</span>
+        <span>ИТОГО:</span>
         <img src="coin.png" onerror="this.style.display='none'">
         <span id="go-total-coins">0</span>
     </div>
 
     <div class="go-buttons">
-        <button class="btn-neon" id="btnHomeGameOver">MENU</button>
-        <button class="btn-neon" id="btnRestartGameOver">RESTART</button>
+        <button class="btn-neon" id="btnHomeGameOver">МЕНЮ</button>
+        <button class="btn-neon" id="btnRestartGameOver">РЕСТАРТ</button>
     </div>
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v27.4 (GLOBAL QUESTS + MENU)</div>
+<div class="version-text">v27.5 (RUSSIAN QUESTS)</div>
 
 <script>
     let gameState = 'splash'; 
@@ -280,119 +307,180 @@
     
     // --- СИСТЕМА КВЕСТОВ ---
     const QUEST_POOL = [
-        { id: 'dist_1k', type: 'dist', text: 'Drive total 1000m', target: 1000, reward: 50 },
-        { id: 'dist_5k', type: 'dist', text: 'Drive total 5000m', target: 5000, reward: 150 },
-        { id: 'dist_20k', type: 'dist', text: 'Drive total 20000m', target: 20000, reward: 500 },
-        { id: 'flips_5', type: 'flips', text: 'Perform 5 Backflips', target: 5, reward: 100 },
-        { id: 'flips_20', type: 'flips', text: 'Perform 20 Backflips', target: 20, reward: 300 },
-        { id: 'wheelie_10', type: 'wheelie', text: 'Wheelie total 10s', target: 10, reward: 75 },
-        { id: 'wheelie_30', type: 'wheelie', text: 'Wheelie total 30s', target: 30, reward: 200 },
-        { id: 'stoppie_5', type: 'stoppie', text: 'Stoppie total 5s', target: 5, reward: 75 },
-        { id: 'stoppie_20', type: 'stoppie', text: 'Stoppie total 20s', target: 20, reward: 200 },
-        { id: 'flips_any_10', type: 'total_flips', text: 'Perform 10 total flips', target: 10, reward: 150 }
+        { id: 'dist_1k', type: 'dist', text: 'Проедь всего 1000м', target: 1000, reward: 50 },
+        { id: 'dist_5k', type: 'dist', text: 'Проедь всего 5000м', target: 5000, reward: 150 },
+        { id: 'dist_20k', type: 'dist', text: 'Проедь всего 20000м', target: 20000, reward: 500 },
+        { id: 'flips_5', type: 'flips', text: 'Сделай 5 Бэкфлипов', target: 5, reward: 100 },
+        { id: 'flips_20', type: 'flips', text: 'Сделай 20 Бэкфлипов', target: 20, reward: 300 },
+        { id: 'wheelie_10', type: 'wheelie', text: 'Вилли всего 10с', target: 10, reward: 75 },
+        { id: 'wheelie_30', type: 'wheelie', text: 'Вилли всего 30с', target: 30, reward: 200 },
+        { id: 'stoppie_5', type: 'stoppie', text: 'Стоппи всего 5с', target: 5, reward: 75 },
+        { id: 'stoppie_20', type: 'stoppie', text: 'Стоппи всего 20с', target: 20, reward: 200 },
+        { id: 'flips_any_10', type: 'total_flips', text: 'Сделай 10 любых сальто', target: 10, reward: 150 }
     ];
 
-    let activeQuests = []; 
     let questProgress = JSON.parse(localStorage.getItem('questProgress')) || {
         dist: 0, flips: 0, wheelie: 0, stoppie: 0, total_flips: 0
     };
     let completedQuests = JSON.parse(localStorage.getItem('completedQuests')) || [];
+    let takenQuests = JSON.parse(localStorage.getItem('takenQuests')) || []; // массив ID взятых квестов
 
-    function initQuests() {
-        activeQuests = [];
-        let available = QUEST_POOL.filter(q => !completedQuests.includes(q.id));
+    let questsPanelOpen = true;
+
+    // Взять квест
+    function takeQuest(id) {
+        if (takenQuests.includes(id)) return;
         
-        if (available.length < 3) {
-            completedQuests = [];
-            available = [...QUEST_POOL];
+        // Если квест уже выполнен по прогрессу - сразу начисляем
+        let q = QUEST_POOL.find(x => x.id === id);
+        if (!q) return;
+
+        let progress = questProgress[q.type] || 0;
+        if (progress >= q.target) {
+            // Уже выполнен - начисляем сразу
+            completedQuests.push(id);
+            totalCoins += q.reward;
+            localStorage.setItem('completedQuests', JSON.stringify(completedQuests));
+            localStorage.setItem('totalCoins', totalCoins);
+            document.getElementById('menuCoinBalance').innerText = totalCoins;
+            document.getElementById('coinBalanceText').innerText = totalCoins;
+            renderMenuQuests();
+            return;
         }
 
-        for (let i = 0; i < 3 && available.length > 0; i++) {
-            let idx = Math.floor(Math.random() * available.length);
-            activeQuests.push({ ...available[idx], current: 0 });
-            available.splice(idx, 1);
-        }
+        takenQuests.push(id);
+        localStorage.setItem('takenQuests', JSON.stringify(takenQuests));
+        renderMenuQuests();
         updateQuestUI();
-        updateMenuQuestUI();
     }
 
-    function updateQuestUI() {
-        let panel = document.getElementById('questPanel');
-        if (!panel) return;
-        panel.innerHTML = '';
-        
-        activeQuests.forEach(q => {
-            if (!q) return;
-            let p = questProgress[q.type] || 0;
-            q.current = p;
-            
-            let isDone = p >= q.target;
-            let percent = Math.min(100, (p / q.target) * 100);
-            
-            let html = `
-                <div class="quest-item ${isDone ? 'completed' : ''}">
-                    <div>${q.text} (${Math.min(Math.floor(p), q.target)}/${q.target})</div>
-                    <div class="quest-bar"><div class="quest-fill" style="width: ${percent}%"></div></div>
-                </div>
-            `;
-            panel.innerHTML += html;
-            
-            if (isDone && !completedQuests.includes(q.id)) {
-                completedQuests.push(q.id);
+    // Проверка выполнения взятых квестов
+    function checkQuestsCompletion() {
+        let changed = false;
+        for (let i = takenQuests.length - 1; i >= 0; i--) {
+            let id = takenQuests[i];
+            let q = QUEST_POOL.find(x => x.id === id);
+            if (!q) continue;
+
+            let progress = questProgress[q.type] || 0;
+            if (progress >= q.target) {
+                // Выполнен!
+                completedQuests.push(id);
+                takenQuests.splice(i, 1);
                 totalCoins += q.reward;
-                localStorage.setItem('completedQuests', JSON.stringify(completedQuests));
-                localStorage.setItem('totalCoins', totalCoins);
-                document.getElementById('coinBalanceText').innerText = totalCoins;
-                document.getElementById('menuCoinBalance').innerText = totalCoins;
+                changed = true;
                 
+                // Всплывающее уведомление
                 let notif = document.createElement('div');
-                notif.style.cssText = 'position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:#00ff00; font-size:24px; font-weight:bold; z-index:100; text-shadow:0 0 10px #000;';
-                notif.innerText = `QUEST COMPLETE! +${q.reward} COINS`;
+                notif.style.cssText = 'position:absolute; top:40%; left:50%; transform:translate(-50%,-50%); color:#00ff00; font-size:22px; font-weight:bold; z-index:100; text-shadow:0 0 10px #000; text-align:center;';
+                notif.innerText = `КВЕСТ ВЫПОЛНЕН!\n+${q.reward} МОНЕТ`;
                 document.body.appendChild(notif);
-                setTimeout(() => notif.remove(), 2000);
-                
-                setTimeout(() => {
-                    let available = QUEST_POOL.filter(poolQ => !completedQuests.includes(poolQ.id));
-                    if (available.length > 0) {
-                        let newQ = available[Math.floor(Math.random() * available.length)];
-                        q.id = newQ.id; q.type = newQ.type; q.text = newQ.text; q.target = newQ.target; q.reward = newQ.reward; q.current = 0;
-                    }
-                    updateQuestUI();
-                    updateMenuQuestUI();
-                }, 2000);
+                setTimeout(() => notif.remove(), 2500);
             }
-        });
+        }
+        if (changed) {
+            localStorage.setItem('completedQuests', JSON.stringify(completedQuests));
+            localStorage.setItem('takenQuests', JSON.stringify(takenQuests));
+            localStorage.setItem('totalCoins', totalCoins);
+            document.getElementById('coinBalanceText').innerText = totalCoins;
+            document.getElementById('menuCoinBalance').innerText = totalCoins;
+            renderMenuQuests();
+            updateQuestUI();
+        }
     }
 
-    function updateMenuQuestUI() {
+    // Отрисовка меню квестов (все доступные + взятые)
+    function renderMenuQuests() {
         let list = document.getElementById('menuQuestList');
         if (!list) return;
         list.innerHTML = '';
         
-        activeQuests.forEach(q => {
-            if (!q) return;
-            let p = questProgress[q.type] || 0;
-            let isDone = p >= q.target;
-            let percent = Math.min(100, (p / q.target) * 100);
+        // Показываем ВСЕ квесты из пула, отсортированные: сначала взятые, потом доступные, потом завершенные
+        let sorted = [...QUEST_POOL].sort((a, b) => {
+            let aTaken = takenQuests.includes(a.id);
+            let bTaken = takenQuests.includes(b.id);
+            let aDone = completedQuests.includes(a.id);
+            let bDone = completedQuests.includes(b.id);
+            if (aDone && !bDone) return 1;
+            if (!aDone && bDone) return -1;
+            if (aTaken && !bTaken) return -1;
+            if (!aTaken && bTaken) return 1;
+            return 0;
+        });
+
+        sorted.forEach(q => {
+            let isDone = completedQuests.includes(q.id);
+            let isTaken = takenQuests.includes(q.id);
+            let progress = questProgress[q.type] || 0;
+            let percent = Math.min(100, (progress / q.target) * 100);
             
+            let cardClass = isDone ? '' : (isTaken ? 'taken' : '');
+            let btnHtml = '';
+            
+            if (isDone) {
+                btnHtml = `<button class="quest-card-btn taken-btn" disabled>ВЫПОЛНЕН</button>`;
+            } else if (isTaken) {
+                btnHtml = `<button class="quest-card-btn taken-btn" disabled>ВЗЯТ</button>`;
+            } else {
+                btnHtml = `<button class="quest-card-btn" onclick="takeQuest('${q.id}')">ВЗЯТЬ</button>`;
+            }
+
             let html = `
-                <div class="quest-card">
-                    <div class="quest-card-reward">+${q.reward} 🪙</div>
-                    <div class="quest-card-title">${q.text}</div>
-                    <div class="quest-card-desc">Progress: ${Math.min(Math.floor(p), q.target)} / ${q.target}</div>
+                <div class="quest-card ${cardClass}">
+                    <div class="quest-card-header">
+                        <div class="quest-card-title">${q.text}</div>
+                        <div class="quest-card-reward">+${q.reward} 🪙</div>
+                    </div>
+                    <div class="quest-card-desc">Прогресс: ${Math.min(Math.floor(progress), q.target)} / ${q.target}</div>
                     <div class="quest-bar"><div class="quest-fill" style="width: ${percent}%; background: ${isDone ? '#00ff00' : '#ffd700'}"></div></div>
+                    ${btnHtml}
                 </div>
             `;
             list.innerHTML += html;
         });
     }
 
+    // Отрисовка панели в игре (только взятые)
+    function updateQuestUI() {
+        let panel = document.getElementById('questPanel');
+        if (!panel) return;
+        
+        if (takenQuests.length === 0) {
+            panel.innerHTML = '<div style="color:#aaa; font-size:12px;">Нет активных квестов.<br>Возьмите квест в меню.</div>';
+            return;
+        }
+
+        panel.innerHTML = '';
+        takenQuests.forEach(id => {
+            let q = QUEST_POOL.find(x => x.id === id);
+            if (!q) return;
+            let progress = questProgress[q.type] || 0;
+            let percent = Math.min(100, (progress / q.target) * 100);
+            
+            let html = `
+                <div class="quest-item">
+                    <div>${q.text} (${Math.min(Math.floor(progress), q.target)}/${q.target})</div>
+                    <div class="quest-bar"><div class="quest-fill" style="width: ${percent}%"></div></div>
+                </div>
+            `;
+            panel.innerHTML += html;
+        });
+    }
+
+    // Переключение панели
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('btnToggleQuests').addEventListener('click', () => {
+            questsPanelOpen = !questsPanelOpen;
+            document.getElementById('questPanel').classList.toggle('hidden-quests', !questsPanelOpen);
+            document.getElementById('btnToggleQuests').innerText = questsPanelOpen ? '◀' : '▶';
+        });
+    });
+
     function updateQuestProgress(type, amount) {
         if (questProgress[type] !== undefined) {
             if (amount > questProgress[type]) {
                 questProgress[type] = amount;
                 localStorage.setItem('questProgress', JSON.stringify(questProgress));
-                if (gameState === 'playing') updateQuestUI();
             }
         }
     }
@@ -447,7 +535,8 @@
                 document.getElementById('mainMenu').classList.remove('hidden');
                 gameState = 'menu';
                 updateMenuUI();
-                initQuests(); // Инициализация квестов при входе в меню
+                checkQuestsCompletion();
+                renderMenuQuests();
             }, 800);
         }, 2000);
     }
@@ -568,7 +657,7 @@
 
     document.getElementById('btn-shop').addEventListener('click', () => { console.log('Магазин в разработке'); });
     document.getElementById('btn-quests').addEventListener('click', () => { 
-        updateMenuQuestUI(); 
+        renderMenuQuests(); 
         document.getElementById('questsScreen').style.display = 'flex'; 
     });
     document.getElementById('btnCloseQuests').addEventListener('click', () => { 
@@ -642,9 +731,9 @@
     document.getElementById('btnResume').addEventListener('click', () => { gameState = 'playing'; document.getElementById('pauseScreen').style.display = 'none'; lastTime = performance.now(); });
     document.getElementById('btnRestartPause').addEventListener('click', () => { document.getElementById('pauseScreen').style.display = 'none'; gameState = 'playing'; resetGame(); });
     document.getElementById('btnSettingsPause').addEventListener('click', () => { console.log('Настройки в разработке'); });
-    document.getElementById('btnHomePause').addEventListener('click', () => { document.getElementById('pauseScreen').style.display = 'none'; document.getElementById('gameUI').classList.add('hidden'); document.getElementById('mainMenu').classList.remove('hidden'); gameState = 'menu'; updateMenuUI(); });
+    document.getElementById('btnHomePause').addEventListener('click', () => { document.getElementById('pauseScreen').style.display = 'none'; document.getElementById('gameUI').classList.add('hidden'); document.getElementById('mainMenu').classList.remove('hidden'); gameState = 'menu'; updateMenuUI(); checkQuestsCompletion(); renderMenuQuests(); });
     document.getElementById('btnRestartGameOver').addEventListener('click', () => { document.getElementById('gameOverScreen').style.display = 'none'; gameState = 'playing'; resetGame(); });
-    document.getElementById('btnHomeGameOver').addEventListener('click', () => { document.getElementById('gameOverScreen').style.display = 'none'; document.getElementById('gameUI').classList.add('hidden'); document.getElementById('mainMenu').classList.remove('hidden'); gameState = 'menu'; updateMenuUI(); });
+    document.getElementById('btnHomeGameOver').addEventListener('click', () => { document.getElementById('gameOverScreen').style.display = 'none'; document.getElementById('gameUI').classList.add('hidden'); document.getElementById('mainMenu').classList.remove('hidden'); gameState = 'menu'; updateMenuUI(); checkQuestsCompletion(); renderMenuQuests(); });
 
     function resetGame() {
         sessionSeed = Math.floor(Math.random() * 0xFFFFFFFF); zoneCache.clear(); terrainOffset = Math.random() * 10000;
@@ -659,7 +748,12 @@
         zoom = maxZoom;
         document.getElementById('coinBalanceText').innerText = totalCoins; document.getElementById('distanceText').innerText = "0";
         
-        initQuests();
+        // Панель открыта по умолчанию
+        questsPanelOpen = true;
+        document.getElementById('questPanel').classList.remove('hidden-quests');
+        document.getElementById('btnToggleQuests').innerText = '◀';
+        
+        updateQuestUI();
 
         if (isAudioInitialized) { idleGain.gain.setValueAtTime(0.4, audioCtx.currentTime); revGain.gain.setValueAtTime(0, audioCtx.currentTime); windGain.gain.setValueAtTime(0, audioCtx.currentTime); if (revFilter) revFilter.frequency.value = 2500; startRevSound(); }
     }
@@ -683,11 +777,15 @@
             localStorage.setItem('bestDistance', maxDistance); 
         }
 
+        // Накапливаем прогресс квестов
         updateQuestProgress('dist', questProgress.dist + dist);
         updateQuestProgress('flips', questProgress.flips + backflipCount);
         updateQuestProgress('total_flips', questProgress.total_flips + backflipCount + frontflipCount);
         updateQuestProgress('wheelie', questProgress.wheelie + maxWheelieTime);
         updateQuestProgress('stoppie', questProgress.stoppie + maxStoppieTime);
+
+        // Проверяем выполнение
+        checkQuestsCompletion();
 
         document.getElementById('go-distance').innerText = dist;
         document.getElementById('go-wheelie').innerText = maxWheelieTime.toFixed(1) + "s";
@@ -850,4 +948,4 @@
     checkOrientation(); resizeCanvas(); update();
 </script>
 </body>
-    </html>
+</html>
