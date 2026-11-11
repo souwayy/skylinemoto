@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v31.1 - Limit Fix)</title>
+    <title>Nyxride (v31.5 - Black Spokes)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
@@ -235,7 +235,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v31.1 (LIMIT FIX)</div>
+<div class="version-text">v31.5 (BLACK SPOKES)</div>
 
 <script>
     let gameState = 'splash'; 
@@ -247,10 +247,8 @@
     const BIKE_CATALOG = [
         {
             id: 'cayo', name: "CAYO 125 BASIC", tier: 'starter', density: 1.6, wheelDensity: 0.45, 
-            // КОЛЕСА 18 и 19
             wheelRearRadius: 18, wheelFrontRadius: 19, wheelBase: 35, 
-            // ПОДВЕСКА ЖЕСТЧЕ ДЛЯ ПИТБАЙКА
-            suspension: { freq: 6.5, damp: 1.0 }, 
+            suspension: { freq: 3.8, damp: 1.0 }, 
             motor: { speed: 35, baseTorque: 28, brake: 50 },
             lean: { torque: 12, maxAngVelLow: 3.0, maxAngVelHigh: 1.8 }, antiPop: { contactTolerance: 22, trickTolerance: 8, rampMs: 120 },
             
@@ -267,7 +265,6 @@
         {
             id: 'ctm', name: "CTM 300 EXC", tier: 'shop', density: 1.2, wheelDensity: 0.4,
             wheelRearRadius: 18, wheelFrontRadius: 19, wheelBase: 35,
-            // ПОДВЕСКА МЯГЧЕ ДЛЯ ЭНДУРО
             suspension: { freq: 4.5, damp: 1.0 }, 
             motor: { speed: 50, baseTorque: 55, brake: 100 },
             lean: { torque: 18, maxAngVelLow: 2.8, maxAngVelHigh: 2.2 }, antiPop: { contactTolerance: 22, trickTolerance: 8, rampMs: 100 },
@@ -557,17 +554,14 @@
         wheelRear = world.createBody({ position: pl.Vec2((x - wb * SCALE) / SCALE, y / SCALE), type: 'dynamic', bullet: true }); wheelRear.createFixture(pl.Circle(rr), { density: bike.wheelDensity, friction: 1.0 });
         wheelFront = world.createBody({ position: pl.Vec2((x + wb * SCALE) / SCALE, (y - yDiff * SCALE) / SCALE), type: 'dynamic', bullet: true }); wheelFront.createFixture(pl.Circle(rf), { density: bike.wheelDensity, friction: 1.0 });
 
-        // ОГРАНИЧЕНИЕ ХОДА ПОДВЕСКИ (enableLimit + lower/upperTranslation)
         jointRear = world.createJoint(pl.WheelJoint({ 
             motorSpeed: 0, maxMotorTorque: 0, enableMotor: false, 
-            frequencyHz: bike.suspension.freq, dampingRatio: bike.suspension.damp,
-            enableLimit: true, lowerTranslation: -0.1, upperTranslation: 0.1 
+            frequencyHz: bike.suspension.freq, dampingRatio: bike.suspension.damp
         }, chassis, wheelRear, wheelRear.getPosition(), pl.Vec2(0, 1)));
 
         jointFront = world.createJoint(pl.WheelJoint({ 
             motorSpeed: 0, maxMotorTorque: 0, enableMotor: false, 
-            frequencyHz: bike.suspension.freq, dampingRatio: bike.suspension.damp,
-            enableLimit: true, lowerTranslation: -0.1, upperTranslation: 0.1 
+            frequencyHz: bike.suspension.freq, dampingRatio: bike.suspension.damp
         }, chassis, wheelFront, wheelFront.getPosition(), pl.Vec2(0, 1)));
     }
 
@@ -658,10 +652,21 @@
     function drawTerrain() { ctx.fillStyle = '#000'; ctx.strokeStyle = '#000'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(cameraX - 100, groundY + 2000); let sx = Math.floor(cameraX) - 100; let ex = Math.floor(cameraX) + (canvas.width / zoom) + 100; for (let x = sx; x <= ex; x += 2) ctx.lineTo(x, getTerrainY(x)); ctx.lineTo(ex, groundY + 2000); ctx.closePath(); ctx.fill(); ctx.stroke(); }
     
     function drawWheel(wheel, radius) { 
-        ctx.save(); ctx.translate(wheel.getPosition().x * SCALE, wheel.getPosition().y * SCALE); ctx.rotate(wheel.getAngle()); 
+        ctx.save(); 
+        ctx.translate(wheel.getPosition().x * SCALE, wheel.getPosition().y * SCALE); 
+        ctx.rotate(wheel.getAngle()); 
+        
+        // 1. Рисуем черный круг, чтобы закрыть фон спиц
+        ctx.beginPath(); 
+        ctx.arc(0, 0, radius, 0, Math.PI * 2); 
+        ctx.fillStyle = '#000'; 
+        ctx.fill(); 
+
+        // 2. Рисуем само колесо
         let wImg = (wheel === wheelRear) ? wheelRearImages[currentBike.id] : wheelFrontImages[currentBike.id];
-        if (wImg && wImg.complete && wImg.naturalWidth > 0) { ctx.drawImage(wImg, -radius, -radius, radius * 2, radius * 2); } 
-        else { ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI * 2); ctx.fillStyle = '#000'; ctx.fill(); }
+        if (wImg && wImg.complete && wImg.naturalWidth > 0) { 
+            ctx.drawImage(wImg, -radius, -radius, radius * 2, radius * 2); 
+        } 
         ctx.restore(); 
     }
     
@@ -808,4 +813,4 @@
     window.addEventListener('load', checkOrientation); checkOrientation(); resizeCanvas(); update();
 </script>
 </body>
-                </html>
+</html>
