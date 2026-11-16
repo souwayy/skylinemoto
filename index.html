@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v28.0 - Combo & Landing)</title>
+    <title>Nyxride (v28.1 - Clean UI)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
@@ -58,18 +58,11 @@
         .stat-text { font-size: 16px; font-weight: 600; color: rgba(255,255,255,0.8); text-transform: uppercase; }
         
         .stats-right { display: flex; flex-direction: row; align-items: center; gap: 15px; }
-        .score { font-size: 36px; font-weight: bold; color: white; text-shadow: 0 2px 5px #000; }
-
-        /* NEW: бейдж комбо */
-        #comboBadge {
-            position: absolute; top: 90px; right: 20px;
-            background: rgba(0,0,0,0.5); border: 2px solid #ffd700; color: #ffd700;
-            padding: 3px 10px; border-radius: 12px; font-weight: 900; font-size: 16px;
-            pointer-events: none; z-index: 15; text-shadow: 0 0 8px rgba(255,215,0,0.6);
-            transition: opacity 0.3s;
-        }
-        #comboBadge.hot { border-color: #ff5500; color: #ff5500; text-shadow: 0 0 8px rgba(255,85,0,0.8); }
+        .score { font-size: 36px; font-weight: bold; color: white; text-shadow: 0 2px 5px #000; display: flex; align-items: baseline; gap: 10px; }
         
+        /* Множитель без фона рядом с метрами */
+        #comboText { color: #ff5500; font-size: 26px; font-style: italic; font-weight: 900; text-shadow: 0 0 10px rgba(255,85,0,0.8), 0 2px 4px #000; }
+
         /* UI КВЕСТОВ В ИГРЕ */
         #questWrapper {
             position: absolute; top: 80px; left: 10px;
@@ -107,7 +100,6 @@
         .quest-card.completed { border-left-color: #555; opacity: 0.6; }
         .quest-card-header { display: flex; justify-content: space-between; align-items: center; }
         .quest-card-title { color: #fff; font-size: 15px; font-weight: bold; }
-        /* NEW: заменили emoji на coin.png */
         .quest-card-reward { color: #ffd700; font-size: 14px; font-weight: bold; display: flex; align-items: center; gap: 4px; }
         .quest-card-reward img { height: 14px; vertical-align: middle; }
         .quest-card-desc { color: #aaa; font-size: 13px; }
@@ -136,27 +128,6 @@
         }
         #btnPause svg { width: 20px; height: 20px; }
 
-        /* NEW: прогресс-бар зоны эрозии */
-        #zoneProgressBar {
-            position: absolute; bottom: 6px; left: 15%; right: 15%;
-            height: 6px; background: rgba(0,0,0,0.5);
-            border-radius: 3px; z-index: 12; overflow: visible;
-            pointer-events: none; opacity: 0; transition: opacity 0.3s;
-        }
-        #zoneProgressBar.visible { opacity: 1; }
-        #zoneProgressFill {
-            height: 100%; width: 0%;
-            background: linear-gradient(90deg, #ffd700, #ff5500);
-            border-radius: 3px; transition: width 0.2s;
-        }
-        #zoneProgressLabel {
-            position: absolute; top: -22px; left: 50%;
-            transform: translateX(-50%); color: #fff;
-            font-size: 12px; font-weight: 700;
-            text-shadow: 0 1px 3px #000, 0 0 6px #000; white-space: nowrap;
-            letter-spacing: 1px;
-        }
-
         #pauseScreen, #gameOverScreen {
             position: absolute; top: 0; left: 0; width: 100vw; height: 100dvh;
             background: #0a050f; display: none; flex-direction: column; justify-content: center; align-items: center; pointer-events: auto; z-index: 60; padding: 10px 0; box-sizing: border-box;
@@ -165,8 +136,6 @@
         .go-header { text-align: center; margin-bottom: 10px; }
         .go-title { font-size: 16px; color: #aaa; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; }
         .go-distance { font-size: 38px; font-weight: 900; color: #fff; font-style: italic; text-shadow: 0 0 15px rgba(255,100,0,0.5); line-height: 1; }
-        /* NEW: бейдж комбо в gameover */
-        .go-combo { font-size: 16px; font-weight: 900; color: #ff5500; margin-top: 6px; letter-spacing: 2px; text-shadow: 0 0 8px rgba(255,85,0,0.6); }
         
         .go-stats-list {
             display: flex; flex-direction: column; gap: 4px; 
@@ -178,7 +147,6 @@
         .go-row .stat-value { flex: 1; text-align: center; color: #fff; font-weight: 900; font-size: 16px; }
         .go-row .stat-coins { flex: 1; text-align: right; color: #ffd700; font-weight: 900; display: flex; align-items: center; justify-content: flex-end; gap: 4px; font-size: 16px;}
         .go-row .stat-coins img { height: 14px; }
-        .go-row.perfect .stat-name { color: #00ff88; }
 
         .go-total-reward { display: flex; align-items: center; gap: 8px; font-size: 26px; font-weight: 900; color: #fff; text-shadow: 0 0 10px rgba(255, 215, 0, 0.5); margin-bottom: 15px; }
         .go-total-reward img { height: 32px; }
@@ -258,17 +226,12 @@
             <button id="btnPause">
                 <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
             </button>
-            <div class="score"><span id="distanceText">0</span> m</div>
+            <!-- Множитель комбо теперь прямо перед метрами, без фона -->
+            <div class="score">
+                <span id="comboText" class="hidden"></span>
+                <span><span id="distanceText">0</span> m</span>
+            </div>
         </div>
-    </div>
-
-    <!-- NEW: бейдж комбо -->
-    <div id="comboBadge" class="hidden">x1.00</div>
-
-    <!-- NEW: прогресс-бар зоны -->
-    <div id="zoneProgressBar">
-        <div id="zoneProgressFill"></div>
-        <div id="zoneProgressLabel">ЗОНА: 0 m</div>
     </div>
     
     <!-- Панель квестов -->
@@ -303,7 +266,6 @@
     <div class="go-header">
         <div class="go-title">Дистанция</div>
         <div class="go-distance"><span id="go-distance">0</span> М</div>
-        <div id="go-combo" class="go-combo hidden">×1.00 КОМБО</div>
     </div>
     
     <div class="go-stats-list">
@@ -327,12 +289,6 @@
             <span class="stat-value" id="go-backflips">0</span>
             <span class="stat-coins">+<span id="go-coins-back">0</span> <img src="coin.png" onerror="this.style.display='none'"></span>
         </div>
-        <!-- NEW: строка perfect-приземлений -->
-        <div class="go-row perfect">
-            <span class="stat-name">ИДЕАЛЬНО</span>
-            <span class="stat-value" id="go-perfect">0</span>
-            <span class="stat-coins">+<span id="go-coins-perfect">0</span> <img src="coin.png" onerror="this.style.display='none'"></span>
-        </div>
     </div>
 
     <div class="go-total-reward">
@@ -348,7 +304,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v28.0 (COMBO & LANDING)</div>
+<div class="version-text">v28.1 (CLEAN UI)</div>
 
 <script>
     let gameState = 'splash'; 
@@ -375,7 +331,6 @@
     let activeQuestId = localStorage.getItem('activeQuestId') || null;
     let questsPanelOpen = true;
 
-    /* NEW: квест теперь просто "отслеживается", а не "берётся". Все квесты копят прогресс */
     function takeQuest(id) {
         let q = QUEST_POOL.find(x => x.id === id);
         if (!q || completedQuests.includes(id)) return;
@@ -394,7 +349,6 @@
         }
     }
 
-    /* NEW: проверяем ВСЕ незавершённые квесты, а не только активный */
     function checkQuestsCompletion() {
         let anyCompleted = false;
         QUEST_POOL.forEach(q => {
@@ -448,7 +402,6 @@
                 btnHtml = `<button class="quest-card-btn" onclick="takeQuest('${q.id}')">ОТСЛЕЖИВАТЬ</button>`;
             }
 
-            /* NEW: заменили 🪙 на coin.png */
             html += `
                 <div class="quest-card ${cardClass}">
                     <div class="quest-card-header">
@@ -496,7 +449,6 @@
         });
     });
 
-    /* NEW: теперь прогресс копится, а не берётся max */
     function addQuestProgress(type, amount) {
         if (questProgress[type] === undefined) return;
         if (amount <= 0) return;
@@ -520,19 +472,12 @@
     let accumulatedRotation = 0, lastAngle = 0, flipCounted = false;
     let maxWheelieTime = 0, currentWheelieTime = 0;
     let maxStoppieTime = 0, currentStoppieTime = 0;
-    /* NEW: суммарное время трюков за заезд — для квестов и для комбо-базы */
     let totalWheelieThisRun = 0, totalStoppieThisRun = 0;
-    /* NEW: perfect-приземления */
-    let perfectLandings = 0;
-    /* NEW: система комбо */
-    let comboStage = 0; // 0..4 → множитель 1.0..2.0
+    
+    let comboStage = 0; 
     let wheelieComboTimer = 0, stoppieComboTimer = 0;
-    /* NEW: wipeout-таймер */
     let wipeoutTimer = 0;
-    /* NEW: shake и flash */
     let shakeAmount = 0;
-    let flash = { color: null, alpha: 0 };
-    /* NEW: детект приземления */
     let prevAirborne = false;
     
     let particles = [], dustTimer = 0;
@@ -590,7 +535,6 @@
     let idleSource, windSource, revSource;
     let idleGain, revGain, windGain, revFilter, revTremoloGain, revLfoTone, revLfoToneGain, revLfoVol, revLfoVolGain;
     let isAudioInitialized = false, previousGasState = false, popTimer = 0; 
-    /* FIX 6: флаг инициализации */
     let isAudioInitializing = false;
 
     async function loadAudio(url) {
@@ -611,7 +555,6 @@
         }
         return newBuffer;
     }
-    /* FIX 6: гвардия от двойного запуска */
     async function initAudio() {
         if (isAudioInitialized || isAudioInitializing) return;
         isAudioInitializing = true;
@@ -645,7 +588,6 @@
         } catch (e) { console.log("Ошибка аудио: ", e); }
         finally { isAudioInitializing = false; }
     }
-    /* FIX 5: полное отключение старого источника */
     function startRevSound() {
         if (!isAudioInitialized || !revBuffer) return;
         if (revSource) {
@@ -766,7 +708,6 @@
     }
 
     window.isGas = false; window.isBrake = false; window.isLeanBack = false; window.isLeanForward = false;
-    /* FIX 4: touchcancel + mouseleave */
     function bindBtn(id, v) {
         const el = document.getElementById(id);
         const on  = e => { e.preventDefault(); if (gameState === 'playing') window[v] = true; };
@@ -797,21 +738,17 @@
         maxAirTime = 0; currentAirTime = 0; frontflipCount = 0; backflipCount = 0; flipCounted = false;
         accumulatedRotation = 0; lastAngle = chassis.getAngle(); maxWheelieTime = 0; currentWheelieTime = 0;
         maxStoppieTime = 0; currentStoppieTime = 0; particles = []; dustTimer = 0; popTimer = 0;
-        /* NEW: сброс новых стейтов */
         totalWheelieThisRun = 0; totalStoppieThisRun = 0;
-        perfectLandings = 0;
         comboStage = 0; wheelieComboTimer = 0; stoppieComboTimer = 0;
         wipeoutTimer = 0;
         shakeAmount = 0;
-        flash.color = null; flash.alpha = 0;
         prevAirborne = false;
         physicsAccumulator = 0;
         birds = []; birdSpawnTimer = 3;
         zoom = maxZoom;
         document.getElementById('coinBalanceText').innerText = totalCoins; document.getElementById('distanceText').innerText = "0";
-        /* FIX 7 (вариант A): показываем актуальный рекорд в HUD с первого кадра */
         document.getElementById('bestDistanceText').innerText = maxDistance;
-        document.getElementById('comboBadge').classList.add('hidden');
+        document.getElementById('comboText').classList.add('hidden');
         
         questsPanelOpen = true;
         document.getElementById('questPanel').classList.remove('hidden-quests');
@@ -822,85 +759,23 @@
         if (isAudioInitialized) { idleGain.gain.setValueAtTime(0.4, audioCtx.currentTime); revGain.gain.setValueAtTime(0, audioCtx.currentTime); windGain.gain.setValueAtTime(0, audioCtx.currentTime); if (revFilter) revFilter.frequency.value = 2500; startRevSound(); }
     }
 
-    /* NEW: триггеры вспышек и shake */
-    function triggerFlash(color, alpha) { flash.color = color; flash.alpha = alpha; }
-    function addShake(amount) { shakeAmount = Math.max(shakeAmount, amount); }
-
-    /* NEW: обработка приземления */
-    function handleLanding(impactVy) {
-        const angle = Math.abs(chassis.getAngle());
-        const impact = Math.abs(impactVy); // м/с
-        if (angle < 0.25 && impact < 10) {
-            // PERFECT
-            perfectLandings++;
-            addShake(5);
-            triggerFlash('green', 0.25);
-            comboStage = Math.min(4, comboStage + 1);
-        } else if (angle >= 0.6 || impact >= 18) {
-            // WIPEOUT
-            wipeoutTimer = 0.4;
-            addShake(12);
-            triggerFlash('red', 0.35);
-            comboStage = 0;
-            const v = chassis.getLinearVelocity();
-            chassis.setLinearVelocity(pl.Vec2(v.x * 0.6, v.y));
-        }
-        // иначе — OK, ничего
-    }
-
-    /* NEW: расчёт прогресса до следующей зоны эрозии */
-    function updateZoneProgress(worldX) {
-        const bar = document.getElementById('zoneProgressBar');
-        const fill = document.getElementById('zoneProgressFill');
-        const label = document.getElementById('zoneProgressLabel');
-        if (!bar) return;
-
-        const currentDist = Math.max(0, Math.floor((worldX - startX) / 14));
-        const currentChunk = Math.floor(worldX / 10000);
-        let nextZoneMeters = null;
-        for (let i = currentChunk; i <= currentChunk + 3; i++) {
-            const zones = getZonesCached(i);
-            for (const z of zones) {
-                const zoneM = Math.floor((z.start - startX) / 14);
-                if (zoneM > currentDist) {
-                    if (nextZoneMeters === null || zoneM < nextZoneMeters) nextZoneMeters = zoneM;
-                }
-            }
-        }
-        if (nextZoneMeters === null || nextZoneMeters - currentDist > 5000) {
-            bar.classList.remove('visible');
-            return;
-        }
-        const distance = nextZoneMeters - currentDist;
-        const progress = Math.max(0, Math.min(1, 1 - distance / 5000));
-        bar.classList.add('visible');
-        fill.style.width = (progress * 100) + '%';
-        label.innerText = 'ЗОНА: ' + distance + ' m';
-    }
-
     function triggerGameOver() {
         if (gameState !== 'playing') return;
         gameState = 'gameover'; window.isGas = false;
-        addShake(25);
-        triggerFlash('red', 0.5);
+        shakeAmount = 20; // Тряска ТОЛЬКО в момент смерти
+
         if (isAudioInitialized) { idleGain.gain.setValueAtTime(0, audioCtx.currentTime); revGain.gain.setValueAtTime(0, audioCtx.currentTime); windGain.gain.setValueAtTime(0, audioCtx.currentTime); }
 
         const dist = Math.max(0, Math.floor(((chassis.getPosition().x * SCALE) - startX) / 14));
         const comboMult = Math.min(2.0, 1.0 + comboStage * 0.25);
 
-        // NEW: база трюков × комбо + отдельный бонус за perfect
-        const baseWheelie = Math.floor(maxWheelieTime) * 2;
-        const baseStoppie = Math.floor(maxStoppieTime) * 2;
-        const baseFront = frontflipCount * 10;
-        const baseBack = backflipCount * 10;
-        const coinsWheelie = Math.floor(baseWheelie * comboMult);
-        const coinsStoppie = Math.floor(baseStoppie * comboMult);
-        const coinsFront = Math.floor(baseFront * comboMult);
-        const coinsBack = Math.floor(baseBack * comboMult);
-        const coinsTricks = coinsWheelie + coinsStoppie + coinsFront + coinsBack;
+        const coinsWheelie = Math.floor(Math.floor(maxWheelieTime) * 2 * comboMult);
+        const coinsStoppie = Math.floor(Math.floor(maxStoppieTime) * 2 * comboMult);
+        const coinsFront = Math.floor(frontflipCount * 10 * comboMult);
+        const coinsBack = Math.floor(backflipCount * 10 * comboMult);
         const coinsDist = Math.floor(dist / 100);
-        const coinsPerfect = perfectLandings * 10;
-        const totalEarned = coinsDist + coinsTricks + coinsPerfect;
+        
+        const totalEarned = coinsDist + coinsWheelie + coinsStoppie + coinsFront + coinsBack;
 
         totalCoins += totalEarned;
         localStorage.setItem('totalCoins', totalCoins);
@@ -910,7 +785,6 @@
             localStorage.setItem('bestDistance', maxDistance);
         }
 
-        /* NEW: все квесты копят прогресс */
         addQuestProgress('dist', dist);
         addQuestProgress('flips', backflipCount);
         addQuestProgress('total_flips', backflipCount + frontflipCount);
@@ -928,18 +802,7 @@
         document.getElementById('go-coins-front').innerText = coinsFront;
         document.getElementById('go-backflips').innerText = backflipCount;
         document.getElementById('go-coins-back').innerText = coinsBack;
-        document.getElementById('go-perfect').innerText = perfectLandings;
-        document.getElementById('go-coins-perfect').innerText = coinsPerfect;
         document.getElementById('go-total-coins').innerText = totalEarned;
-
-        // NEW: показываем бейдж комбо в gameover
-        const comboEl = document.getElementById('go-combo');
-        if (comboStage > 0) {
-            comboEl.classList.remove('hidden');
-            comboEl.innerText = '×' + comboMult.toFixed(2) + ' КОМБО';
-        } else {
-            comboEl.classList.add('hidden');
-        }
 
         document.getElementById('gameOverScreen').style.display = 'flex';
     }
@@ -1006,21 +869,17 @@
     function drawParticles() { for (let p of particles) { let g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius); g.addColorStop(0, `rgba(140, 105, 75, ${p.alpha})`); g.addColorStop(1, 'rgba(200, 160, 120, 0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fill(); } }
 
     let lastTime = performance.now();
-    /* FIX 1: фиксированный шаг физики */
     let physicsAccumulator = 0;
     const FIXED_DT = 1/60;
 
     function update() {
         requestAnimationFrame(update); 
-        
         if (gameState === 'paused') return; 
 
         try {
             let dt = (performance.now() - lastTime) / 1000; lastTime = performance.now(); if (dt > 0.1) dt = 0.1; 
 
             if (gameState === 'playing' && chassis) {
-                /* FIX 1: правильный world.step с аккумулятором */
-                const preStepVy = chassis.getLinearVelocity().y;
                 physicsAccumulator += dt;
                 let steps = 0;
                 while (physicsAccumulator >= FIXED_DT && steps < 5 && gameState === 'playing') {
@@ -1035,9 +894,15 @@
                 let cx = chassis.getPosition().x * SCALE; let cy = chassis.getPosition().y * SCALE; let gu = getTerrainY(cx); let ia = (cy < gu - 25); 
                 let a = chassis.getAngle(); let da = a - lastAngle; if (da > Math.PI) da -= 2 * Math.PI; if (da < -Math.PI) da += 2 * Math.PI;
 
-                /* NEW: детект приземления (переход из воздуха в землю) */
-                if (!ia && prevAirborne && currentAirTime > 0.15) {
-                    handleLanding(preStepVy);
+                // Упрощенный Wipeout без тряски и вспышек (просто сброс скорости при жестком углу)
+                if (!ia && prevAirborne && currentAirTime > 0.3) {
+                    const absAngle = Math.abs(a);
+                    if (absAngle > 1.0) {
+                        wipeoutTimer = 0.4;
+                        comboStage = 0;
+                        const v = chassis.getLinearVelocity();
+                        chassis.setLinearVelocity(pl.Vec2(v.x * 0.6, v.y));
+                    }
                 }
                 prevAirborne = ia;
 
@@ -1047,7 +912,6 @@
                         if (accumulatedRotation > 0) frontflipCount++; 
                         else backflipCount++; 
                         flipCounted = true; 
-                        /* NEW: флип даёт +1 стадию комбо */
                         comboStage = Math.min(4, comboStage + 1);
                     } 
                 } 
@@ -1057,14 +921,13 @@
                     if (a < -0.3 && ls > 5) { 
                         currentStoppieTime += simDt; totalStoppieThisRun += simDt;
                         if (currentStoppieTime > maxStoppieTime) maxStoppieTime = currentStoppieTime; 
-                        /* NEW: комбо за длинный стоппи */
                         stoppieComboTimer += simDt;
                         if (stoppieComboTimer >= 5) { stoppieComboTimer -= 5; comboStage = Math.min(4, comboStage + 1); }
                     } else { currentStoppieTime = 0; stoppieComboTimer = 0; }
+                    
                     if (a > 0.3 && ls > 5) { 
                         currentWheelieTime += simDt; totalWheelieThisRun += simDt;
                         if (currentWheelieTime > maxWheelieTime) maxWheelieTime = currentWheelieTime; 
-                        /* NEW: комбо за длинный вилли */
                         wheelieComboTimer += simDt;
                         if (wheelieComboTimer >= 5) { wheelieComboTimer -= 5; comboStage = Math.min(4, comboStage + 1); }
                     } else { currentWheelieTime = 0; wheelieComboTimer = 0; }
@@ -1073,7 +936,6 @@
                 }
                 lastAngle = a; 
 
-                /* NEW: wipeout блокирует газ */
                 if (wipeoutTimer > 0) {
                     wipeoutTimer -= simDt;
                     jointRear.setMaxMotorTorque(0); jointFront.setMaxMotorTorque(0);
@@ -1100,36 +962,29 @@
                 generateTerrain(); cleanupTerrain(); updateParticles(dt);
                 updateBirds(dt);
                 
-                /* FIX 3: без localStorage в кадре */
                 const currentDist = Math.max(0, Math.floor(((chassis.getPosition().x * SCALE) - startX) / 14));
                 document.getElementById('distanceText').innerText = currentDist;
                 document.getElementById('coinBalanceText').innerText = totalCoins + Math.floor(currentDist / 100);
                 if (currentDist > maxDistance) { maxDistance = currentDist; document.getElementById('bestDistanceText').innerText = maxDistance; }
 
-                /* NEW: бейдж комбо */
-                const badge = document.getElementById('comboBadge');
+                // Обновляем текст множителя перед метрами
+                const comboEl = document.getElementById('comboText');
                 if (comboStage > 0) {
                     const mult = 1.0 + comboStage * 0.25;
-                    badge.classList.remove('hidden');
-                    badge.innerText = 'x' + mult.toFixed(2);
-                    if (comboStage >= 3) badge.classList.add('hot'); else badge.classList.remove('hot');
+                    comboEl.classList.remove('hidden');
+                    comboEl.innerText = 'x' + mult.toFixed(2);
                 } else {
-                    badge.classList.add('hidden');
+                    comboEl.classList.add('hidden');
                 }
-
-                /* NEW: прогресс-бар зоны */
-                updateZoneProgress(chassis.getPosition().x * SCALE);
             }
 
-            /* NEW: затухание shake/flash работает и в gameover */
+            // Затухание тряски
             shakeAmount *= 0.85;
             if (shakeAmount < 0.5) shakeAmount = 0;
-            if (flash.alpha > 0.01) flash.alpha *= 0.85; else flash.alpha = 0;
 
             if (gameState === 'playing' || gameState === 'gameover') {
                 ctx.clearRect(0, 0, canvas.width, canvas.height); 
                 
-                /* NEW: screen shake — оборачиваем весь рендер */
                 ctx.save();
                 if (shakeAmount > 0.5) {
                     ctx.translate((Math.random() - 0.5) * shakeAmount, (Math.random() - 0.5) * shakeAmount);
@@ -1161,16 +1016,7 @@
                     drawWheel(wheelFront);
                 }
                 ctx.restore(); 
-
-                /* NEW: вспышка при ударе */
-                if (flash.alpha > 0.01) {
-                    ctx.fillStyle = flash.color === 'green' 
-                        ? `rgba(0,255,120,${flash.alpha})` 
-                        : `rgba(255,0,0,${flash.alpha})`;
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                }
-                
-                ctx.restore(); // закрываем shake-обёртку
+                ctx.restore();
             }
         } catch (error) {
             console.error(error);
@@ -1181,4 +1027,4 @@
     checkOrientation(); resizeCanvas(); update();
 </script>
 </body>
-        </html>
+    </html>
