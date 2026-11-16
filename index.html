@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v28.1 - Clean UI)</title>
+    <title>Nyxride (v29.0 - Quests Update)</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
@@ -60,7 +60,6 @@
         .stats-right { display: flex; flex-direction: row; align-items: center; gap: 15px; }
         .score { font-size: 36px; font-weight: bold; color: white; text-shadow: 0 2px 5px #000; display: flex; align-items: baseline; gap: 10px; }
         
-        /* Множитель без фона рядом с метрами */
         #comboText { color: #ff5500; font-size: 26px; font-style: italic; font-weight: 900; text-shadow: 0 0 10px rgba(255,85,0,0.8), 0 2px 4px #000; }
 
         /* UI КВЕСТОВ В ИГРЕ */
@@ -70,12 +69,12 @@
             pointer-events: none; z-index: 15;
         }
         #btnToggleQuests {
-            background: rgba(0,0,0,0.6); border: 1px solid #ffd700; color: #ffd700;
+            background: rgba(0,0,0,0.3); border: 1px solid #ff5500; color: #ff5500;
             width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
             pointer-events: auto; cursor: pointer; font-weight: bold; font-size: 14px; transition: transform 0.2s;
         }
         #questPanel {
-            background: rgba(0,0,0,0.6); border-left: 3px solid #ffd700;
+            background: rgba(0,0,0,0.2); border-left: 3px solid #ff5500;
             padding: 10px 15px; border-radius: 0 8px 8px 0;
             display: flex; flex-direction: column; gap: 8px;
             margin-left: 5px; width: 55vw; max-width: 280px;
@@ -84,34 +83,45 @@
         }
         #questPanel.hidden-quests { display: none !important; }
         .quest-item { color: white; font-size: 13px; font-weight: 600; }
-        .quest-item.completed { color: #00ff00; text-decoration: line-through; }
         .quest-bar { height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; margin-top: 3px; width: 100%; overflow: hidden;}
-        .quest-fill { height: 100%; background: #ffd700; width: 0%; transition: width 0.3s; }
+        .quest-fill { height: 100%; background: #ff5500; width: 0%; transition: width 0.3s; }
 
         /* МЕНЮ КВЕСТОВ */
         #questsScreen {
             position: absolute; top: 0; left: 0; width: 100vw; height: 100dvh;
             background: rgba(10, 5, 15, 0.97); display: none; flex-direction: column; justify-content: center; align-items: center; pointer-events: auto; z-index: 70; padding: 20px; box-sizing: border-box;
         }
-        .quests-title { color: #fff; font-size: 32px; font-weight: 900; margin-bottom: 20px; letter-spacing: 3px; font-style: italic; }
-        .quests-list { width: 100%; max-width: 500px; display: flex; flex-direction: column; gap: 15px; max-height: 70vh; overflow-y: auto; padding-right: 10px; }
-        .quest-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-left: 4px solid #ffd700; padding: 12px 15px; border-radius: 8px; display: flex; flex-direction: column; gap: 6px; }
-        .quest-card.taken { border-left-color: #00ff00; background: rgba(0, 255, 0, 0.05); }
-        .quest-card.completed { border-left-color: #555; opacity: 0.6; }
+        .quests-container {
+            width: 100%; max-width: 500px; display: flex; flex-direction: column; gap: 20px;
+            max-height: 75vh; overflow-y: auto; padding-right: 10px;
+        }
+        .quest-section-title {
+            color: #fff; font-size: 20px; font-weight: 900; letter-spacing: 2px;
+            display: flex; justify-content: space-between; align-items: flex-end;
+            margin-bottom: 10px; border-bottom: 2px solid #333; padding-bottom: 5px;
+        }
+        .quest-timer { font-size: 14px; color: #ff5500; font-weight: bold; letter-spacing: 1px; }
+        .quests-list { display: flex; flex-direction: column; gap: 10px; }
+        
+        .quest-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-left: 4px solid #555; padding: 12px 15px; border-radius: 8px; display: flex; flex-direction: column; gap: 6px; }
+        .quest-card.tracked { border-left-color: #ff5500; background: rgba(255, 85, 0, 0.05); }
+        .quest-card.completed { border-left-color: #00ff00; opacity: 0.6; }
+        
         .quest-card-header { display: flex; justify-content: space-between; align-items: center; }
         .quest-card-title { color: #fff; font-size: 15px; font-weight: bold; }
-        .quest-card-reward { color: #ffd700; font-size: 14px; font-weight: bold; display: flex; align-items: center; gap: 4px; }
+        .quest-card-reward { color: #ff5500; font-size: 14px; font-weight: bold; display: flex; align-items: center; gap: 4px; }
         .quest-card-reward img { height: 14px; vertical-align: middle; }
         .quest-card-desc { color: #aaa; font-size: 13px; }
+        
         .quest-card-btn {
-            background: #ffd700; color: #000; border: none; border-radius: 6px;
+            background: #ff5500; color: #fff; border: none; border-radius: 6px;
             padding: 6px 12px; font-size: 13px; font-weight: bold; cursor: pointer;
             align-self: flex-end; transition: background 0.2s;
         }
-        .quest-card-btn:active { background: #ffaa00; }
+        .quest-card-btn:active { background: #cc4400; }
         .quest-card-btn:disabled { background: #333; color: #666; cursor: default; }
-        .quest-card-btn.cancel-btn { background: #ff3333; color: #fff; }
-        .quest-card-btn.cancel-btn:active { background: #cc0000; }
+        .quest-card-btn.cancel-btn { background: transparent; border: 1px solid #ff3333; color: #ff3333; }
+        .quest-card-btn.cancel-btn:active { background: rgba(255,51,51,0.2); }
 
         .btn-game { position: absolute; width: 50px; height: 50px; border-radius: 50%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); pointer-events: auto; color: white; display: flex; align-items: center; justify-content: center; }
         .btn-game svg { width: 25px; height: 25px; stroke: rgba(255,255,255,0.8); stroke-width: 2.5; }
@@ -226,7 +236,6 @@
             <button id="btnPause">
                 <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
             </button>
-            <!-- Множитель комбо теперь прямо перед метрами, без фона -->
             <div class="score">
                 <span id="comboText" class="hidden"></span>
                 <span><span id="distanceText">0</span> m</span>
@@ -234,7 +243,6 @@
         </div>
     </div>
     
-    <!-- Панель квестов -->
     <div id="questWrapper">
         <div id="btnToggleQuests">▲</div>
         <div id="questPanel"></div>
@@ -249,8 +257,25 @@
 </div>
 
 <div id="questsScreen">
-    <div class="quests-title">КВЕСТЫ</div>
-    <div class="quests-list" id="menuQuestList"></div>
+    <div class="quests-container">
+        <!-- ЕЖЕДНЕВНЫЕ -->
+        <div>
+            <div class="quest-section-title">
+                <span>ЕЖЕДНЕВНЫЕ</span>
+                <span class="quest-timer" id="dailyTimer">--:--:--</span>
+            </div>
+            <div class="quests-list" id="dailyQuestList"></div>
+        </div>
+        
+        <!-- ЕЖЕНЕДЕЛЬНЫЕ -->
+        <div>
+            <div class="quest-section-title" style="margin-top: 10px;">
+                <span>ЕЖЕНЕДЕЛЬНЫЕ</span>
+                <span class="quest-timer" id="weeklyTimer">--:--:--</span>
+            </div>
+            <div class="quests-list" id="weeklyQuestList"></div>
+        </div>
+    </div>
     <button class="pause-btn" id="btnCloseQuests" style="margin-top: 20px;">ЗАКРЫТЬ</button>
 </div>
 
@@ -304,58 +329,158 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v28.1 (CLEAN UI)</div>
+<div class="version-text">v29.0 (QUESTS)</div>
 
 <script>
+    // --- СИСТЕМА ВЕРСИОНИРОВАНИЯ ДАННЫХ ---
+    const CURRENT_GAME_VERSION = "v29";
+    function checkDataVersion() {
+        let savedVersion = localStorage.getItem('gameDataVersion');
+        if (savedVersion !== CURRENT_GAME_VERSION) {
+            // Если версия не совпадает (обновление игры или первый запуск)
+            // Удаляем только квесты, монеты и рекорды оставляем
+            localStorage.removeItem('dailyQuests');
+            localStorage.removeItem('weeklyQuests');
+            localStorage.removeItem('nextDailyReset');
+            localStorage.removeItem('nextWeeklyReset');
+            localStorage.removeItem('trackedQuestId');
+            localStorage.setItem('gameDataVersion', CURRENT_GAME_VERSION);
+        }
+    }
+    checkDataVersion();
+
     let gameState = 'splash'; 
     let splashStarted = false;
     
     // --- СИСТЕМА КВЕСТОВ ---
-    const QUEST_POOL = [
-        { id: 'dist_1k', type: 'dist', text: 'Проедь всего 1000м', target: 1000, reward: 50 },
-        { id: 'dist_5k', type: 'dist', text: 'Проедь всего 5000м', target: 5000, reward: 150 },
-        { id: 'dist_20k', type: 'dist', text: 'Проедь всего 20000м', target: 20000, reward: 500 },
-        { id: 'flips_5', type: 'flips', text: 'Сделай 5 Бэкфлипов', target: 5, reward: 100 },
-        { id: 'flips_20', type: 'flips', text: 'Сделай 20 Бэкфлипов', target: 20, reward: 300 },
-        { id: 'wheelie_10', type: 'wheelie', text: 'Вилли всего 10с', target: 10, reward: 75 },
-        { id: 'wheelie_30', type: 'wheelie', text: 'Вилли всего 30с', target: 30, reward: 200 },
-        { id: 'stoppie_5', type: 'stoppie', text: 'Стоппи всего 5с', target: 5, reward: 75 },
-        { id: 'stoppie_20', type: 'stoppie', text: 'Стоппи всего 20с', target: 20, reward: 200 },
-        { id: 'flips_any_10', type: 'total_flips', text: 'Сделай 10 любых сальто', target: 10, reward: 150 }
+    const DAILY_TEMPLATES = [
+        { type: 'dist', text: 'Проедь суммарно {t}м', targets: [1000, 2000, 3000], rewards: [50, 75, 100] },
+        { type: 'coins', text: 'Собери {t} монет', targets: [100, 200, 300], rewards: [50, 75, 100] },
+        { type: 'flips', text: 'Сделай {t} Бэкфлипа', targets: [1, 2, 3], rewards: [50, 75, 100] },
+        { type: 'total_flips', text: 'Сделай {t} любых сальто', targets: [2, 3, 5], rewards: [60, 80, 120] },
+        { type: 'wheelie', text: 'Вилли всего {t}с', targets: [5, 10, 15], rewards: [50, 75, 100] },
+        { type: 'stoppie', text: 'Стоппи всего {t}с', targets: [3, 5, 8], rewards: [50, 75, 100] }
     ];
 
-    let questProgress = JSON.parse(localStorage.getItem('questProgress')) || {
-        dist: 0, flips: 0, wheelie: 0, stoppie: 0, total_flips: 0
-    };
-    let completedQuests = JSON.parse(localStorage.getItem('completedQuests')) || [];
-    let activeQuestId = localStorage.getItem('activeQuestId') || null;
-    let questsPanelOpen = true;
+    const WEEKLY_TEMPLATES = [
+        { type: 'dist', text: 'Проедь суммарно {t}м', targets: [15000, 30000, 50000], rewards: [400, 600, 1000] },
+        { type: 'coins', text: 'Собери {t} монет', targets: [1500, 3000, 5000], rewards: [400, 600, 1000] },
+        { type: 'flips', text: 'Сделай {t} Бэкфлипов', targets: [10, 20, 30], rewards: [400, 600, 1000] },
+        { type: 'total_flips', text: 'Сделай {t} любых сальто', targets: [15, 30, 50], rewards: [500, 800, 1200] },
+        { type: 'wheelie', text: 'Вилли всего {t}с', targets: [60, 120, 180], rewards: [400, 600, 1000] },
+        { type: 'stoppie', text: 'Стоппи всего {t}с', targets: [30, 60, 90], rewards: [400, 600, 1000] }
+    ];
+
+    function getNextMidnight() {
+        let d = new Date();
+        d.setHours(24, 0, 0, 0);
+        return d.getTime();
+    }
+
+    function getNextMonday() {
+        let d = new Date();
+        let day = d.getDay(); // 0 = Sunday, 1 = Monday
+        let diff = d.getDate() + (day === 0 ? 1 : 8 - day);
+        let nextMonday = new Date(d.setDate(diff));
+        nextMonday.setHours(0, 0, 0, 0);
+        return nextMonday.getTime();
+    }
+
+    function generateQuestFromTemplate(template, index, isWeekly) {
+        let tier = Math.floor(Math.random() * 3); // 0, 1, 2
+        let target = template.targets[tier];
+        let reward = template.rewards[tier];
+        let text = template.text.replace('{t}', target);
+        return {
+            id: (isWeekly ? 'w_' : 'd_') + Date.now() + '_' + index,
+            type: template.type,
+            text: text,
+            target: target,
+            reward: reward,
+            progress: 0,
+            completed: false
+        };
+    }
+
+    let dailyQuests = JSON.parse(localStorage.getItem('dailyQuests')) || [];
+    let weeklyQuests = JSON.parse(localStorage.getItem('weeklyQuests')) || [];
+    let nextDailyReset = parseInt(localStorage.getItem('nextDailyReset')) || 0;
+    let nextWeeklyReset = parseInt(localStorage.getItem('nextWeeklyReset')) || 0;
+    let trackedQuestId = localStorage.getItem('trackedQuestId') || null;
+
+    function checkQuestResets() {
+        const now = Date.now();
+        let changed = false;
+
+        if (now >= nextDailyReset || dailyQuests.length === 0) {
+            dailyQuests = [];
+            let pool = [...DAILY_TEMPLATES].sort(() => 0.5 - Math.random());
+            for (let i = 0; i < 3; i++) dailyQuests.push(generateQuestFromTemplate(pool[i], i, false));
+            nextDailyReset = getNextMidnight();
+            localStorage.setItem('dailyQuests', JSON.stringify(dailyQuests));
+            localStorage.setItem('nextDailyReset', nextDailyReset);
+            changed = true;
+        }
+
+        if (now >= nextWeeklyReset || weeklyQuests.length === 0) {
+            weeklyQuests = [];
+            let pool = [...WEEKLY_TEMPLATES].sort(() => 0.5 - Math.random());
+            for (let i = 0; i < 3; i++) weeklyQuests.push(generateQuestFromTemplate(pool[i], i, true));
+            nextWeeklyReset = getNextMonday();
+            localStorage.setItem('weeklyQuests', JSON.stringify(weeklyQuests));
+            localStorage.setItem('nextWeeklyReset', nextWeeklyReset);
+            changed = true;
+        }
+
+        if (changed) {
+            // Если отслеживаемый квест сбросился, отключаем его
+            if (trackedQuestId && !dailyQuests.find(q => q.id === trackedQuestId) && !weeklyQuests.find(q => q.id === trackedQuestId)) {
+                trackedQuestId = null;
+                localStorage.removeItem('trackedQuestId');
+            }
+        }
+    }
+
+    function formatTimeLeft(ms) {
+        if (ms < 0) return "00:00:00";
+        let h = Math.floor(ms / (1000 * 60 * 60));
+        let m = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
+        let s = Math.floor((ms % (1000 * 60)) / 1000);
+        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+
+    function updateTimers() {
+        if (gameState === 'menu' || document.getElementById('questsScreen').style.display === 'flex') {
+            let now = Date.now();
+            document.getElementById('dailyTimer').innerText = formatTimeLeft(nextDailyReset - now);
+            document.getElementById('weeklyTimer').innerText = formatTimeLeft(nextWeeklyReset - now);
+        }
+    }
+    setInterval(updateTimers, 1000);
 
     function takeQuest(id) {
-        let q = QUEST_POOL.find(x => x.id === id);
-        if (!q || completedQuests.includes(id)) return;
-        activeQuestId = id;
-        localStorage.setItem('activeQuestId', activeQuestId);
+        trackedQuestId = id;
+        localStorage.setItem('trackedQuestId', trackedQuestId);
         renderMenuQuests();
         updateQuestUI();
     }
 
     function cancelQuest(id) {
-        if (activeQuestId === id) {
-            activeQuestId = null;
-            localStorage.removeItem('activeQuestId');
+        if (trackedQuestId === id) {
+            trackedQuestId = null;
+            localStorage.removeItem('trackedQuestId');
             renderMenuQuests();
             updateQuestUI();
         }
     }
 
     function checkQuestsCompletion() {
+        let allQuests = [...dailyQuests, ...weeklyQuests];
         let anyCompleted = false;
-        QUEST_POOL.forEach(q => {
-            if (completedQuests.includes(q.id)) return;
-            let progress = questProgress[q.type] || 0;
-            if (progress >= q.target) {
-                completedQuests.push(q.id);
+
+        allQuests.forEach(q => {
+            if (!q.completed && q.progress >= q.target) {
+                q.completed = true;
                 totalCoins += q.reward;
                 anyCompleted = true;
                 
@@ -366,77 +491,96 @@
                 setTimeout(() => notif.remove(), 2500);
             }
         });
+
         if (anyCompleted) {
-            localStorage.setItem('completedQuests', JSON.stringify(completedQuests));
+            localStorage.setItem('dailyQuests', JSON.stringify(dailyQuests));
+            localStorage.setItem('weeklyQuests', JSON.stringify(weeklyQuests));
             localStorage.setItem('totalCoins', totalCoins);
             document.getElementById('coinBalanceText').innerText = totalCoins;
             document.getElementById('menuCoinBalance').innerText = totalCoins;
+            
+            // Если текущий отслеживаемый выполнен, ищем следующий
+            let activeTracked = [...dailyQuests, ...weeklyQuests].find(q => q.id === trackedQuestId);
+            if (activeTracked && activeTracked.completed) {
+                let nextQuest = [...dailyQuests, ...weeklyQuests].find(q => !q.completed);
+                trackedQuestId = nextQuest ? nextQuest.id : null;
+                if (trackedQuestId) localStorage.setItem('trackedQuestId', trackedQuestId);
+                else localStorage.removeItem('trackedQuestId');
+            }
+            
             renderMenuQuests();
             updateQuestUI();
-            if (activeQuestId && completedQuests.includes(activeQuestId)) {
-                activeQuestId = null;
-                localStorage.removeItem('activeQuestId');
-            }
         }
     }
 
-    function renderMenuQuests() {
-        let list = document.getElementById('menuQuestList');
-        if (!list) return;
-        let html = '';
-        
-        QUEST_POOL.forEach(q => {
-            let isDone = completedQuests.includes(q.id);
-            let isTaken = (activeQuestId === q.id);
-            let progress = questProgress[q.type] || 0;
-            let percent = Math.min(100, (progress / q.target) * 100);
-            
-            let cardClass = isDone ? 'completed' : (isTaken ? 'taken' : '');
-            let btnHtml = '';
-            
-            if (isDone) {
-                btnHtml = `<button class="quest-card-btn" disabled>ВЫПОЛНЕН</button>`;
-            } else if (isTaken) {
-                btnHtml = `<button class="quest-card-btn cancel-btn" onclick="cancelQuest('${q.id}')">НЕ ОТСЛЕЖИВАТЬ</button>`;
-            } else {
-                btnHtml = `<button class="quest-card-btn" onclick="takeQuest('${q.id}')">ОТСЛЕЖИВАТЬ</button>`;
-            }
+    function createQuestCardHTML(q, isWeekly) {
+        let percent = Math.min(100, (q.progress / q.target) * 100);
+        let isTracked = (trackedQuestId === q.id);
+        let cardClass = q.completed ? 'completed' : (isTracked ? 'tracked' : '');
+        let btnHtml = '';
 
-            html += `
-                <div class="quest-card ${cardClass}">
-                    <div class="quest-card-header">
-                        <div class="quest-card-title">${q.text}</div>
-                        <div class="quest-card-reward"><img src="coin.png" onerror="this.style.display='none'">+${q.reward}</div>
-                    </div>
-                    <div class="quest-card-desc">Прогресс: ${Math.min(Math.floor(progress), q.target)} / ${q.target}</div>
-                    <div class="quest-bar"><div class="quest-fill" style="width: ${percent}%; background: ${isDone ? '#00ff00' : '#ffd700'}"></div></div>
-                    ${btnHtml}
+        if (q.completed) {
+            btnHtml = `<button class="quest-card-btn" disabled>ВЫПОЛНЕН</button>`;
+        } else if (isTracked) {
+            btnHtml = `<button class="quest-card-btn cancel-btn" onclick="cancelQuest('${q.id}')">НЕ ОТСЛЕЖИВАТЬ</button>`;
+        } else {
+            btnHtml = `<button class="quest-card-btn" onclick="takeQuest('${q.id}')">ОТСЛЕЖИВАТЬ</button>`;
+        }
+
+        return `
+            <div class="quest-card ${cardClass}">
+                <div class="quest-card-header">
+                    <div class="quest-card-title">${q.text}</div>
+                    <div class="quest-card-reward"><img src="coin.png" onerror="this.style.display='none'">${q.reward}</div>
                 </div>
-            `;
-        });
-        list.innerHTML = html;
+                <div class="quest-card-desc">Прогресс: ${Math.min(Math.floor(q.progress), q.target)} / ${q.target}</div>
+                <div class="quest-bar"><div class="quest-fill" style="width: ${percent}%;"></div></div>
+                ${btnHtml}
+            </div>
+        `;
+    }
+
+    function renderMenuQuests() {
+        let dailyList = document.getElementById('dailyQuestList');
+        let weeklyList = document.getElementById('weeklyQuestList');
+        if (!dailyList || !weeklyList) return;
+
+        dailyList.innerHTML = dailyQuests.map(q => createQuestCardHTML(q, false)).join('');
+        weeklyList.innerHTML = weeklyQuests.map(q => createQuestCardHTML(q, true)).join('');
+        updateTimers();
     }
 
     function updateQuestUI() {
         let panel = document.getElementById('questPanel');
         if (!panel) return;
         
-        if (!activeQuestId) {
-            panel.innerHTML = '<div style="color:#aaa; font-size:12px;">Нет отслеживаемого квеста.<br>Выберите квест в меню.</div>';
-            return;
+        let q = [...dailyQuests, ...weeklyQuests].find(x => x.id === trackedQuestId);
+
+        if (!q || q.completed) {
+            if (q && q.completed) {
+                let nextQuest = [...dailyQuests, ...weeklyQuests].find(x => !x.completed);
+                if (nextQuest) {
+                    trackedQuestId = nextQuest.id;
+                    localStorage.setItem('trackedQuestId', trackedQuestId);
+                    q = nextQuest;
+                } else {
+                    trackedQuestId = null;
+                    localStorage.removeItem('trackedQuestId');
+                }
+            }
+            if (!trackedQuestId) {
+                panel.innerHTML = '<div style="color:#aaa; font-size:12px;">Нет отслеживаемого квеста.<br>Выберите квест в меню.</div>';
+                return;
+            }
         }
 
-        let q = QUEST_POOL.find(x => x.id === activeQuestId);
-        if (!q) return;
-
-        let progress = questProgress[q.type] || 0;
-        let percent = Math.min(100, (progress / q.target) * 100);
+        let percent = Math.min(100, (q.progress / q.target) * 100);
         
         panel.innerHTML = `
             <div class="quest-item">
-                <div style="font-size: 12px; color: #ffd700; margin-bottom: 2px;">ОТСЛЕЖИВАЕТСЯ</div>
-                <div>${q.text} (${Math.min(Math.floor(progress), q.target)}/${q.target})</div>
-                <div class="quest-bar"><div class="quest-fill" style="width: ${percent}%"></div></div>
+                <div style="font-size: 12px; color: #ff5500; margin-bottom: 2px;">ОТСЛЕЖИВАЕТСЯ</div>
+                <div>${q.text} (${Math.min(Math.floor(q.progress), q.target)}/${q.target})</div>
+                <div class="quest-bar"><div class="quest-fill" style="width: ${percent}%;"></div></div>
             </div>
         `;
     }
@@ -450,10 +594,21 @@
     });
 
     function addQuestProgress(type, amount) {
-        if (questProgress[type] === undefined) return;
         if (amount <= 0) return;
-        questProgress[type] += amount;
-        localStorage.setItem('questProgress', JSON.stringify(questProgress));
+        let changed = false;
+        
+        [...dailyQuests, ...weeklyQuests].forEach(q => {
+            if (!q.completed && q.type === type) {
+                q.progress += amount;
+                changed = true;
+            }
+        });
+
+        if (changed) {
+            localStorage.setItem('dailyQuests', JSON.stringify(dailyQuests));
+            localStorage.setItem('weeklyQuests', JSON.stringify(weeklyQuests));
+            checkQuestsCompletion();
+        }
     }
     // ------------------------
 
@@ -477,7 +632,6 @@
     let comboStage = 0; 
     let wheelieComboTimer = 0, stoppieComboTimer = 0;
     let wipeoutTimer = 0;
-    let shakeAmount = 0;
     let prevAirborne = false;
     
     let particles = [], dustTimer = 0;
@@ -513,8 +667,9 @@
                 document.getElementById('mainMenu').classList.remove('hidden');
                 gameState = 'menu';
                 updateMenuUI();
-                checkQuestsCompletion();
+                checkQuestResets();
                 renderMenuQuests();
+                updateQuestUI();
             }, 800);
         }, 2000);
     }
@@ -641,8 +796,10 @@
 
     document.getElementById('btn-shop').addEventListener('click', () => { console.log('Магазин в разработке'); });
     document.getElementById('btn-quests').addEventListener('click', () => { 
+        checkQuestResets();
         renderMenuQuests(); 
         document.getElementById('questsScreen').style.display = 'flex'; 
+        updateTimers();
     });
     document.getElementById('btnCloseQuests').addEventListener('click', () => { 
         document.getElementById('questsScreen').style.display = 'none'; 
@@ -725,9 +882,9 @@
     document.getElementById('btnResume').addEventListener('click', () => { gameState = 'playing'; document.getElementById('pauseScreen').style.display = 'none'; lastTime = performance.now(); });
     document.getElementById('btnRestartPause').addEventListener('click', () => { document.getElementById('pauseScreen').style.display = 'none'; gameState = 'playing'; resetGame(); });
     document.getElementById('btnSettingsPause').addEventListener('click', () => { console.log('Настройки в разработке'); });
-    document.getElementById('btnHomePause').addEventListener('click', () => { document.getElementById('pauseScreen').style.display = 'none'; document.getElementById('gameUI').classList.add('hidden'); document.getElementById('mainMenu').classList.remove('hidden'); gameState = 'menu'; updateMenuUI(); checkQuestsCompletion(); renderMenuQuests(); });
+    document.getElementById('btnHomePause').addEventListener('click', () => { document.getElementById('pauseScreen').style.display = 'none'; document.getElementById('gameUI').classList.add('hidden'); document.getElementById('mainMenu').classList.remove('hidden'); gameState = 'menu'; updateMenuUI(); checkQuestResets(); renderMenuQuests(); updateQuestUI(); });
     document.getElementById('btnRestartGameOver').addEventListener('click', () => { document.getElementById('gameOverScreen').style.display = 'none'; gameState = 'playing'; resetGame(); });
-    document.getElementById('btnHomeGameOver').addEventListener('click', () => { document.getElementById('gameOverScreen').style.display = 'none'; document.getElementById('gameUI').classList.add('hidden'); document.getElementById('mainMenu').classList.remove('hidden'); gameState = 'menu'; updateMenuUI(); checkQuestsCompletion(); renderMenuQuests(); });
+    document.getElementById('btnHomeGameOver').addEventListener('click', () => { document.getElementById('gameOverScreen').style.display = 'none'; document.getElementById('gameUI').classList.add('hidden'); document.getElementById('mainMenu').classList.remove('hidden'); gameState = 'menu'; updateMenuUI(); checkQuestResets(); renderMenuQuests(); updateQuestUI(); });
 
     function resetGame() {
         sessionSeed = Math.floor(Math.random() * 0xFFFFFFFF); zoneCache.clear(); terrainOffset = Math.random() * 10000;
@@ -741,7 +898,6 @@
         totalWheelieThisRun = 0; totalStoppieThisRun = 0;
         comboStage = 0; wheelieComboTimer = 0; stoppieComboTimer = 0;
         wipeoutTimer = 0;
-        shakeAmount = 0;
         prevAirborne = false;
         physicsAccumulator = 0;
         birds = []; birdSpawnTimer = 3;
@@ -762,7 +918,6 @@
     function triggerGameOver() {
         if (gameState !== 'playing') return;
         gameState = 'gameover'; window.isGas = false;
-        shakeAmount = 20; // Тряска ТОЛЬКО в момент смерти
 
         if (isAudioInitialized) { idleGain.gain.setValueAtTime(0, audioCtx.currentTime); revGain.gain.setValueAtTime(0, audioCtx.currentTime); windGain.gain.setValueAtTime(0, audioCtx.currentTime); }
 
@@ -785,13 +940,13 @@
             localStorage.setItem('bestDistance', maxDistance);
         }
 
+        // ОБНОВЛЕНИЕ ПРОГРЕССА КВЕСТОВ
         addQuestProgress('dist', dist);
+        addQuestProgress('coins', totalEarned);
         addQuestProgress('flips', backflipCount);
         addQuestProgress('total_flips', backflipCount + frontflipCount);
         addQuestProgress('wheelie', totalWheelieThisRun);
         addQuestProgress('stoppie', totalStoppieThisRun);
-
-        checkQuestsCompletion();
 
         document.getElementById('go-distance').innerText = dist;
         document.getElementById('go-wheelie').innerText = maxWheelieTime.toFixed(1) + "s";
@@ -834,8 +989,10 @@
 
     function drawTerrain() { 
         ctx.fillStyle = '#000'; ctx.strokeStyle = '#000'; 
-        ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(cameraX - 100, groundY + 2000); 
-        let sx = Math.floor(cameraX) - 100; let ex = Math.floor(cameraX) + (canvas.width / zoom) + 100; 
+        ctx.lineWidth = 4; ctx.beginPath(); 
+        const camX = Math.round(cameraX);
+        ctx.moveTo(camX - 100, groundY + 2000); 
+        let sx = camX - 100; let ex = camX + (canvas.width / zoom) + 100; 
         for (let x = sx; x <= ex; x += 2) ctx.lineTo(x, getTerrainY(x)); 
         ctx.lineTo(ex, groundY + 2000); ctx.closePath(); ctx.fill(); ctx.stroke(); 
     }
@@ -894,7 +1051,6 @@
                 let cx = chassis.getPosition().x * SCALE; let cy = chassis.getPosition().y * SCALE; let gu = getTerrainY(cx); let ia = (cy < gu - 25); 
                 let a = chassis.getAngle(); let da = a - lastAngle; if (da > Math.PI) da -= 2 * Math.PI; if (da < -Math.PI) da += 2 * Math.PI;
 
-                // Упрощенный Wipeout без тряски и вспышек (просто сброс скорости при жестком углу)
                 if (!ia && prevAirborne && currentAirTime > 0.3) {
                     const absAngle = Math.abs(a);
                     if (absAngle > 1.0) {
@@ -967,7 +1123,6 @@
                 document.getElementById('coinBalanceText').innerText = totalCoins + Math.floor(currentDist / 100);
                 if (currentDist > maxDistance) { maxDistance = currentDist; document.getElementById('bestDistanceText').innerText = maxDistance; }
 
-                // Обновляем текст множителя перед метрами
                 const comboEl = document.getElementById('comboText');
                 if (comboStage > 0) {
                     const mult = 1.0 + comboStage * 0.25;
@@ -978,21 +1133,12 @@
                 }
             }
 
-            // Затухание тряски
-            shakeAmount *= 0.85;
-            if (shakeAmount < 0.5) shakeAmount = 0;
-
             if (gameState === 'playing' || gameState === 'gameover') {
                 ctx.clearRect(0, 0, canvas.width, canvas.height); 
                 
-                ctx.save();
-                if (shakeAmount > 0.5) {
-                    ctx.translate((Math.random() - 0.5) * shakeAmount, (Math.random() - 0.5) * shakeAmount);
-                }
-                
                 const g = ctx.createLinearGradient(0, 0, 0, canvas.height);
                 g.addColorStop(0, '#1a0b2e'); g.addColorStop(0.3, '#4a154b'); g.addColorStop(0.6, '#e63946'); g.addColorStop(1, '#ff9f1c'); 
-                ctx.fillStyle = g; ctx.fillRect(-50, -50, canvas.width + 100, canvas.height + 100);
+                ctx.fillStyle = g; ctx.fillRect(0, 0, canvas.width, canvas.height);
                 
                 let sx = canvas.width * 0.75; let sy = canvas.height * 0.25; 
                 let sg = ctx.createRadialGradient(sx, sy, 10, sx, sy, 100);
@@ -1000,10 +1146,15 @@
                 ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(sx, sy, 100, 0, Math.PI * 2); ctx.fill();
                 ctx.fillStyle = '#ffe680'; ctx.beginPath(); ctx.arc(sx, sy, 28, 0, Math.PI * 2); ctx.fill();
 
-                ctx.save(); ctx.translate(-cameraX * 0.1, 0); drawBirds(); ctx.restore();
+                ctx.save(); ctx.translate(-Math.round(cameraX * 0.1), 0); drawBirds(); ctx.restore();
 
                 ctx.save(); 
-                ctx.scale(zoom, zoom); ctx.translate(0, cameraY); ctx.translate(-cameraX, 0);
+                ctx.scale(zoom, zoom); 
+                const camX = Math.round(cameraX);
+                const camY = Math.round(cameraY);
+                ctx.translate(0, camY); 
+                ctx.translate(-camX, 0);
+                
                 drawTerrain();
                 if (gameState !== 'gameover' && chassis) {
                     drawParticles(); 
@@ -1016,7 +1167,6 @@
                     drawWheel(wheelFront);
                 }
                 ctx.restore(); 
-                ctx.restore();
             }
         } catch (error) {
             console.error(error);
