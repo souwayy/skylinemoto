@@ -619,7 +619,7 @@
     let groundY = 0; 
     const startX = 50000;
     let terrainOffset = 0; 
-    let cameraX = 0, cameraY = 0; 
+    let cameraX = 0; 
     
     let zoom = 1.6; 
     const minZoom = 1.1; 
@@ -1121,7 +1121,7 @@
                 
                 let targetZoom = maxZoom - Math.min(0.4, ls * 0.008); zoom += (targetZoom - zoom) * 0.02; 
                 let tcx = (chassis.getPosition().x * SCALE) - ((canvas.width * 0.3) / zoom); cameraX += (tcx - cameraX) * 0.1; 
-                let groundLevel = getTerrainY(cx) - 100; let tcy = (canvas.height * 0.55) - Math.max(chassis.getPosition().y * SCALE, groundLevel); cameraY += (tcy - cameraY) * 0.1;
+                // Вертикальное движение камеры отключено полностью: камера не следует за подпрыгиваниями подвески/мотоцикла.
                 
                 generateTerrain(); cleanupTerrain(); updateParticles(dt);
                 updateBirds(dt);
@@ -1156,8 +1156,7 @@
                 ctx.save(); 
                 ctx.scale(zoom, zoom); 
                 const camX = Math.round(cameraX);
-                const camY = Math.round(cameraY);
-                ctx.translate(0, camY); 
+                // Никакого вертикального смещения сцены — устраняет дрожание от cameraY.
                 ctx.translate(-camX, 0);
                 
                 drawTerrain();
