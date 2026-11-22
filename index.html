@@ -619,7 +619,8 @@
     let groundY = 0; 
     const startX = 50000;
     let terrainOffset = 0; 
-    let cameraX = 0; 
+    let cameraX = 0;
+    let cameraY = 0; // Плавное вертикальное сопровождение без реакции на мелкую вибрацию подвески.
     
     let zoom = 1.6; 
     const minZoom = 1.1; 
@@ -922,7 +923,14 @@
     function resetGame() {
         sessionSeed = Math.floor(Math.random() * 0xFFFFFFFF); zoneCache.clear(); terrainOffset = Math.random() * 10000;
         for (let b of terrainBodies) world.destroyBody(b.body); terrainBodies = []; lastGeneratedX = startX - 1500; cameraX = startX - (canvas.width * 0.3);
-        createBike(startX, getTerrainY(startX) - 60); generateTerrain();
+        zoom = maxZoom;
+        createBike(startX, getTerrainY(startX) - 60);
+        // Сразу ставим камеру так, чтобы байк и поверхность были видны с первого кадра.
+        cameraY = (canvas.height * 0.55 / zoom) - Math.max(
+            chassis.getPosition().y * SCALE,
+            getTerrainY(startX) - 100
+        );
+        generateTerrain();
         window.isGas = false; window.isBrake = false; window.isLeanBack = false; window.isLeanForward = false;
         maxAirTime = 0; currentAirTime = 0; frontflipCount = 0; backflipCount = 0; flipCounted = false;
         accumulatedRotation = 0; lastAngle = chassis.getAngle(); maxWheelieTime = 0; currentWheelieTime = 0;
@@ -932,7 +940,6 @@
         prevAirborne = false;
         physicsAccumulator = 0;
         birds = []; birdSpawnTimer = 3;
-        zoom = maxZoom;
         document.getElementById('coinBalanceText').innerText = totalCoins; document.getElementById('distanceText').innerText = "0";
         document.getElementById('bestDistanceText').innerText = maxDistance;
         
@@ -1120,8 +1127,20 @@
                 if (isAudioInitialized) { if (window.isGas) { idleGain.gain.cancelScheduledValues(audioCtx.currentTime); idleGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.05); } else { idleGain.gain.cancelScheduledValues(audioCtx.currentTime); idleGain.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + 0.1); } let tr = window.isGas ? 0.8 : 0; let windSpeed = Math.min(1, ls / 55); let tw = 0.015 + windSpeed * 0.20 + (ia ? 0.035 : 0); tw = Math.min(0.25, tw); revGain.gain.setTargetAtTime(tr, audioCtx.currentTime, 0.1); windGain.gain.setTargetAtTime(tw, audioCtx.currentTime, 0.25); if (window.isGas && revSource) { let trate = 1.0 + (ws * 0.3); let frate = Math.min(1.3, trate); revSource.playbackRate.setTargetAtTime(frate, audioCtx.currentTime, 0.1); let tf = Math.max(1000, 2500 - (ws * 1000)); revFilter.frequency.setTargetAtTime(tf, audioCtx.currentTime, 0.1); previousGasState = true; } else { previousGasState = false; } if (!window.isGas && ws > 2) { popTimer += simDt; if (popTimer > 1.0 && Math.random() < 0.02) { playPop(); popTimer = 0; } } else { popTimer = 0; } }
                 
                 let targetZoom = maxZoom - Math.min(0.4, ls * 0.008); zoom += (targetZoom - zoom) * 0.02; 
-                let tcx = (chassis.getPosition().x * SCALE) - ((canvas.width * 0.3) / zoom); cameraX += (tcx - cameraX) * 0.1; 
-                // Вертикальное движение камеры отключено полностью: камера не следует за подпрыгиваниями подвески/мотоцикла.
+                let tcx = (chassis.getPosition().x * SCALE) - ((canvas.width * 0.3) / zoom);
+                cameraX += (tcx - cameraX) * (1 - Math.exp(-6 * dt));
+
+                // Вертикальная камера сопровождает байк на больших перепадах высоты,
+                // но игнорирует мелкие колебания подвески (dead zone 18 px).
+                const bikeWorldY = chassis.getPosition().y * SCALE;
+                const terrainAnchorY = getTerrainY(cx) - 100;
+                const verticalTarget = (canvas.height * 0.55 / zoom) - Math.max(bikeWorldY, terrainAnchorY);
+                const verticalError = verticalTarget - cameraY;
+                const deadZone = 18;
+                if (Math.abs(verticalError) > deadZone) {
+                    const correctedError = verticalError - Math.sign(verticalError) * deadZone;
+                    cameraY += correctedError * (1 - Math.exp(-3.2 * dt));
+                }
                 
                 generateTerrain(); cleanupTerrain(); updateParticles(dt);
                 updateBirds(dt);
@@ -1156,7 +1175,8 @@
                 ctx.save(); 
                 ctx.scale(zoom, zoom); 
                 const camX = Math.round(cameraX);
-                // Никакого вертикального смещения сцены — устраняет дрожание от cameraY.
+                // Не округляем cameraY: дробное смещение убирает ступенчатые рывки.
+                ctx.translate(0, cameraY);
                 ctx.translate(-camX, 0);
                 
                 drawTerrain();
