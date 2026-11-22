@@ -464,6 +464,25 @@
     function takeQuest(id) { trackedQuestId = id; localStorage.setItem('trackedQuestId', trackedQuestId); renderMenuQuests(); updateQuestUI(); }
     function cancelQuest(id) { if (trackedQuestId === id) { trackedQuestId = null; localStorage.removeItem('trackedQuestId'); renderMenuQuests(); updateQuestUI(); } }
 
+    // Очередь уведомлений: несколько выполненных квестов показываются по одному.
+    const questNotificationQueue = [];
+    let questNotificationActive = false;
+
+    function showNextQuestNotification() {
+        if (questNotificationActive || questNotificationQueue.length === 0) return;
+        questNotificationActive = true;
+        const message = questNotificationQueue.shift();
+        const notif = document.createElement('div');
+        notif.style.cssText = 'position:fixed; top:40%; left:50%; transform:translate(-50%,-50%); color:#00ff00; font-size:20px; font-weight:bold; z-index:10000; text-shadow:0 0 10px #000; text-align:center; white-space:pre-line; background:rgba(0,0,0,0.88); padding:12px 20px; border-radius:10px; border:2px solid #00aa00; width:max-content; max-width:85vw; box-sizing:border-box;';
+        notif.innerText = message;
+        document.body.appendChild(notif);
+        setTimeout(() => {
+            notif.remove();
+            questNotificationActive = false;
+            showNextQuestNotification();
+        }, 2300);
+    }
+
     function checkQuestsCompletion() {
         let allQuests = [...dailyQuests, ...weeklyQuests];
         let anyCompleted = false; let newlyCompleted = [];
@@ -480,14 +499,10 @@
                 if (trackedQuestId) localStorage.setItem('trackedQuestId', trackedQuestId); else localStorage.removeItem('trackedQuestId');
             }
             renderMenuQuests(); updateQuestUI();
-            newlyCompleted.forEach((q, index) => {
-                setTimeout(() => {
-                    let notif = document.createElement('div');
-                    notif.style.cssText = 'position:absolute; top:40%; left:50%; transform:translate(-50%,-50%); color:#00ff00; font-size:20px; font-weight:bold; z-index:100; text-shadow:0 0 10px #000; text-align:center; background:rgba(0,0,0,0.7); padding:12px 20px; border-radius:10px; border:2px solid #00ff00;';
-                    notif.innerText = `КВЕСТ ВЫПОЛНЕН!\n${q.text}\n+${q.reward} МОНЕТ`;
-                    document.body.appendChild(notif); setTimeout(() => notif.remove(), 2000);
-                }, index * 2200);
+            newlyCompleted.forEach(q => {
+                questNotificationQueue.push(`КВЕСТ ВЫПОЛНЕН!\n${q.text}\n+${q.reward} МОНЕТ`);
             });
+            showNextQuestNotification();
         }
     }
 
@@ -595,7 +610,6 @@
     
     let wipeoutTimer = 0;
     let prevAirborne = false;
-    let shakeAmount = 0;
     let questsPanelOpen = true;
     
     let particles = [], dustTimer = 0;
@@ -752,11 +766,12 @@
         targetCtx.translate(x, y);
         // Внешняя резина и мягкая боковина; физический радиус колеса не меняется.
         targetCtx.beginPath(); targetCtx.arc(0, 0, r, 0, Math.PI * 2);
-        targetCtx.fillStyle = '#050505'; targetCtx.fill();
-        targetCtx.strokeStyle = '#292929'; targetCtx.lineWidth = 1.4; targetCtx.stroke();
+        targetCtx.fillStyle = '#020202'; targetCtx.fill();
+        targetCtx.beginPath(); targetCtx.arc(0, 0, Math.max(0, r - 0.5), 0, Math.PI * 2);
+        targetCtx.strokeStyle = '#101010'; targetCtx.lineWidth = 0.8; targetCtx.stroke();
 
         // Небольшие насечки протектора по внешнему краю шины.
-        targetCtx.strokeStyle = '#3b3b3b'; targetCtx.lineWidth = 1.15;
+        targetCtx.strokeStyle = '#171717'; targetCtx.lineWidth = 0.9;
         for (let i = 0; i < 20; i++) {
             const a = i * Math.PI * 2 / 20;
             const r1 = r - 0.8, r2 = r - 2.4;
@@ -769,13 +784,13 @@
         // Металлический обод и внутреннее кольцо.
         const rimR = Math.max(2, r - 3.2);
         targetCtx.beginPath(); targetCtx.arc(0, 0, rimR, 0, Math.PI * 2);
-        targetCtx.fillStyle = '#17191b'; targetCtx.fill();
-        targetCtx.strokeStyle = '#777'; targetCtx.lineWidth = 1.15; targetCtx.stroke();
+        targetCtx.fillStyle = '#090a0b'; targetCtx.fill();
+        targetCtx.strokeStyle = '#303234'; targetCtx.lineWidth = 0.9; targetCtx.stroke();
         targetCtx.beginPath(); targetCtx.arc(0, 0, rimR - 1.5, 0, Math.PI * 2);
-        targetCtx.strokeStyle = '#35383b'; targetCtx.lineWidth = 0.8; targetCtx.stroke();
+        targetCtx.strokeStyle = '#191b1d'; targetCtx.lineWidth = 0.7; targetCtx.stroke();
 
         // Спицы с чередованием направления для более механичного вида.
-        targetCtx.strokeStyle = '#9a9a9a'; targetCtx.lineWidth = 0.65;
+        targetCtx.strokeStyle = '#414141'; targetCtx.lineWidth = 0.55;
         for (let i = 0; i < 10; i++) {
             const a = i * Math.PI * 2 / 10;
             const hubR = 1.8, edgeR = rimR - 1.1;
@@ -788,16 +803,16 @@
 
         // Тормозной диск, отверстия и ступица.
         targetCtx.beginPath(); targetCtx.arc(0, 0, Math.max(1.2, r * 0.34), 0, Math.PI * 2);
-        targetCtx.strokeStyle = '#666'; targetCtx.lineWidth = 0.8; targetCtx.stroke();
-        targetCtx.fillStyle = '#777';
+        targetCtx.strokeStyle = '#292929'; targetCtx.lineWidth = 0.7; targetCtx.stroke();
+        targetCtx.fillStyle = '#383838';
         for (let i = 0; i < 6; i++) {
             const a = i * Math.PI * 2 / 6, rr = r * 0.27;
             targetCtx.beginPath(); targetCtx.arc(Math.cos(a) * rr, Math.sin(a) * rr, 0.45, 0, Math.PI * 2); targetCtx.fill();
         }
         targetCtx.beginPath(); targetCtx.arc(0, 0, 1.8, 0, Math.PI * 2);
-        targetCtx.fillStyle = '#b0b0b0'; targetCtx.fill();
+        targetCtx.fillStyle = '#55585a'; targetCtx.fill();
         targetCtx.beginPath(); targetCtx.arc(0, 0, 0.8, 0, Math.PI * 2);
-        targetCtx.fillStyle = '#292929'; targetCtx.fill();
+        targetCtx.fillStyle = '#181818'; targetCtx.fill();
         targetCtx.restore();
     }
 
@@ -915,7 +930,6 @@
         totalWheelieThisRun = 0; totalStoppieThisRun = 0;
         wipeoutTimer = 0;
         prevAirborne = false;
-        shakeAmount = 0;
         physicsAccumulator = 0;
         birds = []; birdSpawnTimer = 3;
         zoom = maxZoom;
@@ -1065,7 +1079,6 @@
                         const v = chassis.getLinearVelocity();
                         chassis.setLinearVelocity(pl.Vec2(v.x * 0.6, v.y));
                     }
-                    // Camera shake отключена: стабильное изображение во время приземлений.
                 }
                 prevAirborne = ia;
 
