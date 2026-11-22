@@ -1099,8 +1099,10 @@
                 } 
                 else {
                     currentAirTime = 0; accumulatedRotation = 0; flipCounted = false;
-                    if (a < -0.3 && ls > 5) { currentStoppieTime += simDt; totalStoppieThisRun += simDt; if (currentStoppieTime > maxStoppieTime) maxStoppieTime = currentStoppieTime; } else { currentStoppieTime = 0; }
-                    if (a > 0.3 && ls > 5) { currentWheelieTime += simDt; totalWheelieThisRun += simDt; if (currentWheelieTime > maxWheelieTime) maxWheelieTime = currentWheelieTime; } else { currentWheelieTime = 0; }
+                    // В этой системе координат отрицательный угол поднимает переднее колесо (вилли),
+                    // а положительный — заднее (стоппи). Учитываем трюки раздельно.
+                    if (a < -0.3 && ls > 5) { currentWheelieTime += simDt; totalWheelieThisRun += simDt; if (currentWheelieTime > maxWheelieTime) maxWheelieTime = currentWheelieTime; } else { currentWheelieTime = 0; }
+                    if (a > 0.3 && ls > 5) { currentStoppieTime += simDt; totalStoppieThisRun += simDt; if (currentStoppieTime > maxStoppieTime) maxStoppieTime = currentStoppieTime; } else { currentStoppieTime = 0; }
                     
                     if (ls > 5) { dustTimer += simDt; if (dustTimer > 0.06) { let wp = wheelRear.getPosition(); let dx = wp.x * SCALE; let dy = wp.y * SCALE + (wheelRadius * SCALE); if (window.isBrake && ls > 10) spawnDust(dx, dy, chassis.getLinearVelocity().x * SCALE, 'brake'); else if (window.isGas) spawnDust(dx, dy, chassis.getLinearVelocity().x * SCALE, 'gas'); else if (ls > 15) spawnDust(dx, dy, chassis.getLinearVelocity().x * SCALE, 'roll'); dustTimer = 0; } } else { dustTimer = 0.05; }
                 }
@@ -1208,4 +1210,4 @@
     checkOrientation(); resizeCanvas(); update();
 </script>
 </body>
-    </html>
+                </html>
