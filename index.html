@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v31.0 - Beta Release)</title>
+    <title>NyxRide 0.1 Beta</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
@@ -354,7 +354,7 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v31.0 (BETA)</div>
+<div class="version-text">v0.1 (BETA)</div>
 
 <script>
     // --- НАСТРОЙКИ И ДАННЫЕ ---
@@ -882,7 +882,7 @@
     function generateTerrain() { while (lastGeneratedX < cameraX + (canvas.width / zoom) + 1000) { let v = []; for (let i = 0; i <= 200; i += 5) v.push(pl.Vec2((lastGeneratedX + i) / SCALE, getTerrainY(lastGeneratedX + i) / SCALE)); const c = world.createBody(); let f = c.createFixture(pl.Chain(v, false), { friction: 1.0, restitution: 0.0 }); f.setUserData('terrain'); terrainBodies.push({ body: c, endX: lastGeneratedX + 200 }); lastGeneratedX += 200; } }
     function cleanupTerrain() { for (let i = terrainBodies.length - 1; i >= 0; i--) { if (terrainBodies[i].endX < cameraX - 1500) { world.destroyBody(terrainBodies[i].body); terrainBodies.splice(i, 1); } } }
 
-    let wheelRadius = 10 / SCALE; let wheelBase = 23 / SCALE; let chassis, wheelRear, wheelFront, jointRear, jointFront;
+    let wheelRadius = 10 / SCALE; let wheelBase = 25 / SCALE; let chassis, wheelRear, wheelFront, jointRear, jointFront;
 
     function createBike(x, y) {
         if (chassis) { world.destroyBody(chassis); world.destroyBody(wheelRear); world.destroyBody(wheelFront); }
@@ -1031,7 +1031,7 @@
     function drawTerrain() { 
         ctx.fillStyle = '#000'; ctx.strokeStyle = '#000'; 
         ctx.lineWidth = 4; ctx.beginPath(); 
-        const camX = Math.round(cameraX);
+        const camX = cameraX;
         ctx.moveTo(camX - 100, groundY + 2000); 
         let sx = camX - 100; let ex = camX + (canvas.width / zoom) + 100; 
         for (let x = sx; x <= ex; x += 2) ctx.lineTo(x, getTerrainY(x)); 
@@ -1128,20 +1128,26 @@
                 
                 if (isAudioInitialized) { if (window.isGas) { idleGain.gain.cancelScheduledValues(audioCtx.currentTime); idleGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.05); } else { idleGain.gain.cancelScheduledValues(audioCtx.currentTime); idleGain.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + 0.1); } let tr = window.isGas ? 0.8 : 0; let windSpeed = Math.min(1, ls / 55); let tw = 0.015 + windSpeed * 0.20 + (ia ? 0.035 : 0); tw = Math.min(0.25, tw); revGain.gain.setTargetAtTime(tr, audioCtx.currentTime, 0.1); windGain.gain.setTargetAtTime(tw, audioCtx.currentTime, 0.25); if (window.isGas && revSource) { let trate = 1.0 + (ws * 0.3); let frate = Math.min(1.3, trate); revSource.playbackRate.setTargetAtTime(frate, audioCtx.currentTime, 0.1); let tf = Math.max(1000, 2500 - (ws * 1000)); revFilter.frequency.setTargetAtTime(tf, audioCtx.currentTime, 0.1); previousGasState = true; } else { previousGasState = false; } if (!window.isGas && ws > 2) { popTimer += simDt; if (popTimer > 1.0 && Math.random() < 0.02) { playPop(); popTimer = 0; } } else { popTimer = 0; } }
                 
-                let targetZoom = maxZoom - Math.min(0.4, ls * 0.008); zoom += (targetZoom - zoom) * 0.02; 
-                let tcx = (chassis.getPosition().x * SCALE) - ((canvas.width * 0.3) / zoom);
-                cameraX += (tcx - cameraX) * (1 - Math.exp(-6 * dt));
+                // Плавное масштабирование: близкий план на малой скорости, отдаление при разгоне.
+                const speedRatio = Math.max(0, Math.min(1, ls / 45));
+                const targetZoom = maxZoom - speedRatio * (maxZoom - minZoom);
+                zoom += (targetZoom - zoom) * (1 - Math.exp(-2.2 * dt));
 
-                // Вертикальная камера сопровождает байк на больших перепадах высоты,
-                // но игнорирует мелкие колебания подвески (dead zone 18 px).
+                // Камера следует за байком без округления координат до целых пикселей.
+                // Прежнее округление cameraX давало заметные микрорывки при движении.
+                const bikeWorldX = chassis.getPosition().x * SCALE;
+                const targetCameraX = bikeWorldX - (canvas.width * 0.30 / zoom);
+                cameraX += (targetCameraX - cameraX) * (1 - Math.exp(-5.0 * dt));
+
+                // По вертикали держим байк в кадре, но отсекаем мелкую вибрацию подвески.
                 const bikeWorldY = chassis.getPosition().y * SCALE;
                 const terrainAnchorY = getTerrainY(cx) - 100;
-                const verticalTarget = (canvas.height * 0.55 / zoom) - Math.max(bikeWorldY, terrainAnchorY);
-                const verticalError = verticalTarget - cameraY;
-                const deadZone = 18;
-                if (Math.abs(verticalError) > deadZone) {
-                    const correctedError = verticalError - Math.sign(verticalError) * deadZone;
-                    cameraY += correctedError * (1 - Math.exp(-3.2 * dt));
+                const targetCameraY = (canvas.height * 0.55 / zoom) - Math.max(bikeWorldY, terrainAnchorY);
+                const verticalError = targetCameraY - cameraY;
+                const verticalDeadZone = 26;
+                if (Math.abs(verticalError) > verticalDeadZone) {
+                    const correctedError = verticalError - Math.sign(verticalError) * verticalDeadZone;
+                    cameraY += correctedError * (1 - Math.exp(-2.4 * dt));
                 }
                 
                 generateTerrain(); cleanupTerrain(); updateParticles(dt);
@@ -1172,12 +1178,12 @@
                 ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(sx, sy, 100, 0, Math.PI * 2); ctx.fill();
                 ctx.fillStyle = '#ffe680'; ctx.beginPath(); ctx.arc(sx, sy, 28, 0, Math.PI * 2); ctx.fill();
 
-                ctx.save(); ctx.translate(-Math.round(cameraX * 0.1), 0); drawBirds(); ctx.restore();
+                ctx.save(); ctx.translate(-(cameraX * 0.1), 0); drawBirds(); ctx.restore();
 
                 ctx.save(); 
                 ctx.scale(zoom, zoom); 
-                const camX = Math.round(cameraX);
-                // Не округляем cameraY: дробное смещение убирает ступенчатые рывки.
+                const camX = cameraX;
+                // Сохраняем дробные координаты камеры для плавного субпиксельного движения.
                 ctx.translate(0, cameraY);
                 ctx.translate(-camX, 0);
                 
@@ -1210,4 +1216,4 @@
     checkOrientation(); resizeCanvas(); update();
 </script>
 </body>
-                </html>
+                    </html>
