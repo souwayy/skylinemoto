@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nyxride (v27.7 - Fixes & UI)</title>
+    <title>NyxRide 0.1 Beta</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #000; touch-action: none; font-family: 'Segoe UI', Tahoma, sans-serif; }
         canvas { display: block; touch-action: none; }
@@ -58,8 +58,8 @@
         .stat-text { font-size: 16px; font-weight: 600; color: rgba(255,255,255,0.8); text-transform: uppercase; }
         
         .stats-right { display: flex; flex-direction: row; align-items: center; gap: 15px; }
-        .score { font-size: 36px; font-weight: bold; color: white; text-shadow: 0 2px 5px #000; }
-        
+        .score { font-size: 36px; font-weight: bold; color: white; text-shadow: 0 2px 5px #000; display: flex; align-items: baseline; gap: 10px; }
+
         /* UI КВЕСТОВ В ИГРЕ */
         #questWrapper {
             position: absolute; top: 80px; left: 10px;
@@ -67,48 +67,68 @@
             pointer-events: none; z-index: 15;
         }
         #btnToggleQuests {
-            background: rgba(0,0,0,0.6); border: 1px solid #ffd700; color: #ffd700;
+            background: rgba(0,0,0,0.3); border: 1px solid #ff5500; color: #ff5500;
             width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
             pointer-events: auto; cursor: pointer; font-weight: bold; font-size: 14px; transition: transform 0.2s;
         }
         #questPanel {
-            background: rgba(0,0,0,0.6); border-left: 3px solid #ffd700;
+            background: rgba(0,0,0,0.2); border-left: 3px solid #ff5500;
             padding: 10px 15px; border-radius: 0 8px 8px 0;
             display: flex; flex-direction: column; gap: 8px;
             margin-left: 5px; width: 55vw; max-width: 280px;
             transition: opacity 0.2s, max-height 0.2s;
             overflow: hidden;
         }
-        #questPanel.hidden-quests {
-            display: none !important;
-        }
+        #questPanel.hidden-quests { display: none !important; }
         .quest-item { color: white; font-size: 13px; font-weight: 600; }
-        .quest-item.completed { color: #00ff00; text-decoration: line-through; }
         .quest-bar { height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; margin-top: 3px; width: 100%; overflow: hidden;}
-        .quest-fill { height: 100%; background: #ffd700; width: 0%; transition: width 0.3s; }
+        .quest-fill { height: 100%; background: #ff5500; width: 0%; transition: width 0.3s; }
 
-        /* МЕНЮ КВЕСТОВ */
-        #questsScreen {
+        /* ЭКРАНЫ */
+        .overlay-screen {
             position: absolute; top: 0; left: 0; width: 100vw; height: 100dvh;
             background: rgba(10, 5, 15, 0.97); display: none; flex-direction: column; justify-content: center; align-items: center; pointer-events: auto; z-index: 70; padding: 20px; box-sizing: border-box;
         }
-        .quests-title { color: #fff; font-size: 32px; font-weight: 900; margin-bottom: 20px; letter-spacing: 3px; font-style: italic; }
-        .quests-list { width: 100%; max-width: 500px; display: flex; flex-direction: column; gap: 15px; max-height: 70vh; overflow-y: auto; padding-right: 10px; }
-        .quest-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-left: 4px solid #ffd700; padding: 12px 15px; border-radius: 8px; display: flex; flex-direction: column; gap: 6px; }
-        .quest-card.taken { border-left-color: #00ff00; background: rgba(0, 255, 0, 0.05); }
+        
+        .screen-title { color: #fff; font-size: 32px; font-weight: 900; margin-bottom: 20px; letter-spacing: 3px; font-style: italic; }
+        
+        .scroll-container {
+            width: 100%; max-width: 500px; display: flex; flex-direction: column; gap: 15px;
+            max-height: 65vh; overflow-y: auto; padding-right: 5px;
+        }
+
+        .quest-section-title {
+            color: #fff; font-size: 20px; font-weight: 900; letter-spacing: 2px;
+            display: flex; justify-content: space-between; align-items: flex-end;
+            margin-bottom: 10px; border-bottom: 2px solid #333; padding-bottom: 5px;
+        }
+        .quest-timer { font-size: 14px; color: #ff5500; font-weight: bold; letter-spacing: 1px; }
+        .quests-list { display: flex; flex-direction: column; gap: 10px; }
+        
+        .quest-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-left: 4px solid #555; padding: 12px 15px; border-radius: 8px; display: flex; flex-direction: column; gap: 6px; }
+        .quest-card.tracked { border-left-color: #ff5500; background: rgba(255, 85, 0, 0.05); }
+        .quest-card.completed { border-left-color: #00ff00; opacity: 0.6; }
+        
         .quest-card-header { display: flex; justify-content: space-between; align-items: center; }
         .quest-card-title { color: #fff; font-size: 15px; font-weight: bold; }
-        .quest-card-reward { color: #ffd700; font-size: 14px; font-weight: bold; }
+        .quest-card-reward { color: #ff5500; font-size: 14px; font-weight: bold; display: flex; align-items: center; gap: 4px; }
+        .quest-card-reward img { height: 14px; vertical-align: middle; }
         .quest-card-desc { color: #aaa; font-size: 13px; }
+        
         .quest-card-btn {
-            background: #ffd700; color: #000; border: none; border-radius: 6px;
+            background: #ff5500; color: #fff; border: none; border-radius: 6px;
             padding: 6px 12px; font-size: 13px; font-weight: bold; cursor: pointer;
             align-self: flex-end; transition: background 0.2s;
         }
-        .quest-card-btn:active { background: #ffaa00; }
+        .quest-card-btn:active { background: #cc4400; }
         .quest-card-btn:disabled { background: #333; color: #666; cursor: default; }
-        .quest-card-btn.cancel-btn { background: #ff3333; color: #fff; }
-        .quest-card-btn.cancel-btn:active { background: #cc0000; }
+        .quest-card-btn.cancel-btn { background: transparent; border: 1px solid #ff3333; color: #ff3333; }
+
+        /* НАСТРОЙКИ */
+        .settings-row { display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); width: 100%; max-width: 400px; margin-bottom: 10px; }
+        .settings-label { color: #fff; font-size: 18px; font-weight: bold; }
+        .toggle-btn { background: #ff5500; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        .toggle-btn.off { background: #555; }
 
         .btn-game { position: absolute; width: 50px; height: 50px; border-radius: 50%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); pointer-events: auto; color: white; display: flex; align-items: center; justify-content: center; }
         .btn-game svg { width: 25px; height: 25px; stroke: rgba(255,255,255,0.8); stroke-width: 2.5; }
@@ -223,16 +243,15 @@
             <button id="btnPause">
                 <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
             </button>
-            <div class="score"><span id="distanceText">0</span> m</div>
+            <div class="score">
+                <span><span id="distanceText">0</span> m</span>
+            </div>
         </div>
     </div>
     
-    <!-- Панель квестов со стрелкой (теперь верх/низ) -->
     <div id="questWrapper">
         <div id="btnToggleQuests">▲</div>
-        <div id="questPanel">
-            <!-- Заполняется через JS -->
-        </div>
+        <div id="questPanel"></div>
     </div>
 
     <div class="controls" id="controls">
@@ -243,12 +262,46 @@
     </div>
 </div>
 
-<div id="questsScreen">
-    <div class="quests-title">КВЕСТЫ</div>
-    <div class="quests-list" id="menuQuestList">
-        <!-- Заполняется через JS -->
+<!-- ЭКРАН КВЕСТОВ -->
+<div id="questsScreen" class="overlay-screen">
+    <div class="scroll-container">
+        <div>
+            <div class="quest-section-title">
+                <span>ЕЖЕДНЕВНЫЕ</span>
+                <span class="quest-timer" id="dailyTimer">--:--:--</span>
+            </div>
+            <div class="quests-list" id="dailyQuestList"></div>
+        </div>
+        <div>
+            <div class="quest-section-title" style="margin-top: 10px;">
+                <span>ЕЖЕНЕДЕЛЬНЫЕ</span>
+                <span class="quest-timer" id="weeklyTimer">--:--:--</span>
+            </div>
+            <div class="quests-list" id="weeklyQuestList"></div>
+        </div>
     </div>
     <button class="pause-btn" id="btnCloseQuests" style="margin-top: 20px;">ЗАКРЫТЬ</button>
+</div>
+
+<!-- ЭКРАН МАГАЗИНА (ЗАГЛУШКА) -->
+<div id="shopScreen" class="overlay-screen">
+    <div class="screen-title">МАГАЗИН</div>
+    <div style="color: #aaa; font-size: 18px; text-align: center; padding: 30px 20px; line-height: 1.5;">
+        Скоро здесь появятся новые байки!<br>Следите за обновлениями.
+    </div>
+    <button class="pause-btn" id="btnCloseShop" style="margin-top: 20px;">ЗАКРЫТЬ</button>
+</div>
+
+<!-- ЭКРАН НАСТРОЕК -->
+<div id="settingsScreen" class="overlay-screen">
+    <div class="screen-title">НАСТРОЙКИ</div>
+    <div class="scroll-container" style="align-items: center;">
+        <div class="settings-row">
+            <span class="settings-label">Звук</span>
+            <button class="toggle-btn" id="btnToggleSound">ВКЛ</button>
+        </div>
+    </div>
+    <button class="pause-btn" id="btnCloseSettings" style="margin-top: 20px;">ЗАКРЫТЬ</button>
 </div>
 
 <div id="pauseScreen" style="display: none;">
@@ -301,158 +354,230 @@
 </div>
 
 <canvas id="gameCanvas"></canvas>
-<div class="version-text">v27.7 (FIXES & UI)</div>
+<div class="version-text">v0.1 (BETA)</div>
 
 <script>
+    // --- НАСТРОЙКИ И ДАННЫЕ ---
+    const CURRENT_GAME_VERSION = "v31";
+    function checkDataVersion() {
+        let savedVersion = localStorage.getItem('gameDataVersion');
+        if (savedVersion !== CURRENT_GAME_VERSION) {
+            localStorage.removeItem('dailyQuests');
+            localStorage.removeItem('weeklyQuests');
+            localStorage.removeItem('nextDailyReset');
+            localStorage.removeItem('nextWeeklyReset');
+            localStorage.removeItem('trackedQuestId');
+            localStorage.setItem('gameDataVersion', CURRENT_GAME_VERSION);
+        }
+    }
+    checkDataVersion();
+
+    let isSoundOn = localStorage.getItem('isSoundOn') !== 'false';
+
     let gameState = 'splash'; 
     let splashStarted = false;
-    
+
+    // Физика байка (CAYO 125)
+    const currentBike = { 
+        density: 2.2, 
+        suspension: { freq: 4.5, damp: 0.8 }, 
+        motor: { speed: 35, torque: 40, brake: 50 } 
+    };
+
+    let totalCoins = parseInt(localStorage.getItem('totalCoins')) || 0;
+    let maxDistance = parseInt(localStorage.getItem('bestDistance')) || 0;
+
     // --- СИСТЕМА КВЕСТОВ ---
-    const QUEST_POOL = [
-        { id: 'dist_1k', type: 'dist', text: 'Проедь всего 1000м', target: 1000, reward: 50 },
-        { id: 'dist_5k', type: 'dist', text: 'Проедь всего 5000м', target: 5000, reward: 150 },
-        { id: 'dist_20k', type: 'dist', text: 'Проедь всего 20000м', target: 20000, reward: 500 },
-        { id: 'flips_5', type: 'flips', text: 'Сделай 5 Бэкфлипов', target: 5, reward: 100 },
-        { id: 'flips_20', type: 'flips', text: 'Сделай 20 Бэкфлипов', target: 20, reward: 300 },
-        { id: 'wheelie_10', type: 'wheelie', text: 'Вилли всего 10с', target: 10, reward: 75 },
-        { id: 'wheelie_30', type: 'wheelie', text: 'Вилли всего 30с', target: 30, reward: 200 },
-        { id: 'stoppie_5', type: 'stoppie', text: 'Стоппи всего 5с', target: 5, reward: 75 },
-        { id: 'stoppie_20', type: 'stoppie', text: 'Стоппи всего 20с', target: 20, reward: 200 },
-        { id: 'flips_any_10', type: 'total_flips', text: 'Сделай 10 любых сальто', target: 10, reward: 150 }
+    const DAILY_TEMPLATES = [
+        { type: 'dist', text: 'Проедь суммарно {t}м', targets: [1000, 2000, 3000], rewards: [50, 75, 100] },
+        { type: 'coins', text: 'Собери {t} монет', targets: [100, 200, 300], rewards: [50, 75, 100] },
+        { type: 'flips', text: 'Сделай {t} Бэкфлипа', targets: [1, 2, 3], rewards: [50, 75, 100] },
+        { type: 'total_flips', text: 'Сделай {t} любых сальто', targets: [2, 3, 5], rewards: [60, 80, 120] },
+        { type: 'wheelie', text: 'Вилли всего {t}с', targets: [5, 10, 15], rewards: [50, 75, 100] },
+        { type: 'stoppie', text: 'Стоппи всего {t}с', targets: [3, 5, 8], rewards: [50, 75, 100] }
     ];
 
-    let questProgress = JSON.parse(localStorage.getItem('questProgress')) || {
-        dist: 0, flips: 0, wheelie: 0, stoppie: 0, total_flips: 0
-    };
-    let completedQuests = JSON.parse(localStorage.getItem('completedQuests')) || [];
-    let activeQuestId = localStorage.getItem('activeQuestId') || null; // Только один квест
+    const WEEKLY_TEMPLATES = [
+        { type: 'dist', text: 'Проедь суммарно {t}м', targets: [15000, 30000, 50000], rewards: [400, 600, 1000] },
+        { type: 'coins', text: 'Собери {t} монет', targets: [1500, 3000, 5000], rewards: [400, 600, 1000] },
+        { type: 'flips', text: 'Сделай {t} Бэкфлипов', targets: [10, 20, 30], rewards: [400, 600, 1000] },
+        { type: 'total_flips', text: 'Сделай {t} любых сальто', targets: [15, 30, 50], rewards: [500, 800, 1200] },
+        { type: 'wheelie', text: 'Вилли всего {t}с', targets: [60, 120, 180], rewards: [400, 600, 1000] },
+        { type: 'stoppie', text: 'Стоппи всего {t}с', targets: [30, 60, 90], rewards: [400, 600, 1000] }
+    ];
 
-    let questsPanelOpen = true;
+    function getNextMidnight() { let d = new Date(); d.setHours(24, 0, 0, 0); return d.getTime(); }
+    function getNextMonday() { let d = new Date(); let day = d.getDay(); let diff = d.getDate() + (day === 0 ? 1 : 8 - day); let nextMonday = new Date(d.setDate(diff)); nextMonday.setHours(0, 0, 0, 0); return nextMonday.getTime(); }
 
-    function takeQuest(id) {
-        if (activeQuestId) return; 
-        
-        let q = QUEST_POOL.find(x => x.id === id);
-        if (!q || completedQuests.includes(id)) return;
-
-        let progress = questProgress[q.type] || 0;
-        if (progress >= q.target) {
-            completedQuests.push(id);
-            totalCoins += q.reward;
-            localStorage.setItem('completedQuests', JSON.stringify(completedQuests));
-            localStorage.setItem('totalCoins', totalCoins);
-            document.getElementById('menuCoinBalance').innerText = totalCoins;
-            document.getElementById('coinBalanceText').innerText = totalCoins;
-            renderMenuQuests();
-            return;
-        }
-
-        activeQuestId = id;
-        localStorage.setItem('activeQuestId', activeQuestId);
-        renderMenuQuests();
-        updateQuestUI();
+    function generateQuestFromTemplate(template, index, isWeekly) {
+        let tier = Math.floor(Math.random() * 3);
+        return {
+            id: (isWeekly ? 'w_' : 'd_') + Date.now() + '_' + index,
+            type: template.type,
+            text: template.text.replace('{t}', template.targets[tier]),
+            target: template.targets[tier],
+            reward: template.rewards[tier],
+            progress: 0, completed: false
+        };
     }
 
-    function cancelQuest(id) {
-        if (activeQuestId === id) {
-            activeQuestId = null;
-            localStorage.removeItem('activeQuestId');
-            renderMenuQuests();
-            updateQuestUI();
+    let dailyQuests = JSON.parse(localStorage.getItem('dailyQuests')) || [];
+    let weeklyQuests = JSON.parse(localStorage.getItem('weeklyQuests')) || [];
+    let nextDailyReset = parseInt(localStorage.getItem('nextDailyReset')) || 0;
+    let nextWeeklyReset = parseInt(localStorage.getItem('nextWeeklyReset')) || 0;
+    let trackedQuestId = localStorage.getItem('trackedQuestId') || null;
+
+    function checkQuestResets() {
+        const now = Date.now();
+        let changed = false;
+        if (now >= nextDailyReset || dailyQuests.length === 0) {
+            dailyQuests = [];
+            let pool = [...DAILY_TEMPLATES].sort(() => 0.5 - Math.random());
+            for (let i = 0; i < 3; i++) dailyQuests.push(generateQuestFromTemplate(pool[i], i, false));
+            nextDailyReset = getNextMidnight(); localStorage.setItem('dailyQuests', JSON.stringify(dailyQuests)); localStorage.setItem('nextDailyReset', nextDailyReset); changed = true;
         }
+        if (now >= nextWeeklyReset || weeklyQuests.length === 0) {
+            weeklyQuests = [];
+            let pool = [...WEEKLY_TEMPLATES].sort(() => 0.5 - Math.random());
+            for (let i = 0; i < 3; i++) weeklyQuests.push(generateQuestFromTemplate(pool[i], i, true));
+            nextWeeklyReset = getNextMonday(); localStorage.setItem('weeklyQuests', JSON.stringify(weeklyQuests)); localStorage.setItem('nextWeeklyReset', nextWeeklyReset); changed = true;
+        }
+        if (changed && trackedQuestId && !dailyQuests.find(q => q.id === trackedQuestId) && !weeklyQuests.find(q => q.id === trackedQuestId)) {
+            trackedQuestId = null; localStorage.removeItem('trackedQuestId');
+        }
+    }
+
+    function formatTimeLeft(ms) {
+        if (ms < 0) return "00:00:00";
+        let h = Math.floor(ms / 3600000); let m = Math.floor((ms % 3600000) / 60000); let s = Math.floor((ms % 60000) / 1000);
+        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+    function updateTimers() {
+        if (gameState === 'menu' || document.getElementById('questsScreen').style.display === 'flex') {
+            let now = Date.now();
+            document.getElementById('dailyTimer').innerText = formatTimeLeft(nextDailyReset - now);
+            document.getElementById('weeklyTimer').innerText = formatTimeLeft(nextWeeklyReset - now);
+        }
+    }
+    setInterval(updateTimers, 1000);
+
+    function takeQuest(id) { trackedQuestId = id; localStorage.setItem('trackedQuestId', trackedQuestId); renderMenuQuests(); updateQuestUI(); }
+    function cancelQuest(id) { if (trackedQuestId === id) { trackedQuestId = null; localStorage.removeItem('trackedQuestId'); renderMenuQuests(); updateQuestUI(); } }
+
+    // Очередь уведомлений: несколько выполненных квестов показываются по одному.
+    const questNotificationQueue = [];
+    let questNotificationActive = false;
+
+    function showNextQuestNotification() {
+        if (questNotificationActive || questNotificationQueue.length === 0) return;
+        questNotificationActive = true;
+        const message = questNotificationQueue.shift();
+        const notif = document.createElement('div');
+        notif.style.cssText = 'position:fixed; top:40%; left:50%; transform:translate(-50%,-50%); color:#00ff00; font-size:20px; font-weight:bold; z-index:10000; text-shadow:0 0 10px #000; text-align:center; white-space:pre-line; background:rgba(0,0,0,0.88); padding:12px 20px; border-radius:10px; border:2px solid #00aa00; width:max-content; max-width:85vw; box-sizing:border-box;';
+        notif.innerText = message;
+        document.body.appendChild(notif);
+        setTimeout(() => {
+            notif.remove();
+            questNotificationActive = false;
+            showNextQuestNotification();
+        }, 2300);
     }
 
     function checkQuestsCompletion() {
-        if (!activeQuestId) return;
-        
-        let q = QUEST_POOL.find(x => x.id === activeQuestId);
-        if (!q) { activeQuestId = null; return; }
-
-        let progress = questProgress[q.type] || 0;
-        if (progress >= q.target) {
-            completedQuests.push(activeQuestId);
-            activeQuestId = null;
-            totalCoins += q.reward;
-            
-            localStorage.setItem('completedQuests', JSON.stringify(completedQuests));
-            localStorage.setItem('totalCoins', totalCoins);
-            localStorage.removeItem('activeQuestId');
-            
-            document.getElementById('coinBalanceText').innerText = totalCoins;
-            document.getElementById('menuCoinBalance').innerText = totalCoins;
-            
-            let notif = document.createElement('div');
-            notif.style.cssText = 'position:absolute; top:40%; left:50%; transform:translate(-50%,-50%); color:#00ff00; font-size:22px; font-weight:bold; z-index:100; text-shadow:0 0 10px #000; text-align:center;';
-            notif.innerText = `КВЕСТ ВЫПОЛНЕН!\n+${q.reward} МОНЕТ`;
-            document.body.appendChild(notif);
-            setTimeout(() => notif.remove(), 2500);
-            
-            renderMenuQuests();
-            updateQuestUI();
+        let allQuests = [...dailyQuests, ...weeklyQuests];
+        let anyCompleted = false; let newlyCompleted = [];
+        allQuests.forEach(q => {
+            if (!q.completed && q.progress >= q.target) { q.completed = true; totalCoins += q.reward; anyCompleted = true; newlyCompleted.push(q); }
+        });
+        if (anyCompleted) {
+            localStorage.setItem('dailyQuests', JSON.stringify(dailyQuests)); localStorage.setItem('weeklyQuests', JSON.stringify(weeklyQuests)); localStorage.setItem('totalCoins', totalCoins);
+            document.getElementById('coinBalanceText').innerText = totalCoins; document.getElementById('menuCoinBalance').innerText = totalCoins;
+            let activeTracked = [...dailyQuests, ...weeklyQuests].find(q => q.id === trackedQuestId);
+            if (activeTracked && activeTracked.completed) {
+                let nextQuest = [...dailyQuests, ...weeklyQuests].find(q => !q.completed);
+                trackedQuestId = nextQuest ? nextQuest.id : null;
+                if (trackedQuestId) localStorage.setItem('trackedQuestId', trackedQuestId); else localStorage.removeItem('trackedQuestId');
+            }
+            renderMenuQuests(); updateQuestUI();
+            newlyCompleted.forEach(q => {
+                questNotificationQueue.push(`КВЕСТ ВЫПОЛНЕН!\n${q.text}\n+${q.reward} МОНЕТ`);
+            });
+            showNextQuestNotification();
         }
     }
 
-    function renderMenuQuests() {
-        let list = document.getElementById('menuQuestList');
-        if (!list) return;
-        list.innerHTML = '';
-        
-        QUEST_POOL.forEach(q => {
-            let isDone = completedQuests.includes(q.id);
-            let isTaken = (activeQuestId === q.id);
-            let progress = questProgress[q.type] || 0;
-            let percent = Math.min(100, (progress / q.target) * 100);
-            
-            let cardClass = isDone ? '' : (isTaken ? 'taken' : '');
-            let btnHtml = '';
-            
-            if (isDone) {
-                btnHtml = `<button class="quest-card-btn" disabled>ВЫПОЛНЕН</button>`;
-            } else if (isTaken) {
-                btnHtml = `<button class="quest-card-btn cancel-btn" onclick="cancelQuest('${q.id}')">ОТМЕНИТЬ</button>`;
-            } else {
-                let isBlocked = activeQuestId !== null;
-                btnHtml = `<button class="quest-card-btn" ${isBlocked ? 'disabled' : ''} onclick="takeQuest('${q.id}')">ВЗЯТЬ</button>`;
-            }
+    function createQuestCardHTML(q) {
+        let percent = Math.min(100, (q.progress / q.target) * 100);
+        let isTracked = (trackedQuestId === q.id);
+        let cardClass = q.completed ? 'completed' : (isTracked ? 'tracked' : '');
+        let btnHtml = '';
+        if (q.completed) btnHtml = `<button class="quest-card-btn" disabled>ВЫПОЛНЕН</button>`;
+        else if (isTracked) btnHtml = `<button class="quest-card-btn cancel-btn" onclick="cancelQuest('${q.id}')">НЕ ОТСЛЕЖИВАТЬ</button>`;
+        else btnHtml = `<button class="quest-card-btn" onclick="takeQuest('${q.id}')">ОТСЛЕЖИВАТЬ</button>`;
 
-            let html = `
-                <div class="quest-card ${cardClass}">
-                    <div class="quest-card-header">
-                        <div class="quest-card-title">${q.text}</div>
-                        <div class="quest-card-reward">+${q.reward} 🪙</div>
-                    </div>
-                    <div class="quest-card-desc">Прогресс: ${Math.min(Math.floor(progress), q.target)} / ${q.target}</div>
-                    <div class="quest-bar"><div class="quest-fill" style="width: ${percent}%; background: ${isDone ? '#00ff00' : '#ffd700'}"></div></div>
-                    ${btnHtml}
-                </div>
-            `;
-            list.innerHTML += html;
-        });
+        return `<div class="quest-card ${cardClass}">
+            <div class="quest-card-header"><div class="quest-card-title">${q.text}</div><div class="quest-card-reward"><img src="coin.png" onerror="this.style.display='none'">${q.reward}</div></div>
+            <div class="quest-card-desc">Прогресс: ${Math.min(Math.floor(q.progress), q.target)} / ${q.target}</div>
+            <div class="quest-bar"><div class="quest-fill" style="width: ${percent}%;"></div></div>${btnHtml}
+        </div>`;
+    }
+
+    function renderMenuQuests() {
+        document.getElementById('dailyQuestList').innerHTML = dailyQuests.map(createQuestCardHTML).join('');
+        document.getElementById('weeklyQuestList').innerHTML = weeklyQuests.map(createQuestCardHTML).join('');
+        updateTimers();
     }
 
     function updateQuestUI() {
         let panel = document.getElementById('questPanel');
         if (!panel) return;
-        
-        if (!activeQuestId) {
-            panel.innerHTML = '<div style="color:#aaa; font-size:12px;">Нет активного квеста.<br>Возьмите квест в меню.</div>';
-            return;
+        let q = [...dailyQuests, ...weeklyQuests].find(x => x.id === trackedQuestId);
+        if (!q || q.completed) {
+            if (q && q.completed) {
+                let nextQuest = [...dailyQuests, ...weeklyQuests].find(x => !x.completed);
+                if (nextQuest) { trackedQuestId = nextQuest.id; localStorage.setItem('trackedQuestId', trackedQuestId); q = nextQuest; }
+                else { trackedQuestId = null; localStorage.removeItem('trackedQuestId'); }
+            }
+            if (!trackedQuestId) { panel.innerHTML = '<div style="color:#aaa; font-size:12px;">Нет отслеживаемого квеста.<br>Выберите квест в меню.</div>'; return; }
         }
+        let percent = Math.min(100, (q.progress / q.target) * 100);
+        panel.innerHTML = `<div class="quest-item"><div style="font-size: 12px; color: #ff5500; margin-bottom: 2px;">ОТСЛЕЖИВАЕТСЯ</div><div>${q.text} (${Math.min(Math.floor(q.progress), q.target)}/${q.target})</div><div class="quest-bar"><div class="quest-fill" style="width: ${percent}%;"></div></div></div>`;
+    }
 
-        let q = QUEST_POOL.find(x => x.id === activeQuestId);
-        if (!q) return;
+    function updateLiveQuestUI(currentDist, liveCoins) {
+        if (!trackedQuestId) return;
+        let q = [...dailyQuests, ...weeklyQuests].find(x => x.id === trackedQuestId);
+        if (!q || q.completed) return;
+        let liveProgress = 0;
+        if (q.type === 'dist') liveProgress = currentDist;
+        else if (q.type === 'coins') liveProgress = liveCoins;
+        else if (q.type === 'flips') liveProgress = backflipCount;
+        else if (q.type === 'total_flips') liveProgress = backflipCount + frontflipCount;
+        else if (q.type === 'wheelie') liveProgress = totalWheelieThisRun;
+        else if (q.type === 'stoppie') liveProgress = totalStoppieThisRun;
 
-        let progress = questProgress[q.type] || 0;
-        let percent = Math.min(100, (progress / q.target) * 100);
-        
-        let html = `
-            <div class="quest-item">
-                <div style="font-size: 12px; color: #ffd700; margin-bottom: 2px;">АКТИВНЫЙ КВЕСТ</div>
-                <div>${q.text} (${Math.min(Math.floor(progress), q.target)}/${q.target})</div>
-                <div class="quest-bar"><div class="quest-fill" style="width: ${percent}%"></div></div>
-            </div>
-        `;
-        panel.innerHTML = html;
+        let total = Math.min(q.target, q.progress + liveProgress);
+        let percent = Math.min(100, (total / q.target) * 100);
+        let panel = document.getElementById('questPanel');
+        if (panel && !panel.classList.contains('hidden-quests')) {
+            panel.innerHTML = `<div class="quest-item"><div style="font-size: 12px; color: #ff5500; margin-bottom: 2px;">ОТСЛЕЖИВАЕТСЯ</div><div>${q.text} (${Math.floor(total)}/${q.target})</div><div class="quest-bar"><div class="quest-fill" style="width: ${percent}%;"></div></div></div>`;
+        }
+    }
+
+    function addQuestProgress(type, amount) {
+        if (amount <= 0) return;
+        let changed = false;
+        [...dailyQuests, ...weeklyQuests].forEach(q => { if (!q.completed && q.type === type) { q.progress += amount; changed = true; } });
+        if (changed) { localStorage.setItem('dailyQuests', JSON.stringify(dailyQuests)); localStorage.setItem('weeklyQuests', JSON.stringify(weeklyQuests)); checkQuestsCompletion(); }
+    }
+
+    function updateSettingsUI() {
+        let btn = document.getElementById('btnToggleSound');
+        if (isSoundOn) { btn.innerText = "ВКЛ"; btn.classList.remove('off'); }
+        else { btn.innerText = "ВЫКЛ"; btn.classList.add('off'); }
+        if (masterGain && audioCtx) {
+            masterGain.gain.setTargetAtTime(isSoundOn ? 1 : 0, audioCtx.currentTime, 0.1);
+        }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -461,42 +586,41 @@
             document.getElementById('questPanel').classList.toggle('hidden-quests', !questsPanelOpen);
             document.getElementById('btnToggleQuests').innerText = questsPanelOpen ? '▲' : '▼';
         });
+
+        document.getElementById('btn-quests').addEventListener('click', () => { checkQuestResets(); renderMenuQuests(); document.getElementById('questsScreen').style.display = 'flex'; });
+        document.getElementById('btnCloseQuests').addEventListener('click', () => { document.getElementById('questsScreen').style.display = 'none'; });
+        
+        document.getElementById('btn-shop').addEventListener('click', () => { document.getElementById('shopScreen').style.display = 'flex'; });
+        document.getElementById('btnCloseShop').addEventListener('click', () => { document.getElementById('shopScreen').style.display = 'none'; });
+        
+        document.getElementById('btn-settings').addEventListener('click', () => { updateSettingsUI(); document.getElementById('settingsScreen').style.display = 'flex'; });
+        document.getElementById('btnCloseSettings').addEventListener('click', () => { document.getElementById('settingsScreen').style.display = 'none'; });
+        document.getElementById('btnToggleSound').addEventListener('click', () => { isSoundOn = !isSoundOn; localStorage.setItem('isSoundOn', isSoundOn); updateSettingsUI(); });
+
+        document.getElementById('btnSettingsPause').addEventListener('click', () => { updateSettingsUI(); document.getElementById('settingsScreen').style.display = 'flex'; });
     });
 
-    function updateQuestProgress(type, amount) {
-        if (questProgress[type] !== undefined) {
-            if (amount > questProgress[type]) {
-                questProgress[type] = amount;
-                localStorage.setItem('questProgress', JSON.stringify(questProgress));
-            }
-        }
-    }
-    // ------------------------
-
-    const BIKE_CATALOG = [
-        { id: 'cayo', name: "CAYO 125 TRAIL", density: 2.2, suspension: { freq: 4.5, damp: 0.8 }, motor: { speed: 35, torque: 40, brake: 50 } },
-        { id: 'ctm', name: "CTM 300 EXC", density: 1.2, suspension: { freq: 5.5, damp: 0.7 }, motor: { speed: 50, torque: 60, brake: 100 } }
-    ];
-    let currentBikeIndex = 1; 
-    let currentBike = BIKE_CATALOG[currentBikeIndex];
-
-    let totalCoins = parseInt(localStorage.getItem('totalCoins')) || 0;
-    let maxDistance = parseInt(localStorage.getItem('bestDistance')) || 0;
-    
+    // --- ОСТАЛЬНОЙ КОД ИГРЫ ---
     let maxAirTime = 0, currentAirTime = 0;
     let frontflipCount = 0, backflipCount = 0;
     let accumulatedRotation = 0, lastAngle = 0, flipCounted = false;
     let maxWheelieTime = 0, currentWheelieTime = 0;
     let maxStoppieTime = 0, currentStoppieTime = 0;
-    let particles = [], dustTimer = 0;
+    let totalWheelieThisRun = 0, totalStoppieThisRun = 0;
     
+    let wipeoutTimer = 0;
+    let prevAirborne = false;
+    let questsPanelOpen = true;
+    
+    let particles = [], dustTimer = 0;
     let birds = [], birdSpawnTimer = 3;
 
     const SCALE = 30; 
     let groundY = 0; 
     const startX = 50000;
     let terrainOffset = 0; 
-    let cameraX = 0, cameraY = 0; 
+    let cameraX = 0;
+    let cameraY = 0; // Плавное вертикальное сопровождение без реакции на мелкую вибрацию подвески.
     
     let zoom = 1.6; 
     const minZoom = 1.1; 
@@ -522,8 +646,9 @@
                 document.getElementById('mainMenu').classList.remove('hidden');
                 gameState = 'menu';
                 updateMenuUI();
-                checkQuestsCompletion();
+                checkQuestResets();
                 renderMenuQuests();
+                updateQuestUI();
             }, 800);
         }, 2000);
     }
@@ -542,8 +667,9 @@
 
     let audioCtx, idleBuffer, popBuffer, windBuffer, revBuffer;
     let idleSource, windSource, revSource;
-    let idleGain, revGain, windGain, revFilter, revTremoloGain, revLfoTone, revLfoToneGain, revLfoVol, revLfoVolGain;
+    let idleGain, revGain, windGain, masterGain, revFilter, revTremoloGain, revLfoTone, revLfoToneGain, revLfoVol, revLfoVolGain;
     let isAudioInitialized = false, previousGasState = false, popTimer = 0; 
+    let isAudioInitializing = false;
 
     async function loadAudio(url) {
         try {
@@ -564,17 +690,24 @@
         return newBuffer;
     }
     async function initAudio() {
-        if (isAudioInitialized) return;
+        if (isAudioInitialized || isAudioInitializing) return;
+        isAudioInitializing = true;
         try {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            masterGain = audioCtx.createGain();
+            masterGain.gain.value = isSoundOn ? 1 : 0;
+            masterGain.connect(audioCtx.destination);
+
             idleBuffer = await loadAudio('engine_idle.mp3'); popBuffer = await loadAudio('engine_pop.mp3'); windBuffer = await loadAudio('wind.mp3');
             let rawRevBuffer = await loadAudio('engine_rev.mp3'); if (rawRevBuffer) revBuffer = createSeamlessBuffer(rawRevBuffer, 2.0);
 
             idleGain = audioCtx.createGain(); revGain = audioCtx.createGain(); windGain = audioCtx.createGain(); revTremoloGain = audioCtx.createGain();
             idleGain.gain.value = 0; revGain.gain.value = 0; windGain.gain.value = 0; revTremoloGain.gain.value = 0.9; 
             revFilter = audioCtx.createBiquadFilter(); revFilter.type = 'lowpass'; revFilter.frequency.value = 2500; 
-            idleGain.connect(audioCtx.destination); revFilter.connect(revTremoloGain); revTremoloGain.connect(revGain); revGain.connect(audioCtx.destination); windGain.connect(audioCtx.destination);
+            
+            idleGain.connect(masterGain); revFilter.connect(revTremoloGain); revTremoloGain.connect(revGain); revGain.connect(masterGain); windGain.connect(masterGain);
 
             revLfoTone = audioCtx.createOscillator(); revLfoTone.type = 'sine'; revLfoTone.frequency.value = 0.3; 
             revLfoToneGain = audioCtx.createGain(); revLfoToneGain.gain.value = 0.01; 
@@ -593,64 +726,117 @@
             }
             isAudioInitialized = true;
         } catch (e) { console.log("Ошибка аудио: ", e); }
+        finally { isAudioInitializing = false; }
     }
+    function stopGameAudio() {
+        if (!isAudioInitialized || !audioCtx) return;
+        const now = audioCtx.currentTime;
+        // Сначала мгновенно глушим все игровые каналы, затем приостанавливаем контекст,
+        // чтобы ни один зацикленный источник не продолжал звучать после проигрыша.
+        [idleGain, revGain, windGain].forEach(g => {
+            if (g) {
+                g.gain.cancelScheduledValues(now);
+                g.gain.setValueAtTime(0, now);
+            }
+        });
+        try { if (audioCtx.state === 'running') audioCtx.suspend(); } catch (e) {}
+    }
+
     function startRevSound() {
         if (!isAudioInitialized || !revBuffer) return;
-        if (revSource) { try { revSource.stop(); revLfoToneGain.disconnect(revSource.playbackRate); } catch(e){} }
+        if (revSource) {
+            try { revSource.stop(); revSource.disconnect(); } catch(e){}
+            try { revLfoToneGain.disconnect(revSource.playbackRate); } catch(e){}
+        }
         revSource = audioCtx.createBufferSource(); revSource.buffer = revBuffer; revSource.loop = true;
         revLfoToneGain.connect(revSource.playbackRate); revSource.connect(revFilter);
         const randomOffset = Math.random() * (revBuffer.duration - 1); revSource.start(0, randomOffset);
     }
     function playPop() {
-        if (!popBuffer || !audioCtx) return;
+        if (!popBuffer || !audioCtx || !masterGain) return;
         const popSource = audioCtx.createBufferSource(); const popGain = audioCtx.createGain();
-        popSource.buffer = popBuffer; popSource.connect(popGain); popGain.connect(audioCtx.destination); popGain.gain.value = 1.0; popSource.start();
+        popSource.buffer = popBuffer; popSource.connect(popGain); popGain.connect(masterGain); popGain.gain.value = 1.0; popSource.start();
     }
 
     const bikeImage = new Image(); bikeImage.src = 'moto.png';
     const menuCanvas = document.getElementById('menuBikeCanvas');
     const menuCtx = menuCanvas.getContext('2d');
 
+    function drawDetailedWheel(targetCtx, x, y, r) {
+        targetCtx.save();
+        targetCtx.translate(x, y);
+        // Внешняя резина и мягкая боковина; физический радиус колеса не меняется.
+        targetCtx.beginPath(); targetCtx.arc(0, 0, r, 0, Math.PI * 2);
+        targetCtx.fillStyle = '#020202'; targetCtx.fill();
+        targetCtx.beginPath(); targetCtx.arc(0, 0, Math.max(0, r - 0.5), 0, Math.PI * 2);
+        targetCtx.strokeStyle = '#101010'; targetCtx.lineWidth = 0.8; targetCtx.stroke();
+
+        // Небольшие насечки протектора по внешнему краю шины.
+        targetCtx.strokeStyle = '#171717'; targetCtx.lineWidth = 0.9;
+        for (let i = 0; i < 20; i++) {
+            const a = i * Math.PI * 2 / 20;
+            const r1 = r - 0.8, r2 = r - 2.4;
+            targetCtx.beginPath();
+            targetCtx.moveTo(Math.cos(a) * r1, Math.sin(a) * r1);
+            targetCtx.lineTo(Math.cos(a + 0.10) * r2, Math.sin(a + 0.10) * r2);
+            targetCtx.stroke();
+        }
+
+        // Металлический обод и внутреннее кольцо.
+        const rimR = Math.max(2, r - 3.2);
+        targetCtx.beginPath(); targetCtx.arc(0, 0, rimR, 0, Math.PI * 2);
+        targetCtx.fillStyle = '#090a0b'; targetCtx.fill();
+        targetCtx.strokeStyle = '#303234'; targetCtx.lineWidth = 0.9; targetCtx.stroke();
+        targetCtx.beginPath(); targetCtx.arc(0, 0, rimR - 1.5, 0, Math.PI * 2);
+        targetCtx.strokeStyle = '#191b1d'; targetCtx.lineWidth = 0.7; targetCtx.stroke();
+
+        // Спицы с чередованием направления для более механичного вида.
+        targetCtx.strokeStyle = '#414141'; targetCtx.lineWidth = 0.55;
+        for (let i = 0; i < 10; i++) {
+            const a = i * Math.PI * 2 / 10;
+            const hubR = 1.8, edgeR = rimR - 1.1;
+            const offset = (i % 2 ? 0.08 : -0.08);
+            targetCtx.beginPath();
+            targetCtx.moveTo(Math.cos(a) * hubR, Math.sin(a) * hubR);
+            targetCtx.lineTo(Math.cos(a + offset) * edgeR, Math.sin(a + offset) * edgeR);
+            targetCtx.stroke();
+        }
+
+        // Тормозной диск, отверстия и ступица.
+        targetCtx.beginPath(); targetCtx.arc(0, 0, Math.max(1.2, r * 0.34), 0, Math.PI * 2);
+        targetCtx.strokeStyle = '#292929'; targetCtx.lineWidth = 0.7; targetCtx.stroke();
+        targetCtx.fillStyle = '#383838';
+        for (let i = 0; i < 6; i++) {
+            const a = i * Math.PI * 2 / 6, rr = r * 0.27;
+            targetCtx.beginPath(); targetCtx.arc(Math.cos(a) * rr, Math.sin(a) * rr, 0.45, 0, Math.PI * 2); targetCtx.fill();
+        }
+        targetCtx.beginPath(); targetCtx.arc(0, 0, 1.8, 0, Math.PI * 2);
+        targetCtx.fillStyle = '#55585a'; targetCtx.fill();
+        targetCtx.beginPath(); targetCtx.arc(0, 0, 0.8, 0, Math.PI * 2);
+        targetCtx.fillStyle = '#181818'; targetCtx.fill();
+        targetCtx.restore();
+    }
+
     function drawMenuBike() {
         menuCtx.clearRect(0, 0, menuCanvas.width, menuCanvas.height);
         menuCtx.save();
         menuCtx.translate(menuCanvas.width / 2, menuCanvas.height - 200);
         menuCtx.scale(12.0, 12.0); 
+        
         if (bikeImage.complete && bikeImage.naturalWidth !== 0) menuCtx.drawImage(bikeImage, -45, -45, 90, 54);
+        
         let r = 10; let wheelBase = 23;
-        function drawOneWheel(wx) {
-            menuCtx.beginPath(); menuCtx.arc(wx, 0, r, 0, Math.PI * 2); menuCtx.fillStyle = '#000'; menuCtx.fill();
-            if (currentBike.name === "CTM 300 EXC") {
-                menuCtx.strokeStyle = '#111'; menuCtx.lineWidth = 2;
-                for (let i = 0; i < 16; i++) { let angle = (i / 16) * Math.PI * 2; menuCtx.beginPath(); menuCtx.moveTo(wx + Math.cos(angle) * (r - 1.5), Math.sin(angle) * (r - 1.5)); menuCtx.lineTo(wx + Math.cos(angle) * (r + 1), Math.sin(angle) * (r + 1)); menuCtx.stroke(); }
-            }
-            menuCtx.beginPath(); menuCtx.arc(wx, 0, r - 3.5, 0, Math.PI * 2); menuCtx.strokeStyle = '#222'; menuCtx.lineWidth = 2; menuCtx.stroke();
-            menuCtx.strokeStyle = '#555'; menuCtx.lineWidth = 1;
-            let spokes = currentBike.name === "CTM 300 EXC" ? 6 : 8;
-            for (let i = 0; i < spokes; i++) { let angle = (i / spokes) * Math.PI * 2; menuCtx.beginPath(); menuCtx.moveTo(wx, 0); menuCtx.lineTo(wx + Math.cos(angle) * (r - 3.5), Math.sin(angle) * (r - 3.5)); menuCtx.stroke(); }
-            menuCtx.beginPath(); menuCtx.arc(wx, 0, 2, 0, Math.PI * 2); menuCtx.fillStyle = '#444'; menuCtx.fill();
-        }
+        function drawOneWheel(wx) { drawDetailedWheel(menuCtx, wx, 0, r); }
         drawOneWheel(-wheelBase); drawOneWheel(wheelBase);
         menuCtx.restore();
     }
     bikeImage.onload = () => { drawMenuBike(); };
 
     function updateMenuUI() {
-        currentBike = BIKE_CATALOG[currentBikeIndex];
         document.getElementById('menuCoinBalance').innerText = totalCoins;
         document.getElementById('menuBestDistance').innerText = maxDistance;
         drawMenuBike();
     }
-
-    document.getElementById('btn-shop').addEventListener('click', () => { console.log('Магазин в разработке'); });
-    document.getElementById('btn-quests').addEventListener('click', () => { 
-        renderMenuQuests(); 
-        document.getElementById('questsScreen').style.display = 'flex'; 
-    });
-    document.getElementById('btnCloseQuests').addEventListener('click', () => { 
-        document.getElementById('questsScreen').style.display = 'none'; 
-    });
-    document.getElementById('btn-settings').addEventListener('click', () => { console.log('Настройки в разработке'); });
 
     document.getElementById('btn-play').addEventListener('click', () => {
         initAudio(); 
@@ -696,11 +882,14 @@
     function generateTerrain() { while (lastGeneratedX < cameraX + (canvas.width / zoom) + 1000) { let v = []; for (let i = 0; i <= 200; i += 5) v.push(pl.Vec2((lastGeneratedX + i) / SCALE, getTerrainY(lastGeneratedX + i) / SCALE)); const c = world.createBody(); let f = c.createFixture(pl.Chain(v, false), { friction: 1.0, restitution: 0.0 }); f.setUserData('terrain'); terrainBodies.push({ body: c, endX: lastGeneratedX + 200 }); lastGeneratedX += 200; } }
     function cleanupTerrain() { for (let i = terrainBodies.length - 1; i >= 0; i--) { if (terrainBodies[i].endX < cameraX - 1500) { world.destroyBody(terrainBodies[i].body); terrainBodies.splice(i, 1); } } }
 
-    const wheelRadius = 10 / SCALE; const wheelBase = 23 / SCALE; let chassis, wheelRear, wheelFront, jointRear, jointFront;
+    let wheelRadius = 10 / SCALE; let wheelBase = 25 / SCALE; let chassis, wheelRear, wheelFront, jointRear, jointFront;
 
     function createBike(x, y) {
         if (chassis) { world.destroyBody(chassis); world.destroyBody(wheelRear); world.destroyBody(wheelFront); }
-        chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic', bullet: true }); chassis.createFixture(pl.Box(53 / SCALE / 2, 6 / SCALE / 2, pl.Vec2(0, -18 / SCALE)), { density: currentBike.density, friction: 0.3 });
+        
+        chassis = world.createBody({ position: pl.Vec2(x / SCALE, y / SCALE), type: 'dynamic', bullet: true }); 
+        chassis.createFixture(pl.Box(53 / SCALE / 2, 6 / SCALE / 2, pl.Vec2(0, -18 / SCALE)), { density: currentBike.density, friction: 0.3 });
+        
         let hs = pl.Circle(8 / SCALE); hs.m_p.set(0, -35 / SCALE); let hf = chassis.createFixture(hs, { isSensor: true }); hf.setUserData('head');
 
         wheelRear = world.createBody({ position: pl.Vec2((x - wheelBase * SCALE) / SCALE, y / SCALE), type: 'dynamic', bullet: true }); wheelRear.createFixture(pl.Circle(wheelRadius), { density: 1.0, friction: 1.0 });
@@ -711,29 +900,48 @@
     }
 
     window.isGas = false; window.isBrake = false; window.isLeanBack = false; window.isLeanForward = false;
-    function bindBtn(id, v) { const el = document.getElementById(id); el.addEventListener('touchstart', e => { e.preventDefault(); if(gameState === 'playing') window[v] = true; }); el.addEventListener('touchend', e => { e.preventDefault(); window[v] = false; }); el.addEventListener('mousedown', e => { e.preventDefault(); if(gameState === 'playing') window[v] = true; }); el.addEventListener('mouseup', e => { e.preventDefault(); window[v] = false; }); }
+    function bindBtn(id, v) {
+        const el = document.getElementById(id);
+        const on  = e => { e.preventDefault(); if (gameState === 'playing') window[v] = true; };
+        const off = e => { e.preventDefault(); window[v] = false; };
+        el.addEventListener('touchstart', on, { passive: false });
+        el.addEventListener('touchend', off, { passive: false });
+        el.addEventListener('touchcancel', off, { passive: false });
+        el.addEventListener('mousedown', on);
+        el.addEventListener('mouseup', off);
+        el.addEventListener('mouseleave', off);
+    }
     bindBtn('btnGas', 'isGas'); bindBtn('btnBrake', 'isBrake'); bindBtn('btnLeanBack', 'isLeanBack'); bindBtn('btnLeanForward', 'isLeanForward');
 
     document.getElementById('btnPause').addEventListener('click', () => { if (gameState === 'playing') { gameState = 'paused'; document.getElementById('pauseScreen').style.display = 'flex'; } });
     document.getElementById('btnResume').addEventListener('click', () => { gameState = 'playing'; document.getElementById('pauseScreen').style.display = 'none'; lastTime = performance.now(); });
     document.getElementById('btnRestartPause').addEventListener('click', () => { document.getElementById('pauseScreen').style.display = 'none'; gameState = 'playing'; resetGame(); });
-    document.getElementById('btnSettingsPause').addEventListener('click', () => { console.log('Настройки в разработке'); });
-    document.getElementById('btnHomePause').addEventListener('click', () => { document.getElementById('pauseScreen').style.display = 'none'; document.getElementById('gameUI').classList.add('hidden'); document.getElementById('mainMenu').classList.remove('hidden'); gameState = 'menu'; updateMenuUI(); checkQuestsCompletion(); renderMenuQuests(); });
+    document.getElementById('btnHomePause').addEventListener('click', () => { document.getElementById('pauseScreen').style.display = 'none'; document.getElementById('gameUI').classList.add('hidden'); document.getElementById('mainMenu').classList.remove('hidden'); gameState = 'menu'; updateMenuUI(); checkQuestResets(); renderMenuQuests(); updateQuestUI(); });
     document.getElementById('btnRestartGameOver').addEventListener('click', () => { document.getElementById('gameOverScreen').style.display = 'none'; gameState = 'playing'; resetGame(); });
-    document.getElementById('btnHomeGameOver').addEventListener('click', () => { document.getElementById('gameOverScreen').style.display = 'none'; document.getElementById('gameUI').classList.add('hidden'); document.getElementById('mainMenu').classList.remove('hidden'); gameState = 'menu'; updateMenuUI(); checkQuestsCompletion(); renderMenuQuests(); });
+    document.getElementById('btnHomeGameOver').addEventListener('click', () => { document.getElementById('gameOverScreen').style.display = 'none'; document.getElementById('gameUI').classList.add('hidden'); document.getElementById('mainMenu').classList.remove('hidden'); gameState = 'menu'; updateMenuUI(); checkQuestResets(); renderMenuQuests(); updateQuestUI(); });
 
     function resetGame() {
         sessionSeed = Math.floor(Math.random() * 0xFFFFFFFF); zoneCache.clear(); terrainOffset = Math.random() * 10000;
         for (let b of terrainBodies) world.destroyBody(b.body); terrainBodies = []; lastGeneratedX = startX - 1500; cameraX = startX - (canvas.width * 0.3);
-        currentBike = BIKE_CATALOG[currentBikeIndex];
-        createBike(startX, getTerrainY(startX) - 60); generateTerrain();
+        zoom = maxZoom;
+        createBike(startX, getTerrainY(startX) - 60);
+        // Сразу ставим камеру так, чтобы байк и поверхность были видны с первого кадра.
+        cameraY = (canvas.height * 0.55 / zoom) - Math.max(
+            chassis.getPosition().y * SCALE,
+            getTerrainY(startX) - 100
+        );
+        generateTerrain();
         window.isGas = false; window.isBrake = false; window.isLeanBack = false; window.isLeanForward = false;
         maxAirTime = 0; currentAirTime = 0; frontflipCount = 0; backflipCount = 0; flipCounted = false;
         accumulatedRotation = 0; lastAngle = chassis.getAngle(); maxWheelieTime = 0; currentWheelieTime = 0;
         maxStoppieTime = 0; currentStoppieTime = 0; particles = []; dustTimer = 0; popTimer = 0;
+        totalWheelieThisRun = 0; totalStoppieThisRun = 0;
+        wipeoutTimer = 0;
+        prevAirborne = false;
+        physicsAccumulator = 0;
         birds = []; birdSpawnTimer = 3;
-        zoom = maxZoom;
         document.getElementById('coinBalanceText').innerText = totalCoins; document.getElementById('distanceText').innerText = "0";
+        document.getElementById('bestDistanceText').innerText = maxDistance;
         
         questsPanelOpen = true;
         document.getElementById('questPanel').classList.remove('hidden-quests');
@@ -741,35 +949,45 @@
         
         updateQuestUI();
 
-        if (isAudioInitialized) { idleGain.gain.setValueAtTime(0.4, audioCtx.currentTime); revGain.gain.setValueAtTime(0, audioCtx.currentTime); windGain.gain.setValueAtTime(0, audioCtx.currentTime); if (revFilter) revFilter.frequency.value = 2500; startRevSound(); }
+        if (isAudioInitialized) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const now = audioCtx.currentTime;
+            idleGain.gain.cancelScheduledValues(now); revGain.gain.cancelScheduledValues(now); windGain.gain.cancelScheduledValues(now);
+            idleGain.gain.setValueAtTime(0.4, now); revGain.gain.setValueAtTime(0, now); windGain.gain.setValueAtTime(0, now);
+            if (revFilter) revFilter.frequency.value = 2500; startRevSound();
+        }
     }
 
     function triggerGameOver() {
-        gameState = 'gameover'; window.isGas = false; 
-        let dist = Math.max(0, Math.floor(((chassis.getPosition().x * SCALE) - startX) / 14)); 
-        
-        let coinsDist = Math.floor(dist / 100);
-        let coinsWheelie = Math.floor(maxWheelieTime) * 2;
-        let coinsStoppie = Math.floor(maxStoppieTime) * 2;
-        let coinsFront = frontflipCount * 10;
-        let coinsBack = backflipCount * 10;
-        let totalEarned = coinsDist + coinsWheelie + coinsStoppie + coinsFront + coinsBack;
+        if (gameState !== 'playing') return;
+        gameState = 'gameover'; window.isGas = false;
 
-        totalCoins += totalEarned; 
-        localStorage.setItem('totalCoins', totalCoins);
+        stopGameAudio();
+
+        const dist = Math.max(0, Math.floor(((chassis.getPosition().x * SCALE) - startX) / 14));
+
+        const coinsWheelie = Math.floor(maxWheelieTime) * 2;
+        const coinsStoppie = Math.floor(maxStoppieTime) * 2;
+        const coinsFront = frontflipCount * 10;
+        const coinsBack = backflipCount * 10;
+        const coinsDist = Math.floor(dist / 100);
         
-        if (dist > maxDistance) { 
-            maxDistance = dist; 
-            localStorage.setItem('bestDistance', maxDistance); 
+        const totalEarned = coinsDist + coinsWheelie + coinsStoppie + coinsFront + coinsBack;
+
+        totalCoins += totalEarned;
+        localStorage.setItem('totalCoins', totalCoins);
+
+        if (dist > maxDistance) {
+            maxDistance = dist;
+            localStorage.setItem('bestDistance', maxDistance);
         }
 
-        updateQuestProgress('dist', questProgress.dist + dist);
-        updateQuestProgress('flips', questProgress.flips + backflipCount);
-        updateQuestProgress('total_flips', questProgress.total_flips + backflipCount + frontflipCount);
-        updateQuestProgress('wheelie', questProgress.wheelie + maxWheelieTime);
-        updateQuestProgress('stoppie', questProgress.stoppie + maxStoppieTime);
-
-        checkQuestsCompletion();
+        addQuestProgress('dist', dist);
+        addQuestProgress('coins', totalEarned);
+        addQuestProgress('flips', backflipCount);
+        addQuestProgress('total_flips', backflipCount + frontflipCount);
+        addQuestProgress('wheelie', totalWheelieThisRun);
+        addQuestProgress('stoppie', totalStoppieThisRun);
 
         document.getElementById('go-distance').innerText = dist;
         document.getElementById('go-wheelie').innerText = maxWheelieTime.toFixed(1) + "s";
@@ -783,7 +1001,6 @@
         document.getElementById('go-total-coins').innerText = totalEarned;
 
         document.getElementById('gameOverScreen').style.display = 'flex';
-        if (isAudioInitialized) { idleGain.gain.setValueAtTime(0, audioCtx.currentTime); revGain.gain.setValueAtTime(0, audioCtx.currentTime); windGain.gain.setValueAtTime(0, audioCtx.currentTime); }
     }
 
     function updateBirds(dt) {
@@ -813,55 +1030,67 @@
 
     function drawTerrain() { 
         ctx.fillStyle = '#000'; ctx.strokeStyle = '#000'; 
-        ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(cameraX - 100, groundY + 2000); 
-        let sx = Math.floor(cameraX) - 100; let ex = Math.floor(cameraX) + (canvas.width / zoom) + 100; 
+        ctx.lineWidth = 4; ctx.beginPath(); 
+        const camX = cameraX;
+        ctx.moveTo(camX - 100, groundY + 2000); 
+        let sx = camX - 100; let ex = camX + (canvas.width / zoom) + 100; 
         for (let x = sx; x <= ex; x += 2) ctx.lineTo(x, getTerrainY(x)); 
         ctx.lineTo(ex, groundY + 2000); ctx.closePath(); ctx.fill(); ctx.stroke(); 
     }
     
-    function drawWheel(wheel) { 
-        ctx.save(); 
-        ctx.translate(wheel.getPosition().x * SCALE, wheel.getPosition().y * SCALE); 
-        ctx.rotate(wheel.getAngle()); 
-        let r = wheelRadius * SCALE; 
-        ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fillStyle = '#000'; ctx.fill(); 
-        if (currentBike.name === "CTM 300 EXC") { 
-            ctx.strokeStyle = '#111'; ctx.lineWidth = 2; 
-            for (let i = 0; i < 16; i++) { 
-                let angle = (i / 16) * Math.PI * 2; 
-                ctx.beginPath(); ctx.moveTo(Math.cos(angle) * (r - 1.5), Math.sin(angle) * (r - 1.5)); ctx.lineTo(Math.cos(angle) * (r + 1), Math.sin(angle) * (r + 1)); ctx.stroke(); 
-            } 
-        } 
-        ctx.beginPath(); ctx.arc(0, 0, r - 3.5, 0, Math.PI * 2); ctx.strokeStyle = '#222'; ctx.lineWidth = 2; ctx.stroke(); 
-        ctx.strokeStyle = '#555'; ctx.lineWidth = 1; 
-        let spokes = currentBike.name === "CTM 300 EXC" ? 6 : 8; 
-        for (let i = 0; i < spokes; i++) { 
-            let angle = (i / spokes) * Math.PI * 2; 
-            ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(angle) * (r - 3.5), Math.sin(angle) * (r - 3.5)); ctx.stroke(); 
-        } 
-        ctx.beginPath(); ctx.arc(0, 0, 2, 0, Math.PI * 2); ctx.fillStyle = '#444'; ctx.fill(); 
-        ctx.restore(); 
+    function drawWheel(wheel) {
+        ctx.save();
+        ctx.translate(wheel.getPosition().x * SCALE, wheel.getPosition().y * SCALE);
+        ctx.rotate(wheel.getAngle());
+        drawDetailedWheel(ctx, 0, 0, wheelRadius * SCALE);
+        ctx.restore();
     }
-    
+
     function spawnDust(x, y, sx, t) { if (particles.length > 80) return; let c = t === 'brake' ? 2 : 1, bvy = t === 'brake' ? -5 : -2; for (let i = 0; i < c; i++) { particles.push({ x: x + (Math.random() - 0.5) * 8, y: y, baseVx: -Math.random() * 3, vy: bvy, radius: 3 + Math.random() * 4, growth: 1 + Math.random(), alphaMax: 0.4, alpha: 0.4, age: 0, maxAge: 1.0 + Math.random() }); } }
     function updateParticles(dt) { for (let i = particles.length - 1; i >= 0; i--) { let p = particles[i]; p.age += dt; let pr = p.age / p.maxAge; if (pr >= 1) { particles.splice(i, 1); continue; } p.x += p.baseVx * (1 + pr); p.vy += 0.15; p.y += p.vy; p.radius += p.growth; p.alpha = p.alphaMax * Math.pow(1 - pr, 1.5); if (p.alpha <= 0.01) particles.splice(i, 1); } }
     function drawParticles() { for (let p of particles) { let g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius); g.addColorStop(0, `rgba(140, 105, 75, ${p.alpha})`); g.addColorStop(1, 'rgba(200, 160, 120, 0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2); ctx.fill(); } }
 
     let lastTime = performance.now();
+    let physicsAccumulator = 0;
+    const FIXED_DT = 1/60;
+
     function update() {
         requestAnimationFrame(update); 
-        
         if (gameState === 'paused') return; 
 
         try {
             let dt = (performance.now() - lastTime) / 1000; lastTime = performance.now(); if (dt > 0.1) dt = 0.1; 
 
             if (gameState === 'playing' && chassis) {
-                world.step(1/60, dt, 3); let ws = Math.abs(wheelRear.getAngularVelocity()); let ls = Math.abs(chassis.getLinearVelocity().x) * SCALE; 
+                let preStepVy = chassis.getLinearVelocity().y;
+
+                physicsAccumulator += dt;
+                let steps = 0;
+                while (physicsAccumulator >= FIXED_DT && steps < 5 && gameState === 'playing') {
+                    world.step(FIXED_DT, 6, 2);
+                    physicsAccumulator -= FIXED_DT;
+                    steps++;
+                }
+                if (physicsAccumulator > FIXED_DT * 5) physicsAccumulator = 0;
+                const simDt = steps * FIXED_DT;
+
+                let ws = Math.abs(wheelRear.getAngularVelocity()); let ls = Math.abs(chassis.getLinearVelocity().x) * SCALE; 
                 let cx = chassis.getPosition().x * SCALE; let cy = chassis.getPosition().y * SCALE; let gu = getTerrainY(cx); let ia = (cy < gu - 25); 
                 let a = chassis.getAngle(); let da = a - lastAngle; if (da > Math.PI) da -= 2 * Math.PI; if (da < -Math.PI) da += 2 * Math.PI;
+
+                if (!ia && prevAirborne && currentAirTime > 0.15) {
+                    const absAngle = Math.abs(a);
+                    const impact = Math.abs(preStepVy);
+                    if (absAngle > 1.0) {
+                        wipeoutTimer = 0.4;
+                        const v = chassis.getLinearVelocity();
+                        chassis.setLinearVelocity(pl.Vec2(v.x * 0.6, v.y));
+                    }
+                }
+                prevAirborne = ia;
+
                 if (ia) { 
-                    accumulatedRotation += da; currentAirTime += dt; if (currentAirTime > maxAirTime) maxAirTime = currentAirTime; 
+                    accumulatedRotation += da; currentAirTime += simDt; if (currentAirTime > maxAirTime) maxAirTime = currentAirTime; 
                     if (!flipCounted && Math.abs(accumulatedRotation) >= Math.PI * 1.7 && currentAirTime > 0.3) { 
                         if (accumulatedRotation > 0) frontflipCount++; 
                         else backflipCount++; 
@@ -870,38 +1099,69 @@
                 } 
                 else {
                     currentAirTime = 0; accumulatedRotation = 0; flipCounted = false;
+                    // В этой системе координат отрицательный угол поднимает переднее колесо (вилли),
+                    // а положительный — заднее (стоппи). Учитываем трюки раздельно.
+                    if (a < -0.3 && ls > 5) { currentWheelieTime += simDt; totalWheelieThisRun += simDt; if (currentWheelieTime > maxWheelieTime) maxWheelieTime = currentWheelieTime; } else { currentWheelieTime = 0; }
+                    if (a > 0.3 && ls > 5) { currentStoppieTime += simDt; totalStoppieThisRun += simDt; if (currentStoppieTime > maxStoppieTime) maxStoppieTime = currentStoppieTime; } else { currentStoppieTime = 0; }
                     
-                    // Исправленная логика: a < -0.3 это Стоппи, a > 0.3 это Вилли
-                    if (a < -0.3 && ls > 5) { currentStoppieTime += dt; if (currentStoppieTime > maxStoppieTime) maxStoppieTime = currentStoppieTime; } else { currentStoppieTime = 0; }
-                    if (a > 0.3 && ls > 5) { currentWheelieTime += dt; if (currentWheelieTime > maxWheelieTime) maxWheelieTime = currentWheelieTime; } else { currentWheelieTime = 0; }
-                    
-                    if (ls > 5) { dustTimer += dt; if (dustTimer > 0.06) { let wp = wheelRear.getPosition(); let dx = wp.x * SCALE; let dy = wp.y * SCALE + (wheelRadius * SCALE); if (window.isBrake && ls > 10) spawnDust(dx, dy, chassis.getLinearVelocity().x * SCALE, 'brake'); else if (window.isGas) spawnDust(dx, dy, chassis.getLinearVelocity().x * SCALE, 'gas'); else if (ls > 15) spawnDust(dx, dy, chassis.getLinearVelocity().x * SCALE, 'roll'); dustTimer = 0; } } else { dustTimer = 0.05; }
+                    if (ls > 5) { dustTimer += simDt; if (dustTimer > 0.06) { let wp = wheelRear.getPosition(); let dx = wp.x * SCALE; let dy = wp.y * SCALE + (wheelRadius * SCALE); if (window.isBrake && ls > 10) spawnDust(dx, dy, chassis.getLinearVelocity().x * SCALE, 'brake'); else if (window.isGas) spawnDust(dx, dy, chassis.getLinearVelocity().x * SCALE, 'gas'); else if (ls > 15) spawnDust(dx, dy, chassis.getLinearVelocity().x * SCALE, 'roll'); dustTimer = 0; } } else { dustTimer = 0.05; }
                 }
                 lastAngle = a; 
 
-                if (window.isGas) { jointRear.setMotorSpeed(currentBike.motor.speed); jointFront.setMotorSpeed(currentBike.motor.speed); jointRear.setMaxMotorTorque(currentBike.motor.torque); jointFront.setMaxMotorTorque(currentBike.motor.torque); } else if (window.isBrake) { jointRear.setMotorSpeed(0); jointFront.setMotorSpeed(0); jointRear.setMaxMotorTorque(currentBike.motor.brake); jointFront.setMaxMotorTorque(currentBike.motor.brake); } else { jointRear.setMaxMotorTorque(0); jointFront.setMaxMotorTorque(0); }
-                let tp = 20; let mts = 2.5; if (window.isLeanBack) { if (chassis.getAngularVelocity() > -mts) chassis.applyTorque(-tp, true); } else if (window.isLeanForward) { if (chassis.getAngularVelocity() < mts) chassis.applyTorque(tp, true); }
-                if (isAudioInitialized) { if (window.isGas) { idleGain.gain.cancelScheduledValues(audioCtx.currentTime); idleGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.05); } else { idleGain.gain.cancelScheduledValues(audioCtx.currentTime); idleGain.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + 0.1); } let tr = window.isGas ? 0.8 : 0; let tw = Math.min(0.3, 0.05 + ws * 0.15); revGain.gain.setTargetAtTime(tr, audioCtx.currentTime, 0.1); windGain.gain.setTargetAtTime(tw, audioCtx.currentTime, 0.1); if (window.isGas && revSource) { let trate = 1.0 + (ws * 0.3); let frate = Math.min(1.3, trate); revSource.playbackRate.setTargetAtTime(frate, audioCtx.currentTime, 0.1); let tf = Math.max(1000, 2500 - (ws * 1000)); revFilter.frequency.setTargetAtTime(tf, audioCtx.currentTime, 0.1); previousGasState = true; } else { previousGasState = false; } if (!window.isGas && ws > 2) { popTimer += dt; if (popTimer > 1.0 && Math.random() < 0.02) { playPop(); popTimer = 0; } } else { popTimer = 0; } }
-                if (chassis.getPosition().y > groundY + 1000) triggerGameOver();
+                if (wipeoutTimer > 0) {
+                    wipeoutTimer -= simDt;
+                    jointRear.setMaxMotorTorque(0); jointFront.setMaxMotorTorque(0);
+                } else if (window.isGas) { 
+                    jointRear.setMotorSpeed(currentBike.motor.speed); jointFront.setMotorSpeed(currentBike.motor.speed); 
+                    jointRear.setMaxMotorTorque(currentBike.motor.torque); jointFront.setMaxMotorTorque(currentBike.motor.torque); 
+                } else if (window.isBrake) { 
+                    jointRear.setMotorSpeed(0); jointFront.setMotorSpeed(0); 
+                    jointRear.setMaxMotorTorque(currentBike.motor.brake); jointFront.setMaxMotorTorque(currentBike.motor.brake); 
+                } else { 
+                    jointRear.setMaxMotorTorque(0); jointFront.setMaxMotorTorque(0); 
+                }
                 
-                let targetZoom = maxZoom - Math.min(0.4, ls * 0.008); zoom += (targetZoom - zoom) * 0.02; 
-                let tcx = (chassis.getPosition().x * SCALE) - ((canvas.width * 0.3) / zoom); cameraX += (tcx - cameraX) * 0.1; 
-                let groundLevel = getTerrainY(cx) - 100; let tcy = (canvas.height * 0.55) - Math.max(chassis.getPosition().y * SCALE, groundLevel); cameraY += (tcy - cameraY) * 0.1;
+                let tp = 20; 
+                let mts = 2.5; 
+                if (window.isLeanBack) { if (chassis.getAngularVelocity() > -mts) chassis.applyTorque(-tp, true); } 
+                else if (window.isLeanForward) { if (chassis.getAngularVelocity() < mts) chassis.applyTorque(tp, true); }
                 
+                if (isAudioInitialized) { if (window.isGas) { idleGain.gain.cancelScheduledValues(audioCtx.currentTime); idleGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.05); } else { idleGain.gain.cancelScheduledValues(audioCtx.currentTime); idleGain.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + 0.1); } let tr = window.isGas ? 0.8 : 0; let windSpeed = Math.min(1, ls / 55); let tw = 0.015 + windSpeed * 0.20 + (ia ? 0.035 : 0); tw = Math.min(0.25, tw); revGain.gain.setTargetAtTime(tr, audioCtx.currentTime, 0.1); windGain.gain.setTargetAtTime(tw, audioCtx.currentTime, 0.25); if (window.isGas && revSource) { let trate = 1.0 + (ws * 0.3); let frate = Math.min(1.3, trate); revSource.playbackRate.setTargetAtTime(frate, audioCtx.currentTime, 0.1); let tf = Math.max(1000, 2500 - (ws * 1000)); revFilter.frequency.setTargetAtTime(tf, audioCtx.currentTime, 0.1); previousGasState = true; } else { previousGasState = false; } if (!window.isGas && ws > 2) { popTimer += simDt; if (popTimer > 1.0 && Math.random() < 0.02) { playPop(); popTimer = 0; } } else { popTimer = 0; } }
+                
+                // Настройки камеры перенесены из предоставленной версии v27.7.
+                // При разгоне камера плавно отдаляется, при снижении скорости приближается.
+                let targetZoom = maxZoom - Math.min(0.4, ls * 0.008);
+                zoom += (targetZoom - zoom) * 0.02;
+
+                // Горизонтальное и вертикальное следование — по формулам исходной камеры.
+                let tcx = (chassis.getPosition().x * SCALE) - ((canvas.width * 0.3) / zoom);
+                cameraX += (tcx - cameraX) * 0.1;
+
+                let groundLevel = getTerrainY(cx) - 100;
+                let tcy = (canvas.height * 0.55) - Math.max(chassis.getPosition().y * SCALE, groundLevel);
+                cameraY += (tcy - cameraY) * 0.1;
+
                 generateTerrain(); cleanupTerrain(); updateParticles(dt);
                 updateBirds(dt);
+                
+                const currentDist = Math.max(0, Math.floor(((chassis.getPosition().x * SCALE) - startX) / 14));
+                const liveCoins = Math.floor(currentDist / 100) + (Math.floor(totalWheelieThisRun) * 2) + (Math.floor(totalStoppieThisRun) * 2) + ((frontflipCount + backflipCount) * 10);
+                
+                document.getElementById('distanceText').innerText = currentDist;
+                document.getElementById('coinBalanceText').innerText = totalCoins + liveCoins;
+                if (currentDist > maxDistance) { maxDistance = currentDist; document.getElementById('bestDistanceText').innerText = maxDistance; }
 
-                document.getElementById('distanceText').innerText = Math.max(0, Math.floor(((chassis.getPosition().x * SCALE) - startX) / 14)); 
-                document.getElementById('coinBalanceText').innerText = totalCoins + Math.floor(Math.max(0, Math.floor(((chassis.getPosition().x * SCALE) - startX) / 14)) / 100);
-                if (Math.max(0, Math.floor(((chassis.getPosition().x * SCALE) - startX) / 14)) > maxDistance) { maxDistance = Math.max(0, Math.floor(((chassis.getPosition().x * SCALE) - startX) / 14)); localStorage.setItem('bestDistance', maxDistance); document.getElementById('bestDistanceText').innerText = maxDistance; }
+                updateLiveQuestUI(currentDist, liveCoins);
             }
 
             if (gameState === 'playing' || gameState === 'gameover') {
                 ctx.clearRect(0, 0, canvas.width, canvas.height); 
                 
+                ctx.save(); 
+                
                 const g = ctx.createLinearGradient(0, 0, 0, canvas.height);
                 g.addColorStop(0, '#1a0b2e'); g.addColorStop(0.3, '#4a154b'); g.addColorStop(0.6, '#e63946'); g.addColorStop(1, '#ff9f1c'); 
-                ctx.fillStyle = g; ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = g; ctx.fillRect(-10, -10, canvas.width + 20, canvas.height + 20);
                 
                 let sx = canvas.width * 0.75; let sy = canvas.height * 0.25; 
                 let sg = ctx.createRadialGradient(sx, sy, 10, sx, sy, 100);
@@ -909,22 +1169,34 @@
                 ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(sx, sy, 100, 0, Math.PI * 2); ctx.fill();
                 ctx.fillStyle = '#ffe680'; ctx.beginPath(); ctx.arc(sx, sy, 28, 0, Math.PI * 2); ctx.fill();
 
-                ctx.save(); ctx.translate(-cameraX * 0.1, 0); drawBirds(); ctx.restore();
+                ctx.save(); ctx.translate(-(cameraX * 0.1), 0); drawBirds(); ctx.restore();
 
                 ctx.save(); 
-                ctx.scale(zoom, zoom); ctx.translate(0, cameraY); ctx.translate(-cameraX, 0);
+                ctx.scale(zoom, zoom); 
+                const camX = cameraX;
+                // Сохраняем дробные координаты камеры для плавного субпиксельного движения.
+                ctx.translate(0, cameraY);
+                ctx.translate(-camX, 0);
+                
                 drawTerrain();
                 if (gameState !== 'gameover' && chassis) {
                     drawParticles(); 
                     ctx.save(); 
                     ctx.translate(chassis.getPosition().x * SCALE, chassis.getPosition().y * SCALE); 
                     ctx.rotate(chassis.getAngle());
-                    if (bikeImage.complete) ctx.drawImage(bikeImage, -45, -45, 90, 54); 
+                    
+                    if (bikeImage.complete && bikeImage.naturalWidth !== 0) {
+                        ctx.drawImage(bikeImage, -45, -45, 90, 54);
+                    }
+                    
                     ctx.restore(); 
                     drawWheel(wheelRear); 
                     drawWheel(wheelFront);
                 }
                 ctx.restore(); 
+                
+                ctx.restore(); 
+
             }
         } catch (error) {
             console.error(error);
@@ -935,4 +1207,4 @@
     checkOrientation(); resizeCanvas(); update();
 </script>
 </body>
-    </html>
+            </html>
