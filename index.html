@@ -939,6 +939,9 @@
         wipeoutTimer = 0;
         prevAirborne = false;
         physicsAccumulator = 0;
+        // Синхронизируем интерполяцию с начальными положениями тел после создания байка.
+        previousRenderState = captureRenderState();
+        currentRenderState = captureRenderState();
         birds = []; birdSpawnTimer = 3;
         document.getElementById('coinBalanceText').innerText = totalCoins; document.getElementById('distanceText').innerText = "0";
         document.getElementById('bestDistanceText').innerText = maxDistance;
@@ -1038,10 +1041,15 @@
         ctx.lineTo(ex, groundY + 2000); ctx.closePath(); ctx.fill(); ctx.stroke(); 
     }
     
-    function drawWheel(wheel) {
+    function drawWheel(wheel, renderState = null) {
         ctx.save();
-        ctx.translate(wheel.getPosition().x * SCALE, wheel.getPosition().y * SCALE);
-        ctx.rotate(wheel.getAngle());
+        const position = renderState || {
+            x: wheel.getPosition().x * SCALE,
+            y: wheel.getPosition().y * SCALE,
+            angle: wheel.getAngle()
+        };
+        ctx.translate(position.x, position.y);
+        ctx.rotate(position.angle);
         drawDetailedWheel(ctx, 0, 0, wheelRadius * SCALE);
         ctx.restore();
     }
@@ -1054,24 +1062,64 @@
     let physicsAccumulator = 0;
     const FIXED_DT = 1/60;
 
+    // Храним два физических состояния и рисуем положение между ними.
+    // Это устраняет ступенчатость при FPS выше или не кратном 60.
+    let previousRenderState = null;
+    let currentRenderState = null;
+
+    function captureRenderState() {
+        if (!chassis || !wheelRear || !wheelFront) return null;
+        const readBody = body => ({
+            x: body.getPosition().x * SCALE,
+            y: body.getPosition().y * SCALE,
+            angle: body.getAngle()
+        });
+        return {
+            chassis: readBody(chassis),
+            rear: readBody(wheelRear),
+            front: readBody(wheelFront)
+        };
+    }
+
+    function interpolateAngle(a, b, alpha) {
+        let delta = b - a;
+        while (delta > Math.PI) delta -= Math.PI * 2;
+        while (delta < -Math.PI) delta += Math.PI * 2;
+        return a + delta * alpha;
+    }
+
+    function interpolateBody(previous, current, alpha) {
+        if (!previous || !current) return current;
+        return {
+            x: previous.x + (current.x - previous.x) * alpha,
+            y: previous.y + (current.y - previous.y) * alpha,
+            angle: interpolateAngle(previous.angle, current.angle, alpha)
+        };
+    }
+
     function update() {
         requestAnimationFrame(update); 
         if (gameState === 'paused') return; 
 
         try {
-            let dt = (performance.now() - lastTime) / 1000; lastTime = performance.now(); if (dt > 0.1) dt = 0.1; 
+            const now = performance.now(); let dt = (now - lastTime) / 1000; lastTime = now; if (dt > 0.1) dt = 0.1; 
 
             if (gameState === 'playing' && chassis) {
                 let preStepVy = chassis.getLinearVelocity().y;
 
                 physicsAccumulator += dt;
                 let steps = 0;
-                while (physicsAccumulator >= FIXED_DT && steps < 5 && gameState === 'playing') {
+                if (!currentRenderState) {
+                    previousRenderState = captureRenderState();
+                    currentRenderState = captureRenderState();
+                }
+                while (physicsAccumulator >= FIXED_DT && steps < 6 && gameState === 'playing') {
+                    previousRenderState = currentRenderState || captureRenderState();
                     world.step(FIXED_DT, 6, 2);
+                    currentRenderState = captureRenderState();
                     physicsAccumulator -= FIXED_DT;
                     steps++;
                 }
-                if (physicsAccumulator > FIXED_DT * 5) physicsAccumulator = 0;
                 const simDt = steps * FIXED_DT;
 
                 let ws = Math.abs(wheelRear.getAngularVelocity()); let ls = Math.abs(chassis.getLinearVelocity().x) * SCALE; 
@@ -1130,16 +1178,23 @@
                 
                 // Настройки камеры перенесены из предоставленной версии v27.7.
                 // При разгоне камера плавно отдаляется, при снижении скорости приближается.
+                // Сглаживание задаётся в секундах, поэтому скорость камеры не зависит от FPS.
+                const zoomBlend = 1 - Math.exp(-1.212 * dt); // эквивалентно коэффициенту 0.02 при 60 FPS
+                const cameraBlend = 1 - Math.exp(-6.322 * dt); // эквивалентно коэффициенту 0.1 при 60 FPS
                 let targetZoom = maxZoom - Math.min(0.4, ls * 0.008);
-                zoom += (targetZoom - zoom) * 0.02;
+                zoom += (targetZoom - zoom) * zoomBlend;
 
-                // Горизонтальное и вертикальное следование — по формулам исходной камеры.
-                let tcx = (chassis.getPosition().x * SCALE) - ((canvas.width * 0.3) / zoom);
-                cameraX += (tcx - cameraX) * 0.1;
+                const renderAlpha = Math.max(0, Math.min(1, physicsAccumulator / FIXED_DT));
+                const renderChassis = interpolateBody(previousRenderState && previousRenderState.chassis,
+                    currentRenderState && currentRenderState.chassis, renderAlpha);
+                const cameraBikeX = renderChassis ? renderChassis.x : cx;
+                const cameraBikeY = renderChassis ? renderChassis.y : cy;
+                let tcx = cameraBikeX - ((canvas.width * 0.3) / zoom);
+                cameraX += (tcx - cameraX) * cameraBlend;
 
-                let groundLevel = getTerrainY(cx) - 100;
-                let tcy = (canvas.height * 0.55) - Math.max(chassis.getPosition().y * SCALE, groundLevel);
-                cameraY += (tcy - cameraY) * 0.1;
+                let groundLevel = getTerrainY(cameraBikeX) - 100;
+                let tcy = (canvas.height * 0.55) - Math.max(cameraBikeY, groundLevel);
+                cameraY += (tcy - cameraY) * cameraBlend;
 
                 generateTerrain(); cleanupTerrain(); updateParticles(dt);
                 updateBirds(dt);
@@ -1182,16 +1237,27 @@
                 if (gameState !== 'gameover' && chassis) {
                     drawParticles(); 
                     ctx.save(); 
-                    ctx.translate(chassis.getPosition().x * SCALE, chassis.getPosition().y * SCALE); 
-                    ctx.rotate(chassis.getAngle());
+                    const renderAlpha = Math.max(0, Math.min(1, physicsAccumulator / FIXED_DT));
+                    const renderChassis = interpolateBody(previousRenderState && previousRenderState.chassis,
+                        currentRenderState && currentRenderState.chassis, renderAlpha) || {
+                            x: chassis.getPosition().x * SCALE,
+                            y: chassis.getPosition().y * SCALE,
+                            angle: chassis.getAngle()
+                        };
+                    ctx.translate(renderChassis.x, renderChassis.y);
+                    ctx.rotate(renderChassis.angle);
                     
                     if (bikeImage.complete && bikeImage.naturalWidth !== 0) {
                         ctx.drawImage(bikeImage, -45, -45, 90, 54);
                     }
                     
-                    ctx.restore(); 
-                    drawWheel(wheelRear); 
-                    drawWheel(wheelFront);
+                    ctx.restore();
+                    const renderRear = interpolateBody(previousRenderState && previousRenderState.rear,
+                        currentRenderState && currentRenderState.rear, renderAlpha);
+                    const renderFront = interpolateBody(previousRenderState && previousRenderState.front,
+                        currentRenderState && currentRenderState.front, renderAlpha);
+                    drawWheel(wheelRear, renderRear);
+                    drawWheel(wheelFront, renderFront);
                 }
                 ctx.restore(); 
                 
@@ -1207,4 +1273,4 @@
     checkOrientation(); resizeCanvas(); update();
 </script>
 </body>
-            </html>
+    </html>
